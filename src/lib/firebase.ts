@@ -1,20 +1,18 @@
 // filepath: src/lib/firebase.ts
-// Firebase қосылымы — конфиг .env файлынан оқылады (қауіпсіз).
-// Кілттерді .env файлға қою керек (.env.example үлгісін қараңыз).
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyADPiGZ3LgDXrVrNzioB5smQulMJxZjY-8",
+  authDomain: "gen-lang-client-0603462845.firebaseapp.com",
+  projectId: "gen-lang-client-0603462845",
+  storageBucket: "gen-lang-client-0603462845.firebasestorage.app",
+  messagingSenderId: "351331881464",
+  appId: "1:351331881464:web:ed7b4ab707d72cfbcf060d"
 };
 
-// Firebase қосулы ма (кілттер бар ма) — тексеру
+// Firebase қосулы ма — тексеру
 export const isFirebaseConfigured = (): boolean =>
   Boolean(config.apiKey && config.projectId && config.appId);
 
@@ -22,13 +20,17 @@ let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 
-// Firebase-ті бір рет іске қосу (кілттер болса ғана)
+// Firebase-ті іске қосу
 function ensureInit(): boolean {
-  if (!isFirebaseConfigured()) return false;
   if (!app) {
-    app = initializeApp(config);
-    authInstance = getAuth(app);
-    dbInstance = getFirestore(app);
+    try {
+      app = initializeApp(config);
+      authInstance = getAuth(app);
+      dbInstance = getFirestore(app);
+    } catch (error) {
+      console.error("Firebase initialization error:", error);
+      return false;
+    }
   }
   return true;
 }
