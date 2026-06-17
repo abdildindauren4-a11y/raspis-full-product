@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ҚАРАҢҒЫ ТЕМА (әдепкі) */
+  :root, .dark {
+    /* CORPORATE NAVY — қою тема */
+    --bg-app: #0F1722;
+    --bg-surface: #1A2535;
+    --bg-card: 26, 37, 53;
+    --bg-input: #1F2D40;
+    --text-strong: #F2F6FB;
+    --text-soft: #C5D0DE;
+    --text-muted: #8595A8;
+    --text-faint: #5A6B80;
+    --border-soft: 120, 145, 175;
+    --border-alpha: 0.18;
+    --accent: #4A90D9;
+    --accent-2: #5B9BD5;
+    --glass-bg: 26, 37, 53;
+    --glass-alpha: 0.95;
+    --glass-strong-alpha: 1;
+
+    --background: var(--bg-app);
+    --foreground: var(--text-strong);
+    --card: #1A2535;
+    --card-foreground: #F2F6FB;
+    --popover: #1A2535;
+    --popover-foreground: #F2F6FB;
+    --primary: #4A90D9;
+    --primary-foreground: #FFFFFF;
+    --secondary: #5B9BD5;
+    --secondary-foreground: #FFFFFF;
+    --muted: #1F2D40;
+    --muted-foreground: #8595A8;
+    --accent-color: #1F2D40;
+    --accent-foreground: #C5D0DE;
+    --destructive: #DC3545;
+    --destructive-foreground: #FFFFFF;
+    --border: rgba(120, 145, 175, 0.18);
+    --input: #1F2D40;
+    --ring: #4A90D9;
+    --radius: 0.375rem;
+    --chart-1: #4A90D9;
+    --chart-2: #5B9BD5;
+    --chart-3: #2E8B57;
+    --chart-4: #D9A441;
+    --chart-5: #DC3545;
+    --status-good: #4ADE80;
+    --status-warn: #FBBF24;
+    --status-bad: #F87171;
+  }
+
+  /* CORPORATE NAVY — ашық тема */
+  .light {
+    --bg-app: #EEF2F7;
+    --bg-surface: #FFFFFF;
+    --bg-card: 255, 255, 255;
+    --bg-input: #FFFFFF;
+    --text-strong: #16202E;
+    --text-soft: #3A4655;
+    --text-muted: #647285;
+    --text-faint: #94A3B5;
+    --border-soft: 30, 58, 95;
+    --border-alpha: 0.14;
+    --accent: #1E3A5F;
+    --accent-2: #2C5282;
+    --glass-bg: 255, 255, 255;
+    --glass-alpha: 1;
+    --glass-strong-alpha: 1;
+
+    --background: var(--bg-app);
+    --foreground: var(--text-strong);
+    --card: #FFFFFF;
+    --card-foreground: #16202E;
+    --popover: #FFFFFF;
+    --muted: #F0F4F9;
+    --muted-foreground: #647285;
+    --accent-color: #F0F4F9;
+    --accent-foreground: #3A4655;
+    --primary: #1E3A5F;
+    --primary-foreground: #FFFFFF;
+    --input: #FFFFFF;
+    --border: rgba(30, 58, 95, 0.14);
+    --ring: #1E3A5F;
+    --status-good: #16A34A;
+    --status-warn: #CA8A04;
+    --status-bad: #DC2626;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background: var(--bg-app);
+    color: var(--text-strong);
+    @apply antialiased;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h1, h2, h3 {
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  input, textarea, select {
+    background: var(--bg-input);
+    border: 1px solid rgba(var(--border-soft), var(--border-alpha));
+    color: var(--text-strong);
+    @apply rounded-xl px-4 py-3 transition-all duration-200;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--text-faint);
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+    outline: none;
+  }
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKtdYUFPxC-9lJYAjP5CY.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('https://fonts.gstatic.com/s/ibmplexsans/v19/zYX9KVElMYYaJe8bpLHnCwDKjQ76AIxsdP3pBmtF8A.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('https://fonts.gstatic.com/s/ibmplexsans/v19/zYX9KVElMYYaJe8bpLHnCwDKjVj6AIxsdP3pBmtF8A.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@layer utilities {
+  /* Корпоративтік карта — таза фон, нақты жиек, жұмсақ көлеңке (glassmorphism ЖОҚ) */
+  .glass {
+    background: rgba(var(--glass-bg), var(--glass-alpha));
+    border: 1px solid rgba(var(--border-soft), var(--border-alpha));
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .glass-strong {
+    background: rgba(var(--glass-bg), var(--glass-strong-alpha));
+    border: 1px solid rgba(var(--border-soft), var(--border-alpha));
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  }
+
+  /* Семантикалық түс утилиталары — темаға қарай өзгереді */
+  .bg-app { background: var(--bg-app); }
+  .bg-surface { background: var(--bg-surface); }
+  .bg-card-c { background: rgba(var(--bg-card), 1); }
+  .bg-input-c { background: var(--bg-input); }
+  .text-strong-c { color: var(--text-strong); }
+  .text-soft-c { color: var(--text-soft); }
+  .text-muted-c { color: var(--text-muted); }
+  .text-faint-c { color: var(--text-faint); }
+  .border-soft-c { border-color: rgba(var(--border-soft), var(--border-alpha)); }
+  .accent-c { color: var(--accent); }
+  /* Статус түстері — екі темада да айқын оқылады */
+  .status-good { color: var(--status-good); }
+  .status-warn { color: var(--status-warn); }
+  .status-bad { color: var(--status-bad); }
+  .bg-accent-c { background: var(--accent); }
+
+  .gradient-text {
+    color: var(--accent);
+    -webkit-text-fill-color: var(--accent);
+  }
+
+  .gradient-primary {
+    background: var(--accent);
+  }
+
+  .gradient-success {
+    background: #2E8B57;
+  }
+
+  .gradient-warning {
+    background: #D9A441;
+  }
+
+  .gradient-error {
+    background: #DC3545;
+  }
+
+  .glow-blue {
+    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.15);
+  }
+
+  .glow-purple {
+    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.15);
+  }
+
+  .glow-green {
+    box-shadow: 0 2px 8px rgba(46, 139, 87, 0.15);
+  }
+
+  .text-shadow-glow {
+    text-shadow: none;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(31, 40, 51, 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(0, 198, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 198, 255, 0.5);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(0, 198, 255, 0.3); }
+  50% { box-shadow: 0 4px 30px rgba(0, 198, 255, 0.5); }
+}
+
+@keyframes border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(31,40,51,0.6) 25%, rgba(42,52,65,0.8) 50%, rgba(31,40,51,0.6) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-border-flow {
+  background-size: 200% 200%;
+  animation: border-flow 4s linear infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out forwards;
+}

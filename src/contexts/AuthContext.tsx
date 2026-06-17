@@ -1,0 +1,79 @@
+// filepath: src/contexts/AuthContext.tsx
+// Google аутентификация контексті — кіру, шығу, пайдаланушы күйі.
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import { registerUser, type Role, type UserRecord } from "@/lib/roles";
+
+interface AuthState {
+  user: User | null;
+  loading: boolean;
+  configured: boolean; // Firebase кілттері қосылған ба
+  role: Role;          // пайдаланушы рөлі (admin/paid/free)
+  record: UserRecord | null; // толық жазба (бұлттан)
+  signInGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  error: string;
+}
+
+const AuthContext = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [role, setRole] = useState<Role>("free");
+  const [record, setRecord] = useState<UserRecord | null>(null);
+  const configured = isFirebaseConfigured();
+
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    if (!auth) { setLoading(false); return; }
+    // Пайдаланушы кіру/шығу күйін бақылау
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        // рөлін бұлттан алу/тіркеу
+        const rec = await registerUser(u.uid, u.email || "", u.displayName || u.email?.split("@")[0] || "Пайдаланушы");
+        if (rec) { setRole(rec.role); setRecord(rec); }
+      } else {
+        setRole("free"); setRecord(null);
+      }
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  const signInGoogle = async () => {
+    setError("");
+    const auth = getFirebaseAuth();
+    if (!auth) { setError("Firebase қосылмаған"); return; }
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      const code = (e as { code?: string })?.code || "";
+      if (code === "auth/popup-closed-by-user") setError("Кіру тоқтатылды");
+      else if (code === "auth/network-request-failed") setError("Интернет байланысы жоқ");
+      else if (code === "auth/unauthorized-domain") setError("Бұл домен Firebase-те рұқсат етілмеген");
+      else setError("Кіру қатесі: " + code);
+    }
+  };
+
+  const logout = async () => {
+    const auth = getFirebaseAuth();
+    if (auth) await signOut(auth);
+    setUser(null); setRole("free"); setRecord(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, configured, role, record, signInGoogle, logout, error }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth(): AuthState {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
