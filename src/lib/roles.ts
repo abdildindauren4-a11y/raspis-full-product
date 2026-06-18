@@ -151,54 +151,15 @@ export async function loadPermissions(): Promise<Record<Feature, Role>> {
   }
 }
 
-// ── "Өзіне рөл алу" функциясы (уақытша, бастапқы орнату үшін) ──
-// Қосулы болса, кез келген кірген пайдаланушы өзіне рөл бере алады.
-// Әкімші мұны жабады (қауіпсіздік үшін).
-// Әдепкі: ҚОСУЛЫ (бірінші админ өзін орнату үшін). Админ жапқан соң — өшеді.
-
-// Қосқыш күйін оқу (болмаса — қосулы деп есептейміз)
+// ── "Өзіне рөл алу" функциясы (ҚАУІПСІЗДІК ҮШІН ӨШІРІЛДІ) ──
 export async function loadSelfRoleEnabled(): Promise<boolean> {
-  const db = getDb();
-  if (!db) return true; // Firestore жоқ — әдепкі қосулы
-  try {
-    const snap = await getDoc(doc(db, "config", "selfRole"));
-    if (!snap.exists()) return true; // әлі орнатылмаған — қосулы
-    return Boolean((snap.data() as { enabled?: boolean }).enabled);
-  } catch {
-    return true;
-  }
+  return false; // әрқашан жабық
 }
 
-// Қосқышты өзгерту (тек админ шақырады)
 export async function setSelfRoleEnabled(enabled: boolean): Promise<boolean> {
-  const db = getDb();
-  if (!db) return false;
-  try {
-    await setDoc(doc(db, "config", "selfRole"), { enabled });
-    return true;
-  } catch {
-    return false;
-  }
+  return false; // өзгертуге болмайды
 }
 
-// Пайдаланушы өзіне рөл береді (тек қосқыш қосулы болса жұмыс істейді)
 export async function claimRole(uid: string, role: Role, email = "", name = ""): Promise<boolean> {
-  const enabled = await loadSelfRoleEnabled();
-  if (!enabled) return false; // функция жабық
-  const db = getDb();
-  if (!db) return false;
-  try {
-    const ref = doc(db, "users", uid);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      await setDoc(ref, { ...snap.data(), role });
-    } else {
-      // жазба жоқ — жаңасын жасаймыз
-      const rec: UserRecord = { uid, email, name: name || "Пайдаланушы", role, createdAt: Date.now(), lastSeen: Date.now() };
-      await setDoc(ref, rec);
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return false; // рөл алу мүмкін емес
 }
