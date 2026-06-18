@@ -1,11 +1,12 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Check, Loader2, Settings2 } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Check, Loader2, Settings2, AlertTriangle } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getAllUsers, setUserRole, loadPermissions, savePermissions,
+  loadSelfRoleEnabled, setSelfRoleEnabled,
   DEFAULT_PERMISSIONS, type UserRecord, type Role, type Feature,
 } from "@/lib/roles";
 
@@ -34,15 +35,22 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [savedMsg, setSavedMsg] = useState("");
   const [tab, setTab] = useState<"users" | "permissions">("users");
+  const [selfRoleOn, setSelfRoleOn] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [u, p] = await Promise.all([getAllUsers(), loadPermissions()]);
-      setUsers(u); setPerms(p);
+      const [u, p, sr] = await Promise.all([getAllUsers(), loadPermissions(), loadSelfRoleEnabled()]);
+      setUsers(u); setPerms(p); setSelfRoleOn(sr);
       setLoading(false);
     })();
   }, []);
+
+  const toggleSelfRole = async () => {
+    const next = !selfRoleOn;
+    const ok = await setSelfRoleEnabled(next);
+    if (ok) setSelfRoleOn(next);
+  };
 
   // Тек админге рұқсат
   if (role !== "admin") {
@@ -108,6 +116,29 @@ export default function AdminPage() {
             </div>
           </GlassCard>
         ))}
+      </div>
+
+      {/* "Өзіне рөл алу" қосқышы — қауіпсіздік үшін маңызды */}
+      <div className={`rounded-xl border p-4 ${selfRoleOn ? "border-red-500/40 bg-[rgba(229,115,115,0.08)]" : "border-soft-c bg-input-c"}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex gap-2.5">
+            <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${selfRoleOn ? "status-bad" : "text-faint-c"}`} />
+            <div>
+              <p className="text-sm font-medium text-strong-c">«Өзіне рөл алу» функциясы</p>
+              <p className="text-xs text-muted-c mt-0.5">
+                {selfRoleOn
+                  ? "ҚОСУЛЫ — кез келген кірген адам өзіне әкімші бола алады. Орнатуды бітірген соң ДЕРЕУ жабыңыз!"
+                  : "Жабық — рөлдерді тек осы панельден бересіз (қауіпсіз)."}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleSelfRole}
+            className={`w-12 h-7 rounded-full shrink-0 transition-all relative ${selfRoleOn ? "bg-red-500" : "bg-[rgba(127,127,127,0.3)]"}`}
+          >
+            <div className={`w-6 h-6 rounded-full bg-white absolute top-0.5 transition-all ${selfRoleOn ? "left-[22px]" : "left-0.5"}`} />
+          </button>
+        </div>
       </div>
 
       {/* Қойындылар */}

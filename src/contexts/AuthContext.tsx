@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import { registerUser, type Role, type UserRecord } from "@/lib/roles";
+import { registerUser, ADMIN_EMAILS, type Role, type UserRecord } from "@/lib/roles";
 
 interface AuthState {
   user: User | null;
@@ -33,9 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        // рөлін бұлттан алу/тіркеу
+        // Әкімші email-і ӘРҚАШАН админ (Firestore жұмыс істесе де, істемесе де)
+        const email = (u.email || "").toLowerCase();
+        if (ADMIN_EMAILS.includes(email)) {
+          setRole("admin");
+        }
+        // рөлін бұлттан алу/тіркеу (Firestore істесе — нақты рөл, әйтпесе жоғарыдағы)
         const rec = await registerUser(u.uid, u.email || "", u.displayName || u.email?.split("@")[0] || "Пайдаланушы");
         if (rec) { setRole(rec.role); setRecord(rec); }
+        else if (ADMIN_EMAILS.includes(email)) {
+          // Firestore сәтсіз, бірақ админ email — жергілікті админ жазба
+          setRecord({ uid: u.uid, email: u.email || "", name: u.displayName || "Әкімші", role: "admin", createdAt: Date.now(), lastSeen: Date.now() });
+        }
       } else {
         setRole("free"); setRecord(null);
       }
@@ -47,7 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInGoogle = async () => {
     setError("");
     const auth = getFirebaseAuth();
-    if (!auth) { setError("Firebase қосылмаған"); return; }
+    if (!auth) {
+      setError("Firebase кілттері оқылмады. Dev серверді қайта іске қосыңыз (Ctrl+C → npm run dev).");
+      return;
+    }
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (e) {

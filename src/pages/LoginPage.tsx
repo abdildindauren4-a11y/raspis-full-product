@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function LoginPage() {
   const login = useData((s) => s.login);
   const navigate = useNavigate();
-  const { user, signInGoogle, error, loading } = useAuth();
+  const { user, signInGoogle, error, loading, configured } = useAuth();
 
   // Google арқылы кіргенде — басты бетке өту
   useEffect(() => {
@@ -51,11 +51,19 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold text-strong-c mb-1">Қош келдіңіз!</h2>
           <p className="text-xs text-muted-c mb-6">Жалғастыру үшін Google аккаунтыңызбен кіріңіз</p>
 
+          {!configured && (
+            <div className="rounded-lg bg-[rgba(229,115,115,0.1)] border border-red-500/30 p-3 mb-4">
+              <p className="text-xs status-bad">
+                Firebase кілттері оқылмады. Dev серверді қайта іске қосыңыз: терминалда <span className="font-mono">Ctrl+C</span>, содан <span className="font-mono">npm run dev</span>.
+              </p>
+            </div>
+          )}
+
           {/* Google логин батырмасы */}
           <button
             onClick={signInGoogle}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-soft-c bg-surface-c hover:bg-[rgba(127,127,127,0.08)] transition-all font-medium text-strong-c disabled:opacity-50"
+            disabled={loading || !configured}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-soft-c bg-surface-c hover:bg-[rgba(127,127,127,0.08)] transition-all font-medium text-strong-c disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin accent-c" />
