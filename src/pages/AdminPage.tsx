@@ -46,10 +46,18 @@ export default function AdminPage() {
     })();
   }, []);
 
+  const [toggleMsg, setToggleMsg] = useState("");
   const toggleSelfRole = async () => {
     const next = !selfRoleOn;
+    setSelfRoleOn(next); // UI бірден жаңарады (күтпейміз)
+    setToggleMsg("");
     const ok = await setSelfRoleEnabled(next);
-    if (ok) setSelfRoleOn(next);
+    if (!ok) {
+      // Firestore жаза алмады — кері қайтарамыз әрі хабарлаймыз
+      setSelfRoleOn(!next);
+      setToggleMsg("Сақталмады. Firestore «config» ережесін тексеріңіз.");
+      setTimeout(() => setToggleMsg(""), 4000);
+    }
   };
 
   // Тек админге рұқсат
@@ -139,6 +147,7 @@ export default function AdminPage() {
             <div className={`w-6 h-6 rounded-full bg-white absolute top-0.5 transition-all ${selfRoleOn ? "left-[22px]" : "left-0.5"}`} />
           </button>
         </div>
+        {toggleMsg && <p className="text-xs status-bad mt-2">{toggleMsg}</p>}
       </div>
 
       {/* Қойындылар */}

@@ -17,6 +17,7 @@ export const seedSettings: Settings = {
   fatigue: { g14: 25, g59: 35, g1011: 45 },
   coeffs: { hard: 4, medium: 3, easy: 2 },
   relax: { extraSlots: 2, extraScore: 20, allowFatigue: true, allowBlacklist: true, allowDigital: true },
+  teacherComfort: 0,
 };
 
 const sub = (name: string, score: number, coeff: number, ideal: number[], room: Subject["room"] = null, o: Partial<Subject> = {}): Subject => ({

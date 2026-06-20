@@ -52,6 +52,14 @@ export interface Settings {
     allowBlacklist: boolean; // қара тізім жұбына (Қазақ+Орыс қатар) рұқсат
     allowDigital: boolean; // информатикадан кейін жеңіл пәнге рұқсат
   };
+  // Мұғалім жайлылығы деңгейі (терезелерді азайту күші):
+  // 1 = қалыпты (сапа басымдық), 2 = жоғары (теңдестірілген),
+  // 3 = ең жоғары (терезе минимум, өзара реттеумен сапа сақталады).
+  // Мұғалім жайлылығы (swap деңгейі) — терезелерді азайту күші:
+  // 0 = өшірулі (тез, сапа максимум), 1 = жұмсақ (қауіпсіз),
+  // 2 = орташа (теңдестірілген), 3 = агрессивті (терезе минимум).
+  // Swap физика заңын (конфликт, тесік, бір күн бір пән) ЕШҚАШАН бұзбайды.
+  teacherComfort?: 0 | 1 | 2 | 3;
 }
 export interface AlgoInput {
   school: School; subjects: Subject[]; classes: Klass[];
@@ -955,11 +963,233 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (!fixed) break;
   }
 
-  /* Мұғалім терезесі: rebuildDay (бірінші тесіксіз шешім) сабақтарды әр күні
-     1-слоттан тығыз орналастырады, бұл мұғалім терезесін де табиғи түрде
-     азайтады. Терезені қосымша swap/жылжытумен азайту сынап көрілді, бірақ
-     ол сынып тесіксіздігін бұзатындықтан (каскад) қолданылмайды:
-     СЫНЫП ТЕСІКСІЗДІГІ — басымдық. */
+  /* ЭТАП 7.7 — МІНСІЗ SWAP: мұғалім терезелерін ақылды азайту (4 деңгей).
+     Деңгей 0: өшірулі (тез, сапа максимум).
+     Деңгей 1: жұмсақ — терезе азайса ӘРІ сапа түспесе.
+     Деңгей 2: орташа — терезе азайса, сапа сәл түссе де (1.5×).
+     Деңгей 3: агрессивті — терезені барынша азайтады (3×).
+
+     SWAP СЫНЫПАРАЛЫҚ: екі түрлі сынып сабақтарын да ауыстыра алады
+     (бірдей слот-күнде емес, кез келген екі қарапайым сабақ).
+
+     ЕРЕЖЕЛЕРГЕ БАҒЫНУ:
+     • ЕШҚАШАН бұзылмайды: мұғалім/кабинет/сынып конфликті, СЫНЫП ТЕСІГІ,
+       бір күн бір пән, мұғалім ауысымы/диапазоны/қолжетімсіздігі.
+     • Деңгеймен реттеледі: идеал орын (сапа баллы).
+
+     ЖЫЛДАМДЫҚ: инкременталды — swap тек 2 ұяны жаңартады (толық қайта
+     құрусыз). Тексеру де жергілікті. Сондықтан көп swap-ты тез өңдейді.
+
+     МІНСІЗДІК: swap қабылданбаса, дәл кері ауыстырып, күй бұзылмайды. */
+  const comfortLevel = settings.teacherComfort ?? 0;
+
+  if (comfortLevel >= 1) {
+    // Мұғалімнің бір күндегі терезе саны (tm матрицасынан — жылдам)
+    const tWindows = (tid: string, sh: number, day: number): number => {
+      const row = tm[tid]?.[sh]?.[day];
+      if (!row) return 0;
+      let first = -1, last = -1, cnt = 0;
+      for (let sl = 1; sl <= 8; sl++) {
+        if (row[sl]) { if (first < 0) first = sl; last = sl; cnt++; }
+      }
+      if (cnt < 2) return 0;
+      return (last - first + 1) - cnt; // аралықтағы бос ұялар
+    };
+
+    // Сыныптың бір күнде тесігі бар ма (slots-тан — сенімді)
+    const cHasGap = (cid: string, day: number): boolean => {
+      const occ: boolean[] = new Array(9).fill(false);
+      for (const o of slots) {
+        if (o.classId === cid && o.day === day && (!o.groupId || o.groupId === "Г1")) occ[o.slot] = true;
+      }
+      let last = 0;
+      for (let sl = 1; sl <= 8; sl++) if (occ[sl]) last = sl;
+      for (let sl = 1; sl <= last; sl++) if (!occ[sl]) return true;
+      return false;
+    };
+
+    // Бір ұяны матрицада қою/алу (инкременталды)
+    const setCell = (o: Slot, on: boolean) => {
+      const v = on ? o.classId : null;
+      tm[o.teacherId][o.shift][o.day][o.slot] = v;
+      if (gym && o.roomId === gym.id) {
+        const arr = gymOcc[o.shift][o.day][o.slot];
+        if (on) arr.push(o.classId); else { const i = arr.indexOf(o.classId); if (i >= 0) arr.splice(i, 1); }
+      } else {
+        rm[o.roomId][o.shift][o.day][o.slot] = v;
+      }
+      if (!o.groupId || o.groupId === "Г1") {
+        cm[o.classId][o.day][o.slot] = on ? o.subjectId : null;
+        if (on) ds[o.classId][o.day].add(o.subjectId); else ds[o.classId][o.day].delete(o.subjectId);
+      }
+      scoreCache[o.classId] = null;
+    };
+
+    // Слоттың жаңа орында конфликтсіз бе (матрицада тексеру — жылдам)
+    const cellFree = (cls: Klass, tid: string, subj: Subject, sh: number, day: number, slot: number, roomId: string, ignoreA: Slot, ignoreB: Slot): boolean => {
+      // мұғалім бос па
+      const tCell = tm[tid][sh][day][slot];
+      if (tCell && tCell !== ignoreA.classId && tCell !== ignoreB.classId) return false;
+      // дәлірек: сол ұяда басқа сабақ (ignore-лардан өзге) бар ма
+      const occupied = slots.some((o) => o !== ignoreA && o !== ignoreB && o.day === day && o.slot === slot && o.shift === sh && o.teacherId === tid && !o.groupId);
+      if (occupied) return false;
+      // сынып бос па
+      const clsOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.classId === cls.id && o.day === day && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
+      if (clsOcc) return false;
+      // кабинет бос па
+      if (gym && roomId === gym.id) {
+        const cnt = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId).length;
+        if (cnt >= (gym.gymMax ?? 2)) return false;
+      } else {
+        const rCell = rm[roomId][sh][day][slot];
+        if (rCell && rCell !== ignoreA.classId && rCell !== ignoreB.classId) {
+          const rOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.roomId === roomId && o.day === day && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
+          if (rOcc) return false;
+        }
+      }
+      // бір күн бір пән (сол сынып, сол күн, сол пән — ignore-лардан өзге)
+      const dup = slots.some((o) => o !== ignoreA && o !== ignoreB && o.classId === cls.id && o.day === day && o.subjectId === subj.id && (!o.groupId || o.groupId === "Г1"));
+      if (dup) return false;
+      // мұғалім ауысым/диапазон/қолжетімсіздік
+      const t = T[tid];
+      if (!t || cls.grade < t.gradeMin || cls.grade > t.gradeMax) return false;
+      if (t.shift !== 3 && t.shift !== sh) return false;
+      if (t.unavailable.includes(`${day}-${slot}`)) return false;
+      // слот сынып ауысымына сай ма
+      if (sh !== cls.shift && t.shift !== 3) return false;
+      // Қара тізім (қатар келмейтін пәндер) — деңгей 1-2-де ҚАТАҢ сақталады.
+      // Деңгей 3-те жұмсартылады (терезеге басымдық).
+      if (comfortLevel <= 2) {
+        const prev = slot > 1 ? cm[cls.id][day][slot - 1] : null;
+        const next = slot < 8 ? cm[cls.id][day][slot + 1] : null;
+        for (const adj of [prev, next]) {
+          if (adj && adj !== ignoreA.subjectId && adj !== ignoreB.subjectId) {
+            const adjSubj = S[adj];
+            if (adjSubj && (subj.black.includes(adjSubj.name) || adjSubj.black.includes(subj.name))) return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    // Күн ішінде сынып тесіксіздігін тексеру (slots-та, swap болжамымен)
+    const classGapAfter = (cid: string, day: number): boolean => {
+      const occ: boolean[] = new Array(9).fill(false);
+      for (const o of slots) {
+        if (o.classId === cid && o.day === day && (!o.groupId || o.groupId === "Г1")) occ[o.slot] = true;
+      }
+      let last = 0;
+      for (let sl = 1; sl <= 8; sl++) if (occ[sl]) last = sl;
+      for (let sl = 1; sl <= last; sl++) if (!occ[sl]) return true; // ортада бос — тесік
+      return false;
+    };
+
+    /* МІНСІЗ SWAP: a мен b сабақтарын ауыстырады (сыныпаралық та).
+       Инкременталды: 2 ұя ғана жаңарады. Қабылданбаса — кері. */
+    const trySwap = (a: Slot, b: Slot): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      if (a === b) return false;
+      if (a.day === b.day && a.slot === b.slot && a.shift === b.shift) return false; // бір ұя
+      // бірдей сынып+пән мағынасыз (бір күн бір пән бұзылмас үшін де)
+      if (a.classId === b.classId && a.subjectId === b.subjectId) return false;
+
+      const clsA = C[a.classId], clsB = C[b.classId];
+      const subjA = S[a.subjectId], subjB = S[b.subjectId];
+
+      // әсер ететін мұғалім-күндер (терезе өлшеу)
+      const affected = [
+        { tid: a.teacherId, sh: a.shift, day: a.day }, { tid: a.teacherId, sh: a.shift, day: b.day },
+        { tid: b.teacherId, sh: b.shift, day: b.day }, { tid: b.teacherId, sh: b.shift, day: a.day },
+      ];
+      const uniq = new Map<string, { tid: string; sh: number; day: number }>();
+      for (const p of affected) uniq.set(`${p.tid}|${p.sh}|${p.day}`, p);
+      const aff = [...uniq.values()];
+      const wBefore = aff.reduce((s, p) => s + tWindows(p.tid, p.sh, p.day), 0);
+      const cBefore = a.score + b.score;
+
+      // бастапқы орындар
+      const A = { day: a.day, slot: a.slot, room: a.roomId, score: a.score, shift: a.shift };
+      const B = { day: b.day, slot: b.slot, room: b.roomId, score: b.score, shift: b.shift };
+
+      // А B-ның орнына, B А-ның орнына сыя ма (slots-та тексеру, екеуін елемей)
+      // Алдымен матрицадан екеуін аламыз
+      setCell(a, false); setCell(b, false);
+
+      // А → B орны (B-ның ауысымында), B → А орны
+      const aShiftNew = clsA.shift, bShiftNew = clsB.shift; // сынып ауысымы тұрақты
+      // кабинет: А үшін B орнында, B үшін А орнында
+      const roomA = findRoom(clsA, subjA, B.day, B.slot);
+      const roomB = findRoom(clsB, subjB, A.day, A.slot);
+      const restore = () => { setCell(a, true); setCell(b, true); };
+      if (!roomA || !roomB) { restore(); return false; }
+
+      const okA = cellFree(clsA, a.teacherId, subjA, aShiftNew, B.day, B.slot, roomA, a, b);
+      const okB = cellFree(clsB, b.teacherId, subjB, bShiftNew, A.day, A.slot, roomB, a, b);
+      if (!okA || !okB) { restore(); return false; }
+
+      // ── Ауыстырамыз (slots объектілерін + матрица) ──
+      a.day = B.day; a.slot = B.slot; a.roomId = roomA; a.shift = aShiftNew; a.score = pScore(subjA, B.slot, settings);
+      b.day = A.day; b.slot = A.slot; b.roomId = roomB; b.shift = bShiftNew; b.score = pScore(subjB, A.slot, settings);
+      setCell(a, true); setCell(b, true);
+
+      // Сынып тесігі (әсер еткен сыныптар мен күндер)
+      const gap = classGapAfter(a.classId, a.day) || classGapAfter(a.classId, B.day) ||
+                  classGapAfter(b.classId, b.day) || classGapAfter(b.classId, A.day) ||
+                  classGapAfter(a.classId, A.day) || classGapAfter(b.classId, B.day);
+      if (gap) {
+        // қайтару
+        setCell(a, false); setCell(b, false);
+        a.day = A.day; a.slot = A.slot; a.roomId = A.room; a.shift = A.shift; a.score = A.score;
+        b.day = B.day; b.slot = B.slot; b.roomId = B.room; b.shift = B.shift; b.score = B.score;
+        setCell(a, true); setCell(b, true);
+        return false;
+      }
+
+      const wAfter = aff.reduce((s, p) => s + tWindows(p.tid, p.sh, p.day), 0);
+      const windowGain = wBefore - wAfter;
+      const scoreLoss = cBefore - (a.score + b.score);
+      let accept = false;
+      if (comfortLevel === 1) accept = windowGain > 0 && scoreLoss <= 0;
+      else if (comfortLevel === 2) accept = windowGain > 0 && scoreLoss <= windowGain * 1.5;
+      else accept = windowGain > 0 && scoreLoss <= windowGain * 3;
+
+      if (accept) return true;
+      // қайтару
+      setCell(a, false); setCell(b, false);
+      a.day = A.day; a.slot = A.slot; a.roomId = A.room; a.shift = A.shift; a.score = A.score;
+      b.day = B.day; b.slot = B.slot; b.roomId = B.room; b.shift = B.shift; b.score = B.score;
+      setCell(a, true); setCell(b, true);
+      return false;
+    };
+
+    // ── Өту циклдары ──
+    const passes = comfortLevel === 3 ? 5 : comfortLevel === 2 ? 4 : 3;
+    prog(88, 4);
+    // барлық қарапайым сабақтар (сыныпаралық swap үшін)
+    for (let pass = 0; pass < passes; pass++) {
+      let improved = 0;
+      const movable = slots.filter((o) => !o.groupId && !o.dpart && !o.locked);
+      for (let i = 0; i < movable.length; i++) {
+        const a = movable[i];
+        // тек терезесі бар мұғалім-күндердегі сабақтарға басымдық (жылдамдату)
+        if (tWindows(a.teacherId, a.shift, a.day) === 0) continue;
+        for (let j = 0; j < movable.length; j++) {
+          if (i === j) continue;
+          const b = movable[j];
+          if (a.day === b.day && a.slot === b.slot) continue;
+          if (trySwap(a, b)) { improved++; break; }
+        }
+      }
+      if (improved === 0) break;
+    }
+
+    // Swap-тан кейін тесіксіздікті қайта кепілдейміз (сақтық)
+    for (const c of targetClasses) {
+      for (let day = 1; day <= 5; day++) {
+        if (cHasGap(c.id, day)) rebuildDay(c, day, false);
+      }
+    }
+  }
 
   /* Апта балансын түзету: Жұманың жеңіл сабағын Сәрсенбіге жылжыту */
   for (const c of targetClasses) {
@@ -988,6 +1218,20 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         if (!ok) place(o); else break;
       }
       if (!moved) break;
+    }
+  }
+
+  /* Соңғы тесіксіздік кепілі: апта балансы немесе swap тесік қалдырса,
+     әр сыныптың әр күнін қайта тығыздаймыз (1-слоттан бастап). */
+  for (const c of targetClasses) {
+    for (let day = 1; day <= 5; day++) {
+      const occ: boolean[] = new Array(9).fill(false);
+      for (const o of slots) if (o.classId === c.id && o.day === day && (!o.groupId || o.groupId === "Г1")) occ[o.slot] = true;
+      let last = 0;
+      for (let sl = 1; sl <= 8; sl++) if (occ[sl]) last = sl;
+      let hasGap = false;
+      for (let sl = 1; sl <= last; sl++) if (!occ[sl]) { hasGap = true; break; }
+      if (hasGap) rebuildDay(c, day, false);
     }
   }
 

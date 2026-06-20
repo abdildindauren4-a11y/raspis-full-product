@@ -1,7 +1,7 @@
 // filepath: src/pages/GeneratePage.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock, Users } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG, inputCls } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
@@ -226,6 +226,36 @@ export default function GeneratePage() {
                 ))}
               </div>
             )}
+
+            {/* Мұғалім жайлылығы (SWAP деңгейі) — терезелерді азайту */}
+            <div className="rounded-xl border border-soft-c bg-input-c p-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 accent-c" />
+                <p className="text-sm font-medium text-strong-c">Мұғалім жайлылығы (терезе азайту)</p>
+              </div>
+              <p className="text-xs text-muted-c mb-3">Сабақтарды ауыстырып, мұғалім бос сабақтарын (терезе) азайтады. Жоғары деңгей — аз терезе, бірақ сәл баяу.</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {([
+                  [0, "Өшірулі", "тез"],
+                  [1, "Жұмсақ", "қауіпсіз"],
+                  [2, "Орташа", "ұсынылады"],
+                  [3, "Макс", "ең аз терезе"],
+                ] as const).map(([lvl, label, hint]) => {
+                  const active = (data.settings.teacherComfort ?? 0) === lvl;
+                  return (
+                    <button
+                      key={lvl}
+                      onClick={() => data.setSettings({ teacherComfort: lvl as 0 | 1 | 2 | 3 })}
+                      className={`py-2 px-1 rounded-lg text-center transition-all ${active ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
+                    >
+                      <p className="text-xs font-semibold">{label}</p>
+                      <p className="text-[10px] mt-0.5 opacity-80">{hint}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button className={btnP + " w-full py-3"} disabled={blocked || (mode === "partial" && !scopeClass)} onClick={run}>
               {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} нұсқа сынау</> : <><Sparkles className="w-4 h-4 inline mr-1.5" /> Генерациялау</>}
             </button>
