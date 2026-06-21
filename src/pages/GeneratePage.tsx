@@ -227,26 +227,26 @@ export default function GeneratePage() {
               </div>
             )}
 
-            {/* Мұғалім жайлылығы (SWAP деңгейі) — терезелерді азайту */}
-            <div className="rounded-xl border border-soft-c bg-input-c p-3 mb-3">
+            {/* Мұғалім жайлылығы (SWAP деңгейі) — терезе азайту, ӘРҚАШАН көрінеді */}
+            <div className="rounded-xl border-2 border-[var(--accent)] bg-[rgba(74,144,217,0.06)] p-3 mb-3">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 accent-c" />
-                <p className="text-sm font-medium text-strong-c">Мұғалім жайлылығы (терезе азайту)</p>
+                <p className="text-sm font-semibold text-strong-c">Мұғалім жайлылығы (терезе азайту)</p>
               </div>
-              <p className="text-xs text-muted-c mb-3">Сабақтарды ауыстырып, мұғалім бос сабақтарын (терезе) азайтады. Жоғары деңгей — аз терезе, бірақ сәл баяу.</p>
+              <p className="text-xs text-muted-c mb-3">Сабақтарды ауыстырып, мұғалімнің бос сабақтарын (терезе/окно) азайтады. Жоғары деңгей — аз терезе.</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {([
                   [0, "Өшірулі", "тез"],
                   [1, "Жұмсақ", "қауіпсіз"],
                   [2, "Орташа", "ұсынылады"],
-                  [3, "Макс", "ең аз терезе"],
+                  [3, "Макс", "ең аз"],
                 ] as const).map(([lvl, label, hint]) => {
-                  const active = (data.settings.teacherComfort ?? 0) === lvl;
+                  const active2 = (data.settings.teacherComfort ?? 0) === lvl;
                   return (
                     <button
                       key={lvl}
                       onClick={() => data.setSettings({ teacherComfort: lvl as 0 | 1 | 2 | 3 })}
-                      className={`py-2 px-1 rounded-lg text-center transition-all ${active ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
+                      className={`py-2 px-1 rounded-lg text-center transition-all ${active2 ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
                     >
                       <p className="text-xs font-semibold">{label}</p>
                       <p className="text-[10px] mt-0.5 opacity-80">{hint}</p>
