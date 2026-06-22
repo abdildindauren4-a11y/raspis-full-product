@@ -14,7 +14,7 @@ export default function GroupsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("grp.title")}</h1>
-        <p className="text-muted-c mt-1">Топтарға бөлінген пәндер шолуы. Баптау — Сыныптар → Оқу жоспары ішінде.</p>
+        <p className="text-muted-c mt-1">{t("grp.subtitle2")}</p>
       </div>
       <GlassCard hover={false}>
         {items.length === 0 ? (
@@ -25,7 +25,7 @@ export default function GroupsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-c border-b border-soft-c">
-                <th className="py-2">Сынып</th><th>Пән</th><th>Сағат</th><th>Топ 1</th><th>Топ 2</th>
+                <th className="py-2">{t("grp.colClass")}</th><th>{t("grp.colSubject")}</th><th>{t("grp.colHours")}</th><th>{t("grp.group1")}</th><th>{t("grp.group2")}</th>
               </tr>
             </thead>
             <tbody>

@@ -39,54 +39,54 @@ export default function AlgorithmPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("algo.title")}</h1>
-        <p className="text-muted-c mt-1">Мектеп уақыттары және оптимизация параметрлері — өзгерту нәтижеге тікелей әсер етеді</p>
+        <p className="text-muted-c mt-1">{t("algo.optHint")}</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <GlassCard hover={false}>
-          <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><School className="w-4 h-4 accent-c" /> Мектеп параметрлері</h3>
+          <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><School className="w-4 h-4 accent-c" /> {t("algo.schoolParams")}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Мектеп атауы"><input className={inputCls} value={school.name} onChange={(e) => setSchool({ name: e.target.value })} /></Field>
-            <Field label="1-ауысым басталуы"><input className={inputCls} value={school.shift1Start} onChange={(e) => setSchool({ shift1Start: e.target.value })} /></Field>
-            <Field label="2-ауысым басталуы"><input className={inputCls} value={school.shift2Start} onChange={(e) => setSchool({ shift2Start: e.target.value })} /></Field>
-            <Field label="Сабақ ұзақтығы (мин)">
+            <Field label={t("algo.schoolName")}><input className={inputCls} value={school.name} onChange={(e) => setSchool({ name: e.target.value })} /></Field>
+            <Field label={t("algo.shift1Start")}><input className={inputCls} value={school.shift1Start} onChange={(e) => setSchool({ shift1Start: e.target.value })} /></Field>
+            <Field label={t("algo.shift2Start")}><input className={inputCls} value={school.shift2Start} onChange={(e) => setSchool({ shift2Start: e.target.value })} /></Field>
+            <Field label={t("algo.lessonLen")}>
               <select className={inputCls} value={school.lessonDuration} onChange={(e) => setSchool({ lessonDuration: Number(e.target.value) })}>
                 {[30, 40, 45].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </Field>
-            <Field label="Кіші үзіліс (мин)">
+            <Field label={t("algo.shortBreak")}>
               <select className={inputCls} value={school.shortBreak} onChange={(e) => setSchool({ shortBreak: Number(e.target.value) })}>
                 {[5, 10].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </Field>
-            <Field label="Үлкен үзіліс (мин)">
+            <Field label={t("algo.bigBreak")}>
               <select className={inputCls} value={school.longBreak} onChange={(e) => setSchool({ longBreak: Number(e.target.value) })}>
                 {[15, 20, 30].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </Field>
-            <Field label="Үлкен үзіліс қай сабақтан кейін">
+            <Field label={t("algo.bigBreakAfter")}>
               <select className={inputCls} value={school.longBreakAfter} onChange={(e) => setSchool({ longBreakAfter: Number(e.target.value) })}>
                 {[2, 3, 4].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </Field>
-            <Field label="Ауысым аралық үзіліс (мин)"><input type="number" className={inputCls} value={school.interShiftGap} onChange={(e) => setSchool({ interShiftGap: Number(e.target.value) })} /></Field>
+            <Field label={t("algo.interShift")}><input type="number" className={inputCls} value={school.interShiftGap} onChange={(e) => setSchool({ interShiftGap: Number(e.target.value) })} /></Field>
           </div>
         </GlassCard>
 
         <GlassCard hover={false}>
-          <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 accent-c" /> Оптимизация</h3>
+          <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 accent-c" /> {t("algo.optimization")}</h3>
           <label className="flex items-center justify-between mb-4 p-3 rounded-xl bg-input-c">
             <div>
-              <p className="text-sm text-strong-c font-medium">Maximin теңгерімі</p>
-              <p className="text-xs text-muted-c">Ең нашар сыныптың кестесін жақсартады</p>
+              <p className="text-sm text-strong-c font-medium">{t("algo.maximinBalance")}</p>
+              <p className="text-xs text-muted-c">{t("algo.maximinDesc")}</p>
             </div>
             <input type="checkbox" className="scale-125" checked={settings.maximin} onChange={(e) => setSettings({ maximin: e.target.checked })} />
           </label>
-          <Field label="Maximin макс. итерация"><input type="number" className={inputCls} value={settings.maxIterations} onChange={(e) => setSettings({ maxIterations: Number(e.target.value) })} /></Field>
+          <Field label={t("algo.maximinIter")}><input type="number" className={inputCls} value={settings.maxIterations} onChange={(e) => setSettings({ maxIterations: Number(e.target.value) })} /></Field>
           <div className="mt-4 p-3 rounded-xl bg-surface border border-soft-c">
-            <p className="text-xs font-medium text-muted-c mb-2">Сабақ саны шегі (СанПиН, тұрақты):</p>
+            <p className="text-xs font-medium text-muted-c mb-2">{t("algo.slotLimit")}</p>
             {[1, 3, 5, 7, 10].map((g) => (
               <div key={g} className="flex justify-between text-xs text-faint-c">
-                <span>{g} сынып</span><span>макс {maxSlots(g)} сабақ/күн</span>
+                <span>{g} {t("com.gradeShort")}</span><span>{t("algo.maxLessons")} {maxSlots(g)} {t("algo.lessonsPerDay")}</span>
               </div>
             ))}
           </div>
@@ -99,10 +99,10 @@ export default function AlgorithmPage() {
       {/* РЕТТЕЛЕТІН ПАРАМЕТРЛЕР */}
       <GlassCard hover={false}>
         <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-strong-c flex items-center gap-2"><BarChart3 className="w-4 h-4 accent-c" /> Күндік балл лимиттері</h3>
-          <button className={btnG + " !py-1.5 text-xs flex items-center gap-1.5"} onClick={resetAlgo}><RotateCcw className="w-3.5 h-3.5" /> Әдепкіге қайтару</button>
+          <h3 className="font-semibold text-strong-c flex items-center gap-2"><BarChart3 className="w-4 h-4 accent-c" /> {t("algo.dayLimits")}</h3>
+          <button className={btnG + " !py-1.5 text-xs flex items-center gap-1.5"} onClick={resetAlgo}><RotateCcw className="w-3.5 h-3.5" /> {t("algo.resetDefault")}</button>
         </div>
-        <p className="text-xs text-muted-c mb-4">Күніне жалпы қиындық шегі (артық болса алгоритм пәнді басқа күнге қояды). Параллель топтары бойынша.</p>
+        <p className="text-xs text-muted-c mb-4">{t("algo.dayLimitsDesc")}</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           <Slider label="1–4 сынып" value={dl.g14} min={15} max={40} onChange={(v) => setDL({ g14: v })} />
           <Slider label="5–6 сынып" value={dl.g56} min={20} max={50} onChange={(v) => setDL({ g56: v })} />
@@ -113,8 +113,8 @@ export default function AlgorithmPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <GlassCard hover={false}>
-          <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2"><Battery className="w-4 h-4 accent-c" /> Шаршау шектері</h3>
-          <p className="text-xs text-muted-c mb-4">Жинақталған шаршау шектен асса, келесі сабақ тек жеңіл пән болады.</p>
+          <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2"><Battery className="w-4 h-4 accent-c" /> {t("algo.fatigueLimits")}</h3>
+          <p className="text-xs text-muted-c mb-4">{t("algo.fatigueDesc")}</p>
           <div className="space-y-4">
             <Slider label="1–4 сынып" value={ft.g14} min={15} max={35} onChange={(v) => setFT({ g14: v })} />
             <Slider label="5–9 сынып" value={ft.g59} min={20} max={45} onChange={(v) => setFT({ g59: v })} />
@@ -123,8 +123,8 @@ export default function AlgorithmPage() {
         </GlassCard>
 
         <GlassCard hover={false}>
-          <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2"><Target className="w-4 h-4 accent-c" /> Орналасу коэффициенттері</h3>
-          <p className="text-xs text-muted-c mb-4">Пәнді идеал орнынан алыс қойғандағы айыппұл. Жоғары мән — идеал орынды қатаң талап етеді.</p>
+          <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2"><Target className="w-4 h-4 accent-c" /> {t("algo.placeCoef")}</h3>
+          <p className="text-xs text-muted-c mb-4">{t("algo.placeCoefDesc")}</p>
           <div className="space-y-4">
             <Slider label="Ауыр пәндер (балл 9–11)" value={cf.hard} min={1} max={10} step={0.5} onChange={(v) => setCF({ hard: v })} />
             <Slider label="Орташа пәндер (балл 6–8)" value={cf.medium} min={1} max={10} step={0.5} onChange={(v) => setCF({ medium: v })} />
@@ -134,7 +134,7 @@ export default function AlgorithmPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-4">
-        <p className="text-sm accent-c flex items-center gap-2"><Lightbulb className="w-4 h-4 shrink-0" /> Баптауды өзгерткен соң <b>Генерация</b> бетіне өтіп қайта құрыңыз — жаңа параметрлер сонда қолданылады.</p>
+        <p className="text-sm accent-c flex items-center gap-2"><Lightbulb className="w-4 h-4 shrink-0" /> Баптауды өзгерткен соң <b>Генерация</b> {t("algo.tipRebuild")}</p>
       </div>
     </div>
   );

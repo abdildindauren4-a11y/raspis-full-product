@@ -25,9 +25,9 @@ export default function ImportPage() {
         <div className="w-14 h-14 rounded-2xl bg-input-c border border-soft-c flex items-center justify-center mb-4">
           <Lock className="w-6 h-6 status-warn" />
         </div>
-        <h2 className="text-xl font-bold text-strong-c mb-2">Excel импорт — толық нұсқада</h2>
-        <p className="text-muted-c text-sm mb-5">Бұл функция толық қолданушыларға қолжетімді. Деректерді Excel арқылы жаппай жүктеу үшін толық нұсқаға өтіңіз.</p>
-        <button className={btnP} onClick={() => navigate("/profile")}>Профильді ашу</button>
+        <h2 className="text-xl font-bold text-strong-c mb-2">{t("imp.lockedTitle")}</h2>
+        <p className="text-muted-c text-sm mb-5">{t("imp.lockedDesc")}</p>
+        <button className={btnP} onClick={() => navigate("/profile")}>{t("imp.openProfile")}</button>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default function ImportPage() {
     try {
       setParsed(parseWorkbook(buf));
     } catch {
-      setParsed({ classes: [], teachers: [], rooms: [], subjects: [], errors: [{ sheet: "—", row: 0, message: "Файлды оқу мүмкін болмады. Дұрыс .xlsx үлгісі екеніне көз жеткізіңіз." }], summary: { classes: 0, teachers: 0, rooms: 0, subjects: 0, curItems: 0 } });
+      setParsed({ classes: [], teachers: [], rooms: [], subjects: [], errors: [{ sheet: "—", row: 0, message: t("imp.readError") }], summary: { classes: 0, teachers: 0, rooms: 0, subjects: 0, curItems: 0 } });
     }
   };
 
@@ -83,7 +83,7 @@ export default function ImportPage() {
         </div>
         <div>
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("imp.title")}</h1>
-          <p className="text-muted-c">Деректерді Excel үлгісі арқылы жаппай жүктеу</p>
+          <p className="text-muted-c">{t("imp.subtitle")}</p>
         </div>
       </div>
 
@@ -92,19 +92,19 @@ export default function ImportPage() {
         <div className="flex items-start gap-4 flex-wrap">
           <ExcelIcon size={44} />
           <div className="flex-1 min-w-[200px]">
-            <h3 className="font-semibold text-strong-c">1-қадам. Үлгіні жүктеп алыңыз</h3>
-            <p className="text-xs text-muted-c mt-1">5 парақты дайын Excel үлгі (Сыныптар, Мұғалімдер, Оқу жоспары, Пәндер, Кабинеттер). Пәндер мен кабинеттер ҚР стандартымен толтырылған — қаласаңыз өзгертесіз.</p>
+            <h3 className="font-semibold text-strong-c">{t("imp.step1")}</h3>
+            <p className="text-xs text-muted-c mt-1">{t("imp.step1desc")}</p>
           </div>
           <button className={btnP + " flex items-center gap-2"} onClick={() => { downloadTemplate().catch((e) => console.error("Үлгі жүктеу қатесі:", e)); }}>
-            <Download className="w-4 h-4" /> Үлгіні жүктеу
+            <Download className="w-4 h-4" /> {t("imp.downloadTpl")}
           </button>
         </div>
       </GlassCard>
 
       {/* 2-қадам: файл жүктеу */}
       <GlassCard hover={false}>
-        <h3 className="font-semibold text-strong-c mb-1">2-қадам. Толтырған файлды жүктеңіз</h3>
-        <p className="text-xs text-muted-c mb-3">Үлгіні толтырып, осында жүктеңіз. Импорттан бұрын тексеру көрсетіледі.</p>
+        <h3 className="font-semibold text-strong-c mb-1">{t("imp.step2")}</h3>
+        <p className="text-xs text-muted-c mb-3">{t("imp.step2desc")}</p>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
         <div
@@ -114,7 +114,7 @@ export default function ImportPage() {
           className="border-2 border-dashed border-white/15 rounded-xl p-8 text-center cursor-pointer hover:border-[var(--accent)]/50 transition-all"
         >
           <Upload className="w-8 h-8 mx-auto text-faint-c mb-2" />
-          <p className="text-sm text-muted-c">{fileName || "Файлды осында сүйреңіз немесе басып таңдаңыз"}</p>
+          <p className="text-sm text-muted-c">{fileName || t("imp.dropFile")}</p>
           <p className="text-xs text-faint-c mt-1">.xlsx / .xls</p>
         </div>
       </GlassCard>
@@ -123,9 +123,9 @@ export default function ImportPage() {
       {parsed && !done && (
         <>
           <GlassCard hover={false}>
-            <h3 className="font-semibold text-strong-c mb-3">3-қадам. Алдын-ала көрініс</h3>
+            <h3 className="font-semibold text-strong-c mb-3">{t("imp.step3")}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
-              {[["Сынып", parsed.summary.classes], ["Мұғалім", parsed.summary.teachers], ["Кабинет", parsed.summary.rooms], ["Пән", parsed.summary.subjects], ["Жоспар жолы", parsed.summary.curItems]].map(([l, v]) => (
+              {[[t("imp.statClasses"), parsed.summary.classes], [t("imp.statTeachers"), parsed.summary.teachers], [t("imp.statRooms"), parsed.summary.rooms], [t("imp.statSubjects"), parsed.summary.subjects], [t("imp.statPlan"), parsed.summary.curItems]].map(([l, v]) => (
                 <div key={String(l)} className="rounded-xl bg-input-c p-3 text-center">
                   <p className="text-xl font-bold gradient-text">{v}</p>
                   <p className="text-xs text-muted-c">{l}</p>
@@ -133,15 +133,15 @@ export default function ImportPage() {
               ))}
             </div>
             {errorCount === 0 ? (
-              <p className="status-good text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Қате табылмады — импорттауға дайын</p>
+              <p className="status-good text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {t("imp.noErrors")}</p>
             ) : (
               <div>
-                <p className="status-bad text-sm flex items-center gap-2 mb-2"><XCircle className="w-4 h-4" /> {errorCount} қате табылды — импорттан бұрын түзетіңіз:</p>
+                <p className="status-bad text-sm flex items-center gap-2 mb-2"><XCircle className="w-4 h-4" /> {errorCount} {t("imp.errorsFound")}</p>
                 <div className="max-h-56 overflow-y-auto scrollbar-thin space-y-1 rounded-xl bg-red-500/5 border border-red-400/20 p-3">
                   {parsed.errors.map((er, i) => (
                     <p key={i} className="text-xs status-bad flex items-start gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span><b>{er.sheet}</b>{er.row ? `, ${er.row}-жол` : ""}: {er.message}</span>
+                      <span><b>{er.sheet}</b>{er.row ? `, ${er.row}${t("imp.rowLabel")}` : ""}: {er.message}</span>
                     </p>
                   ))}
                 </div>
@@ -151,23 +151,23 @@ export default function ImportPage() {
 
           {/* 4-қадам: режим + растау */}
           <GlassCard hover={false}>
-            <h3 className="font-semibold text-strong-c mb-3">4-қадам. Импорт режимі</h3>
+            <h3 className="font-semibold text-strong-c mb-3">{t("imp.step4")}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <button onClick={() => setMode("replace")}
                 className={`text-left p-4 rounded-xl border transition-all ${mode === "replace" ? "border-[var(--accent)] bg-[rgba(74,144,217,0.12)]" : "border-soft-c bg-input-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
-                <p className="text-sm font-semibold text-strong-c flex items-center gap-2"><RotateCcw className="w-4 h-4" /> Алмастыру</p>
-                <p className="text-xs text-muted-c mt-1">Барлық бар дерек өшіріліп, файлдан жаңасы жүктеледі</p>
+                <p className="text-sm font-semibold text-strong-c flex items-center gap-2"><RotateCcw className="w-4 h-4" /> {t("imp.replace")}</p>
+                <p className="text-xs text-muted-c mt-1">{t("imp.replaceDesc")}</p>
               </button>
               <button onClick={() => setMode("append")}
                 className={`text-left p-4 rounded-xl border transition-all ${mode === "append" ? "border-[var(--accent)] bg-[rgba(74,144,217,0.12)]" : "border-soft-c bg-input-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
-                <p className="text-sm font-semibold text-strong-c flex items-center gap-2"><Upload className="w-4 h-4" /> Қосу</p>
-                <p className="text-xs text-muted-c mt-1">Бар дерек сақталып, файлдағы жаңалары үстіне қосылады (дублікатсыз)</p>
+                <p className="text-sm font-semibold text-strong-c flex items-center gap-2"><Upload className="w-4 h-4" /> {t("imp.append")}</p>
+                <p className="text-xs text-muted-c mt-1">{t("imp.appendDesc")}</p>
               </button>
             </div>
             <button className={btnP + " w-full"} disabled={!canImport} onClick={apply}>
-              {mode === "replace" ? "Алмастырып импорттау" : "Қосып импорттау"}
+              {mode === "replace" ? t("imp.doReplace") : t("imp.doAppend")}
             </button>
-            {!canImport && errorCount > 0 && <p className="text-xs status-bad text-center mt-2">Қателерді түзетпей импорттау мүмкін емес</p>}
+            {!canImport && errorCount > 0 && <p className="text-xs status-bad text-center mt-2">{t("imp.cantImport")}</p>}
             {!canImport && errorCount === 0 && parsed.summary.classes === 0 && <p className="text-xs status-warn text-center mt-2">Сыныптар табылмады — үлгіні тексеріңіз</p>}
           </GlassCard>
         </>

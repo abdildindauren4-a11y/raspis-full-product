@@ -2,21 +2,25 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ExcelIcon, PrintIcon } from "@/components/shared/BrandIcons";
-import { Download, Printer, FileSpreadsheet, Sparkles } from "lucide-react";
+import { Download, Printer, FileSpreadsheet, Sparkles, QrCode, ExternalLink, Award } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { buildTimeline, maxSlots } from "@/algorithm/engine";
 import { exportProfessionalExcel } from "@/lib/excelExport";
+import { buildCertData, certUrl } from "@/lib/certificate";
+import QRCode from "qrcode";
 
-const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
 
 export default function ExportPage() {
   const { classes, teachers, rooms, subjects, school } = useData();
   const active = useActiveVersion();
   const { t } = useLang();
+  const DAYS = ["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
   const [busy, setBusy] = useState(false);
+  const [qrImg, setQrImg] = useState<string>("");
+  const [certLink, setCertLink] = useState<string>("");
   const tl = buildTimeline(school);
 
   const tName = (id: string) => teachers.find((t) => t.id === id)?.name || "";
@@ -36,6 +40,29 @@ export default function ExportPage() {
     }
   };
 
+  // Сапа сертификатының QR-кодын жасау
+  const makeCert = async () => {
+    if (!active) return;
+    const data = buildCertData(active.result, school.name, {
+      classes: classes.length,
+      teachers: teachers.length,
+      rooms: rooms.length,
+    });
+    const url = certUrl(data);
+    setCertLink(url);
+    try {
+      const img = await QRCode.toDataURL(url, {
+        width: 320,
+        margin: 2,
+        color: { dark: "#1a2230", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      });
+      setQrImg(img);
+    } catch (e) {
+      console.error("QR жасау қатесі:", e);
+    }
+  };
+
   const printAll = () => {
     if (!active) return;
     const w = window.open("", "_blank");
@@ -45,9 +72,9 @@ export default function ExportPage() {
       h2{margin:14px 0 6px;page-break-before:always} h2:first-of-type{page-break-before:auto}
       table{border-collapse:collapse;width:100%} td,th{border:1px solid #999;padding:4px;text-align:center}
       th{background:#eef} .r{background:#fde8e8}.y{background:#fdf6dc}.g{background:#e3f6e8}
-    </style></head><body><h1>${school.name} — апталық кесте</h1>`;
+    </style></head><body><h1>${school.name} — ${t("exp.weeklySchedule")}</h1>`;
     for (const c of classes) {
-      html += `<h2>${c.name} сыныбы (${c.shift}-ауысым)</h2><table><tr><th>№</th><th>Уақыт</th>${DAYS.slice(1).map((d) => `<th>${d}</th>`).join("")}</tr>`;
+      html += `<h2>${c.name} ${t("exp.classWord")} (${c.shift}${t("exp.shiftWord")})</h2><table><tr><th>№</th><th>Уақыт</th>${DAYS.slice(1).map((d) => `<th>${d}</th>`).join("")}</tr>`;
       for (let slot = 1; slot <= maxSlots(c.grade); slot++) {
         html += `<tr><td>${slot}</td><td>${tl[c.shift][slot].start}–${tl[c.shift][slot].end}</td>`;
         for (let day = 1; day <= 5; day++) {
@@ -71,7 +98,7 @@ export default function ExportPage() {
     return (
       <div className="flex flex-col items-center justify-center h-72 gap-3">
         <p className="text-muted-c">{t("exp.noSchedule")}</p>
-        <Link to="/generate" className="accent-c text-sm inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Генерация →</Link>
+        <Link to="/generate" className="accent-c text-sm inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> {t("exp.toGenerate")} →</Link>
       </div>
     );
 
@@ -83,7 +110,7 @@ export default function ExportPage() {
         </div>
         <div>
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("exp.title")}</h1>
-          <p className="text-muted-c">{active.name} · {classes.length} сынып · сапа {active.result.quality}/100</p>
+          <p className="text-muted-c">{active.name} · {classes.length} {t("exp.statClasses")} · {t("exp.statQuality")} {active.result.quality}/100</p>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
@@ -91,7 +118,7 @@ export default function ExportPage() {
           <div className="flex items-center gap-3 mb-3">
             <ExcelIcon size={44} />
             <div>
-              <h3 className="font-semibold text-strong-c">Excel кестесі</h3>
+              <h3 className="font-semibold text-strong-c">{t("exp.excelTitle")}</h3>
               <p className="text-xs text-muted-c">.xlsx · Microsoft Excel</p>
             </div>
           </div>
@@ -105,15 +132,55 @@ export default function ExportPage() {
             <PrintIcon size={44} />
             <div>
               <h3 className="font-semibold text-strong-c">{t("exp.printTitle")}</h3>
-              <p className="text-xs text-muted-c">A4 · түрлі-түсті</p>
+              <p className="text-xs text-muted-c">{t("exp.a4color")}</p>
             </div>
           </div>
           <p className="text-xs text-muted-c mb-4">{t("exp.printDesc")}</p>
           <button className={btnG + " w-full flex items-center justify-center gap-2"} onClick={printAll}>
-            <Printer className="w-4 h-4" /> Ашу және басып шығару
+            <Printer className="w-4 h-4" /> {t("exp.openPrint")}
           </button>
         </GlassCard>
       </div>
+
+      {/* ── QR сапа сертификаты ── */}
+      <GlassCard hover={false}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center border-2 border-accent" style={{ background: "rgba(74,144,217,0.08)" }}>
+            <Award className="w-5 h-5 accent-c" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-strong-c">{t("cert.title")}</h3>
+            <p className="text-xs text-muted-c">{t("cert.subtitle")}</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-c mb-4">{t("cert.desc")}</p>
+
+        {!qrImg ? (
+          <button className={btnP + " w-full flex items-center justify-center gap-2"} onClick={makeCert}>
+            <QrCode className="w-4 h-4" /> {t("cert.generate")}
+          </button>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center gap-5">
+            {/* QR сурет */}
+            <div className="bg-white p-3 rounded-xl shrink-0" style={{ border: "1px solid var(--border)" }}>
+              <img src={qrImg} alt="QR сертификат" style={{ width: 160, height: 160, display: "block" }} />
+            </div>
+            {/* Әрекеттер */}
+            <div className="flex-1 w-full space-y-2.5">
+              <p className="text-sm text-strong-c font-medium">{t("cert.ready")}</p>
+              <p className="text-xs text-muted-c leading-relaxed">{t("cert.scanHint")}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <a href={certLink} target="_blank" rel="noopener noreferrer" className={btnP + " flex items-center gap-2 text-sm"}>
+                  <ExternalLink className="w-4 h-4" /> {t("cert.open")}
+                </a>
+                <a href={qrImg} download="raspis-certificate-qr.png" className={btnG + " flex items-center gap-2 text-sm"}>
+                  <Download className="w-4 h-4" /> {t("cert.downloadQr")}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+      </GlassCard>
     </div>
   );
 }

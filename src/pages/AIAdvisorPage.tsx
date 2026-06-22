@@ -27,9 +27,9 @@ export default function AIAdvisorPage() {
         <div className="w-14 h-14 rounded-2xl bg-input-c border border-soft-c flex items-center justify-center mb-4">
           <Lock className="w-6 h-6 status-warn" />
         </div>
-        <h2 className="text-xl font-bold text-strong-c mb-2">РАСПИС AI — толық нұсқада</h2>
-        <p className="text-muted-c text-sm mb-5">AI кеңесші мен автоматты талдау толық қолданушыларға қолжетімді.</p>
-        <button className={btnP} onClick={() => navigate("/profile")}>Профильді ашу</button>
+        <h2 className="text-xl font-bold text-strong-c mb-2">{t("ai.lockedTitle")}</h2>
+        <p className="text-muted-c text-sm mb-5">{t("ai.lockedDesc")}</p>
+        <button className={btnP} onClick={() => navigate("/profile")}>{t("ai.openProfile")}</button>
       </div>
     );
   }

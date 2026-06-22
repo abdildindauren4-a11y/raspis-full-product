@@ -13,8 +13,8 @@ export default function QualityPage() {
   if (!active)
     return (
       <div className="flex flex-col items-center justify-center h-72 gap-3">
-        <p className="text-muted-c">Сапа есебі үшін алдымен кесте құрыңыз</p>
-        <Link to="/generate" className="accent-c text-sm flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Генерация →</Link>
+        <p className="text-muted-c">{t("qual.needSchedule")}</p>
+        <Link to="/generate" className="accent-c text-sm flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> {t("qual.toGenerate")} →</Link>
       </div>
     );
   const r = active.result;
@@ -26,7 +26,7 @@ export default function QualityPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("qual.title")}</h1>
-          <p className="text-muted-c mt-1">Стресс-тесттер және сынып рейтингі</p>
+          <p className="text-muted-c mt-1">{t("qual.subtitle")}</p>
         </div>
         <select className={inputCls + " !w-56"} value={activeVersionId || ""} onChange={(e) => activateVersion(e.target.value)}>
           {versions.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.result.quality}/100</option>)}
@@ -46,15 +46,15 @@ export default function QualityPage() {
             </div>
           </div>
           <div className="mt-4 space-y-1.5 text-xs text-muted-c">
-            <div className="flex justify-between"><span>Сыныптар орташасы (35%)</span><b className="text-strong-c">{r.stats.avgClass}%</b></div>
-            <div className="flex justify-between"><span>Теңгерім (25%)</span><b className="text-strong-c">{r.stats.balance}%</b></div>
-            <div className="flex justify-between"><span>Мұғалім жайлылығы (20%)</span><b className="text-strong-c">{r.stats.comfort}%</b></div>
-            <div className="flex justify-between"><span>Стресс-тест (20%)</span><b className="text-strong-c">{Math.round((r.tests.filter((t) => t.passed).length / r.tests.length) * 100)}%</b></div>
-            <div className="flex justify-between"><span>Уақыт / итерация</span><b className="text-strong-c">{(r.stats.timeMs / 1000).toFixed(1)}с / {r.stats.iters}</b></div>
+            <div className="flex justify-between"><span>{t("qual.avgClass")}</span><b className="text-strong-c">{r.stats.avgClass}%</b></div>
+            <div className="flex justify-between"><span>{t("qual.balance")}</span><b className="text-strong-c">{r.stats.balance}%</b></div>
+            <div className="flex justify-between"><span>{t("qual.comfort")}</span><b className="text-strong-c">{r.stats.comfort}%</b></div>
+            <div className="flex justify-between"><span>{t("qual.stress")}</span><b className="text-strong-c">{Math.round((r.tests.filter((t) => t.passed).length / r.tests.length) * 100)}%</b></div>
+            <div className="flex justify-between"><span>{t("qual.timeIter")}</span><b className="text-strong-c">{(r.stats.timeMs / 1000).toFixed(1)}s / {r.stats.iters}</b></div>
           </div>
         </GlassCard>
         <GlassCard hover={false} className="lg:col-span-2">
-          <h3 className="font-semibold text-strong-c mb-3">Стресс-тесттер ({r.tests.filter((t) => t.passed).length}/{r.tests.length})</h3>
+          <h3 className="font-semibold text-strong-c mb-3">{t("qual.stressTests")} ({r.tests.filter((t) => t.passed).length}/{r.tests.length})</h3>
           <div className="space-y-1.5">
             {r.tests.map((t, i) => (
               <div key={i} className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${t.passed ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
@@ -67,7 +67,7 @@ export default function QualityPage() {
         </GlassCard>
       </div>
       <GlassCard hover={false}>
-        <h3 className="font-semibold text-strong-c mb-3">Сынып рейтингі</h3>
+        <h3 className="font-semibold text-strong-c mb-3">{t("qual.classRank")}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
           {Object.entries(r.classScores).sort(([, a], [, b]) => a - b).map(([name, score]) => (
             <div key={name} className={`rounded-xl border p-2.5 text-center ${score >= 70 ? "border-emerald-400/20 bg-emerald-500/5" : score >= 50 ? "border-yellow-400/20 bg-yellow-500/5" : "border-red-400/20 bg-red-500/5"}`}>
@@ -82,16 +82,16 @@ export default function QualityPage() {
       </GlassCard>
       {(r.gaps?.length ?? 0) > 0 && (
         <GlassCard hover={false}>
-          <h3 className="font-semibold status-warn mb-2 flex items-center gap-2"><Clock className="w-4 h-4" /> Сабақ аралық тесіктер ({r.gaps.length})</h3>
-          <p className="text-xs text-muted-c mb-3">Тесік қалуы — мұғалім немесе кабинет сол уақытта бос еместігінен. Шешім: қосымша мұғалім/кабинет қосу.</p>
+          <h3 className="font-semibold status-warn mb-2 flex items-center gap-2"><Clock className="w-4 h-4" /> {t("qual.gapsTitle")} ({r.gaps.length})</h3>
+          <p className="text-xs text-muted-c mb-3">{t("qual.gapsDesc")}</p>
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-c border-b border-soft-c"><th className="py-1">Сынып</th><th>Күн</th><th>Сабақ</th><th>Себебі</th></tr></thead>
+            <thead><tr className="text-left text-muted-c border-b border-soft-c"><th className="py-1">{t("qual.colClass")}</th><th>{t("qual.colDay")}</th><th>{t("qual.colLesson")}</th><th>{t("qual.colReason")}</th></tr></thead>
             <tbody>
               {r.gaps.map((g, i) => (
                 <tr key={i} className="border-b border-soft-c">
                   <td className="py-1.5 text-strong-c">{g.className}</td>
-                  <td className="text-soft-c">{["", "Дс", "Сс", "Ср", "Бс", "Жм"][g.day]}</td>
-                  <td className="text-soft-c">{g.slot}-сабақ</td>
+                  <td className="text-soft-c">{["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")][g.day]?.slice(0,2) || ""}</td>
+                  <td className="text-soft-c">{g.slot}{t("qual.lessonNum")}</td>
                   <td className="text-xs text-muted-c">{g.reason}</td>
                 </tr>
               ))}
@@ -102,9 +102,9 @@ export default function QualityPage() {
 
       {r.unplaced.length > 0 && (
         <GlassCard hover={false}>
-          <h3 className="font-semibold status-warn mb-3">⚠ Орналаспаған сабақтар ({r.unplaced.length})</h3>
+          <h3 className="font-semibold status-warn mb-3">⚠ {t("qual.unplacedTitle")} ({r.unplaced.length})</h3>
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-c border-b border-soft-c"><th className="py-1">Сынып</th><th>Пән</th><th>Орналасты</th><th>Себеп</th></tr></thead>
+            <thead><tr className="text-left text-muted-c border-b border-soft-c"><th className="py-1">{t("qual.colClass")}</th><th>{t("qual.colSubject")}</th><th>{t("qual.colPlaced")}</th><th>{t("qual.colReason")}</th></tr></thead>
             <tbody>
               {r.unplaced.map((u, i) => (
                 <tr key={i} className="border-b border-soft-c">

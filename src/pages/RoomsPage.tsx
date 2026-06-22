@@ -8,10 +8,11 @@ import { useLang } from "@/contexts/LangContext";
 import type { Room, RoomType } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const TYPES: Record<RoomType, string> = { regular: "Қарапайым", physics: "Физика", chemistry: "Химия", computer: "Информатика", gym: "Спортзал" };
+
 
 export default function RoomsPage() {
   const { t } = useLang();
+  const TYPES: Record<RoomType, string> = { regular: t("room.typeRegular"), physics: t("room.typePhysics"), chemistry: t("room.typeChemistry"), computer: t("room.typeComputer"), gym: t("room.typeGym") };
   const { rooms, setRooms, subjects, classes } = useData();
   const [form, setForm] = useState<Partial<Room> | null>(null);
 
@@ -48,7 +49,7 @@ export default function RoomsPage() {
       </div>
       {missing.length > 0 && (
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm status-bad">
-          <AlertTriangle className="w-4 h-4 inline mr-1.5" /> Оқу жоспарларында бар, бірақ кабинеті ЖОҚ: {missing.map((t) => TYPES[t]).join(", ")}. Генерация осыған тоқтайды!
+          <AlertTriangle className="w-4 h-4 inline mr-1.5" /> {t("room.missingWarn")} {missing.map((rt) => t(`room.type${rt.charAt(0).toUpperCase()+rt.slice(1)}` as any)).join(", ")}. {t("room.genStops")}
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
@@ -63,7 +64,7 @@ export default function RoomsPage() {
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
-              <th className="py-2">№ Кабинет</th><th>Тип</th><th>Сыйымдылық</th><th>Спортзал ережесі</th><th>Әрекеттер</th>
+              <th className="py-2">{t("room.colNum")}</th><th>{t("room.colType")}</th><th>{t("room.colCapacity")}</th><th>{t("room.colGymRule")}</th><th>{t("com.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -72,10 +73,10 @@ export default function RoomsPage() {
                 <td className="py-2.5 font-medium text-strong-c">{r.number}</td>
                 <td><span className={`px-2 py-0.5 rounded text-xs ${r.type === "regular" ? "bg-[rgba(127,127,127,0.15)] text-muted-c" : r.type === "gym" ? "bg-emerald-500/15 status-good" : "bg-[rgba(74,144,217,0.12)] accent-c"}`}>{TYPES[r.type]}</span></td>
                 <td className="text-soft-c">{r.capacity || 30}</td>
-                <td className="text-muted-c text-xs">{r.type === "gym" ? `макс ${r.gymMax} сынып · топтар: ${(r.gymGroups || []).map((g) => g.join("-")).join(", ")}` : "—"}</td>
+                <td className="text-muted-c text-xs">{r.type === "gym" ? `макс ${r.gymMax}  · топтар: ${(r.gymGroups || []).map((g) => g.join("-")).join(", ")}` : "—"}</td>
                 <td className="flex gap-2 py-2">
                   <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...r })}><Pencil className="w-4 h-4" /></button>
-                  <button className={btnD} onClick={() => { if (confirm(`${r.number} жою?`)) setRooms(rooms.filter((x) => x.id !== r.id)); }}><Trash2 className="w-4 h-4" /></button>
+                  <button className={btnD} onClick={() => { if (confirm(`${r.number} ${t("com.delete")}`)) setRooms(rooms.filter((x) => x.id !== r.id)); }}><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
@@ -83,14 +84,14 @@ export default function RoomsPage() {
         </table></div>
       </GlassCard>
 
-      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? "Кабинетті өңдеу" : "Жаңа кабинет"}>
+      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? t("fld.editRoom") : t("fld.newRoom")}>
         <Field label="№ / Атауы"><input className={inputCls} value={form?.number || ""} onChange={(e) => setForm({ ...form, number: e.target.value })} /></Field>
         <Field label="Тип">
           <select className={inputCls} value={form?.type || "regular"} onChange={(e) => setForm({ ...form, type: e.target.value as RoomType })}>
             {(Object.keys(TYPES) as RoomType[]).map((t) => <option key={t} value={t}>{TYPES[t]}</option>)}
           </select>
         </Field>
-        <Field label="Сыйымдылық"><input type="number" className={inputCls} value={form?.capacity || 30} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} /></Field>
+        <Field label={t("room.colCapacity")}><input type="number" className={inputCls} value={form?.capacity || 30} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} /></Field>
         {form?.type === "gym" && (
           <Field label="Бір уақытта макс сынып">
             <input type="number" min={1} max={4} className={inputCls} value={form?.gymMax || 1} onChange={(e) => setForm({ ...form, gymMax: Number(e.target.value) })} />

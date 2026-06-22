@@ -39,12 +39,12 @@ export default function ClassesPage() {
           <Plus className="w-4 h-4" /> {t("classes.add")}
         </button>
       </div>
-      <input className={inputCls + " max-w-xs"} placeholder="Іздеу..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input className={inputCls + " max-w-xs"} placeholder={t("com.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
       <GlassCard hover={false}>
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
-              <th className="py-2">Сынып</th><th>Оқушы</th><th>Ауысым</th><th>Пән саны</th><th>Сағат/апта</th><th>Әрекеттер</th>
+              <th className="py-2">{t("cls.colClass")}</th><th>{t("cls.colStudents")}</th><th>{t("com.shift")}</th><th>{t("cls.colSubjCount")}</th><th>{t("cls.colHours")}</th><th>{t("com.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -52,13 +52,13 @@ export default function ClassesPage() {
               <tr key={c.id} className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
                 <td className="py-2.5 font-semibold text-strong-c">{c.name}</td>
                 <td className="text-soft-c">{c.students}</td>
-                <td><span className={`px-2 py-0.5 rounded text-xs ${c.shift === 1 ? "bg-emerald-500/15 status-good" : "bg-yellow-500/15 status-warn"}`}>{c.shift}-ауысым</span></td>
+                <td><span className={`px-2 py-0.5 rounded text-xs ${c.shift === 1 ? "bg-emerald-500/15 status-good" : "bg-yellow-500/15 status-warn"}`}>{c.shift}{t("com.shiftSuffix")}</span></td>
                 <td className="text-soft-c">{c.curriculum.length}</td>
                 <td className="text-soft-c">{c.curriculum.reduce((s, x) => s + x.hours, 0)}</td>
                 <td className="flex gap-2 py-2">
-                  <button className={btnG + " !px-2.5 !py-1.5"} title="Оқу жоспары" onClick={() => setCurOf(c.id)}><BookOpen className="w-4 h-4" /></button>
+                  <button className={btnG + " !px-2.5 !py-1.5"} title={t("cls.curriculum")} onClick={() => setCurOf(c.id)}><BookOpen className="w-4 h-4" /></button>
                   <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...c })}><Pencil className="w-4 h-4" /></button>
-                  <button className={btnD} onClick={() => { if (confirm(`${c.name} сыныбын жою?`)) setClasses(classes.filter((x) => x.id !== c.id)); }}><Trash2 className="w-4 h-4" /></button>
+                  <button className={btnD} onClick={() => { if (confirm(`${c.name} ${t("com.delete")}`)) setClasses(classes.filter((x) => x.id !== c.id)); }}><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
@@ -67,17 +67,17 @@ export default function ClassesPage() {
         </table></div>
       </GlassCard>
 
-      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? "Сыныпты өңдеу" : "Жаңа сынып"}>
-        <Field label="Атауы (мыс. 5А)"><input className={inputCls} value={form?.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-        <Field label="Параллель">
+      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? t("fld.editClass") : t("fld.newClass")}>
+        <Field label={t("cls.nameLabel")}><input className={inputCls} value={form?.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+        <Field label={t("fld.parallel")}>
           <select className={inputCls} value={form?.grade || 5} onChange={(e) => setForm({ ...form, grade: Number(e.target.value) })}>
-            {Array.from({ length: 11 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} сынып</option>)}
+            {Array.from({ length: 11 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {t("com.gradeShort")}</option>)}
           </select>
         </Field>
-        <Field label="Оқушы саны"><input type="number" className={inputCls} value={form?.students || 25} onChange={(e) => setForm({ ...form, students: Number(e.target.value) })} /></Field>
-        <Field label="Ауысым">
+        <Field label={t("cls.studentsLabel")}><input type="number" className={inputCls} value={form?.students || 25} onChange={(e) => setForm({ ...form, students: Number(e.target.value) })} /></Field>
+        <Field label={t("fld.shift")}>
           <select className={inputCls} value={form?.shift || 1} onChange={(e) => setForm({ ...form, shift: Number(e.target.value) as 1 | 2 })}>
-            <option value={1}>1-ауысым</option><option value={2}>2-ауысым</option>
+            <option value={1}>{t("fld.shift1")}</option><option value={2}>{t("fld.shift2")}</option>
           </select>
         </Field>
         <div className="flex gap-2 justify-end mt-4">
@@ -98,6 +98,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
   teachers: ReturnType<typeof useData.getState>["teachers"];
   update: (fn: (cur: CurItem[]) => CurItem[]) => void;
 }) {
+  const { t } = useLang();
   const total = cls.curriculum.reduce((s, x) => s + x.hours, 0);
   const okTeachers = teachers.filter((t) => t.gradeMin <= cls.grade && t.gradeMax >= cls.grade && (t.shift === 3 || t.shift === cls.shift));
   return (
@@ -120,7 +121,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                 {!cu.isSplit && (
                   <select className={inputCls + " col-span-4 lg:col-span-4"} value={cu.teacherId || ""}
                     onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, teacherId: e.target.value } : x)))}>
-                    <option value="">— мұғалім —</option>
+                    <option value="">{t("fld.pickTeacher")}</option>
                     {okTeachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 )}
@@ -143,7 +144,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                       <span className="text-xs text-muted-c w-7">Г{gi + 1}</span>
                       <select className={inputCls} value={g.teacherId}
                         onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, groups: x.groups!.map((gg, i) => (i === gi ? { ...gg, teacherId: e.target.value } : gg)) } : x)))}>
-                        <option value="">— мұғалім —</option>
+                        <option value="">{t("fld.pickTeacher")}</option>
                         {okTeachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                     </div>

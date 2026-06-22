@@ -1,4 +1,5 @@
 // filepath: src/pages/LoginPage.tsx
+import { useLang } from "@/contexts/LangContext";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays, Check, Loader2 } from "lucide-react";
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const login = useData((s) => s.login);
   const navigate = useNavigate();
   const { user, signInGoogle, error, loading, configured } = useAuth();
+  const { t } = useLang();
 
   // Google арқылы кіргенде — басты бетке өту
   useEffect(() => {
@@ -19,10 +21,10 @@ export default function LoginPage() {
   }, [user, login, navigate]);
 
   const features = [
-    "Greedy + Maximin алгоритмі — конфликтсіз кесте",
-    "18 қатаң ереже + СанПиН ауыртпалық балдары",
-    "Кәсіби Excel импорт/экспорт",
-    "РАСПИС AI — кеңесші және автоталдау",
+    t("log.feat1"),
+    t("log.feat2"),
+    t("log.feat3"),
+    t("log.feat4"),
   ];
 
   return (
@@ -33,7 +35,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center"><CalendarDays className="w-6 h-6 text-white" /></div>
           <span className="font-['IBM_Plex_Sans'] text-3xl font-bold gradient-text">РАСПИС</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-strong-c mb-4">Мектеп кестесін автоматты құру</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-strong-c mb-4">{t("log.tagline")}</h1>
         <ul className="space-y-3 text-muted-c text-sm">
           {features.map((t) => (
             <li key={t} className="flex items-center gap-2"><Check className="w-4 h-4 accent-c shrink-0" /> {t}</li>

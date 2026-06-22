@@ -20,7 +20,7 @@ export default function SubjectsPage() {
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
-              <th className="py-2">Пән</th><th>Балл</th><th>Идеал орын</th><th>Арнайы каб</th><th>Қара тізім</th><th>Қос сабақ</th><th>Цифрлық</th>
+              <th className="py-2">{t("subj.colSubject")}</th><th>{t("subj.colScore")}</th><th>{t("subj.colIdeal")}</th><th>{t("subj.colSpecial")}</th><th>{t("subj.colBlacklist")}</th><th>{t("subj.colDouble")}</th><th>{t("subj.colDigital")}</th>
             </tr>
           </thead>
           <tbody>

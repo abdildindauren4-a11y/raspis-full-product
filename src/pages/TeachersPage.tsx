@@ -48,30 +48,30 @@ export default function TeachersPage() {
           <Plus className="w-4 h-4" /> {t("teachers.add")}
         </button>
       </div>
-      <input className={inputCls + " max-w-xs"} placeholder="🔍 Іздеу..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input className={inputCls + " max-w-xs"} placeholder={t("com.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
       <GlassCard hover={false}>
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
-              <th className="py-2">ФИО</th><th>Диапазон</th><th>Ауысым</th><th>Жүктеме / Норма</th><th>Шектеу</th><th>Әрекеттер</th>
+              <th className="py-2">{t("tch.colName")}</th><th>{t("tch.colRange")}</th><th>{t("com.shift")}</th><th>{t("tch.colLoad")}</th><th>{t("tch.colLimit")}</th><th>{t("com.actions")}</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => {
-              const load = loadOf(t.id);
+            {filtered.map((tr) => {
+              const load = loadOf(tr.id);
               return (
-                <tr key={t.id} className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
-                  <td className="py-2.5 font-medium text-strong-c">{t.name}</td>
-                  <td><span className="px-2 py-0.5 rounded text-xs bg-[rgba(74,144,217,0.12)] accent-c">{t.gradeMin}–{t.gradeMax} сын.</span></td>
-                  <td className="text-soft-c">{t.shift === 3 ? "1+2" : t.shift}</td>
-                  <td className={load > t.norm ? "status-bad" : "text-soft-c"}>{active ? `${load} / ${t.norm}` : `— / ${t.norm}`}</td>
-                  <td className="text-muted-c text-xs">{t.unavailable.length ? `${t.unavailable.length} слот` : "—"}</td>
+                <tr key={tr.id} className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
+                  <td className="py-2.5 font-medium text-strong-c">{tr.name}</td>
+                  <td><span className="px-2 py-0.5 rounded text-xs bg-[rgba(74,144,217,0.12)] accent-c">{tr.gradeMin}–{tr.gradeMax} {t("tch.gradeSuffix")}</span></td>
+                  <td className="text-soft-c">{tr.shift === 3 ? "1+2" : tr.shift}</td>
+                  <td className={load > tr.norm ? "status-bad" : "text-soft-c"}>{active ? `${load} / ${tr.norm}` : `— / ${tr.norm}`}</td>
+                  <td className="text-muted-c text-xs">{tr.unavailable.length ? `${tr.unavailable.length} ${t("tch.slotSuffix")}` : "—"}</td>
                   <td className="flex gap-2 py-2">
-                    <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...t })}><Pencil className="w-4 h-4" /></button>
+                    <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...tr })}><Pencil className="w-4 h-4" /></button>
                     <button className={btnD} onClick={() => {
-                      const n = usedBy(t.id);
+                      const n = usedBy(tr.id);
                       if (n > 0) { alert(`Бұл мұғалім ${n} сыныптың оқу жоспарында бар — алдымен сол жерден алып тастаңыз.`); return; }
-                      if (confirm(`${t.name} жою?`)) setTeachers(teachers.filter((x) => x.id !== t.id));
+                      if (confirm(`${tr.name} жою?`)) setTeachers(teachers.filter((x) => x.id !== tr.id));
                     }}><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
@@ -81,9 +81,9 @@ export default function TeachersPage() {
         </table></div>
       </GlassCard>
 
-      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? "Мұғалімді өңдеу" : "Жаңа мұғалім"} wide>
+      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? t("fld.editTeacher") : t("fld.newTeacher")} wide>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="ФИО"><input className={inputCls} value={form?.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label={t("tch.colName")}><input className={inputCls} value={form?.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Апталық норма (сағ)"><input type="number" className={inputCls} value={form?.norm || 18} onChange={(e) => setForm({ ...form, norm: Number(e.target.value) })} /></Field>
           <Field label="Мин. сынып">
             <select className={inputCls} value={form?.gradeMin || 1} onChange={(e) => setForm({ ...form, gradeMin: Number(e.target.value) })}>
@@ -97,7 +97,7 @@ export default function TeachersPage() {
           </Field>
           <Field label="Ауысым">
             <select className={inputCls} value={form?.shift || 1} onChange={(e) => setForm({ ...form, shift: Number(e.target.value) as 1 | 2 | 3 })}>
-              <option value={1}>1-ауысым</option><option value={2}>2-ауысым</option><option value={3}>Екеуі де</option>
+              <option value={1}>{t("fld.shift1")}</option><option value={2}>{t("fld.shift2")}</option><option value={3}>Екеуі де</option>
             </select>
           </Field>
           <Field label="Ауысым аралық ауысу">

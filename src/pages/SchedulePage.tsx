@@ -9,7 +9,6 @@ import { useData, useActiveVersion } from "@/store/dataStore";
 import { buildTimeline, maxSlots } from "@/algorithm/engine";
 import type { Slot } from "@/algorithm/engine";
 
-const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
 
 export default function SchedulePage() {
   const { classes, teachers, rooms, subjects, school } = useData();
@@ -74,7 +73,7 @@ export default function SchedulePage() {
             <thead>
               <tr>
                 <th className="p-2 text-left text-muted-c w-24">№ / Уақыт</th>
-                {DAYS.slice(1).map((d) => <th key={d} className="p-2 text-muted-c">{d}</th>)}
+                {[t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")].map((d) => <th key={d} className="p-2 text-muted-c">{d}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -103,7 +102,7 @@ export default function SchedulePage() {
                               </p>
                               <p className="opacity-60">
                                 {view !== "room" ? Rn(o.roomId) : Cn(o.classId)}
-                                {view === "room" && o.shift === 2 ? " · 2-ауысым" : ""}
+                                {view === "room" && o.shift === 2 ? " · " + t("sch.shift2") : ""}
                               </p>
                             </div>
                           );
@@ -120,7 +119,7 @@ export default function SchedulePage() {
           <span><span className="inline-block w-3 h-3 rounded bg-red-500/30 mr-1" />{t("sched.legend.hard")}</span>
           <span><span className="inline-block w-3 h-3 rounded bg-yellow-500/30 mr-1" />{t("sched.legend.medium")}</span>
           <span><span className="inline-block w-3 h-3 rounded bg-emerald-500/30 mr-1" />{t("sched.legend.easy")}</span>
-          <span>×2 — қос сабақ · Г1/Г2 — топтар</span>
+          <span>{t("sch.legend")}</span>
         </div>
       </GlassCard>
     </div>

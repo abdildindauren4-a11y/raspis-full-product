@@ -23,13 +23,13 @@ export default function VersionsPage() {
     const changes: string[] = [];
     const cName = (id: string) => classes.find((c) => c.id === id)?.name || id;
     const sName = (id: string) => subjects.find((s) => s.id === id)?.name || id;
-    const DAYS = ["", "Дс", "Сс", "Ср", "Бс", "Жм"];
+    const DAYS = ["", t("day.mon").slice(0,2), t("day.tue").slice(0,2), t("day.wed").slice(0,2), t("day.thu").slice(0,2), t("day.fri").slice(0,2)];
     for (const [k, oB] of mapB) {
       const oA = mapA.get(k);
-      if (!oA) changes.push(`+ ${cName(oB.classId)} ${DAYS[oB.day]} ${oB.slot}-сабақ: ${sName(oB.subjectId)}`);
-      else if (oA.subjectId !== oB.subjectId) changes.push(`~ ${cName(oB.classId)} ${DAYS[oB.day]} ${oB.slot}-сабақ: ${sName(oA.subjectId)} → ${sName(oB.subjectId)}`);
+      if (!oA) changes.push(`+ ${cName(oB.classId)} ${DAYS[oB.day]} ${oB.slot}: ${sName(oB.subjectId)}`);
+      else if (oA.subjectId !== oB.subjectId) changes.push(`~ ${cName(oB.classId)} ${DAYS[oB.day]} ${oB.slot}: ${sName(oA.subjectId)} → ${sName(oB.subjectId)}`);
     }
-    for (const [k, oA] of mapA) if (!mapB.has(k)) changes.push(`− ${cName(oA.classId)} ${DAYS[oA.day]} ${oA.slot}-сабақ: ${sName(oA.subjectId)}`);
+    for (const [k, oA] of mapA) if (!mapB.has(k)) changes.push(`− ${cName(oA.classId)} ${DAYS[oA.day]} ${oA.slot}: ${sName(oA.subjectId)}`);
     return { a, b, changes };
   })();
 
@@ -37,10 +37,10 @@ export default function VersionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("ver.title")}</h1>
-        <p className="text-muted-c mt-1">Кесте нұсқаларын басқару және салыстыру (2 нұсқа таңдаңыз)</p>
+        <p className="text-muted-c mt-1">{t("ver.subtitle")}</p>
       </div>
       {versions.length === 0 && (
-        <GlassCard hover={false}><p className="text-center text-muted-c py-8 text-sm">Нұсқалар жоқ — генерация жасап сақтаңыз</p></GlassCard>
+        <GlassCard hover={false}><p className="text-center text-muted-c py-8 text-sm">{t("ver.empty")}</p></GlassCard>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {versions.map((v) => (
@@ -50,17 +50,17 @@ export default function VersionsPage() {
                 <p className="font-bold text-strong-c">{v.name}</p>
                 <p className="text-xs text-muted-c">{v.createdAt}{v.scope ? ` · ${v.scope}` : ""}</p>
               </div>
-              <input type="checkbox" checked={cmp.includes(v.id)} onChange={() => toggleCmp(v.id)} title="Салыстыруға таңдау" />
+              <input type="checkbox" checked={cmp.includes(v.id)} onChange={() => toggleCmp(v.id)} title={t("ver.pickCompare")} />
             </div>
             <div className="flex items-center gap-3 my-3">
               <span className={`text-2xl font-bold ${v.result.quality >= 80 ? "status-good" : v.result.quality >= 60 ? "status-warn" : "status-bad"}`}>{v.result.quality}</span>
-              <span className="text-xs text-muted-c">{v.result.stats.total} сабақ · {v.result.tests.filter((t) => t.passed).length}/{v.result.tests.length} тест</span>
+              <span className="text-xs text-muted-c">{v.result.stats.total} " + t("ver.lessonsWord") + " · {v.result.tests.filter((t) => t.passed).length}/{v.result.tests.length} тест</span>
             </div>
             <div className="flex gap-2">
               {activeVersionId === v.id ? (
-                <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 status-good text-xs">✓ Белсенді</span>
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 status-good text-xs">✓ {t("ver.active")}</span>
               ) : (
-                <button className={btnP + " !py-1.5 text-xs"} onClick={() => activateVersion(v.id)}>Белсендіру</button>
+                <button className={btnP + " !py-1.5 text-xs"} onClick={() => activateVersion(v.id)}>{t("ver.activate")}</button>
               )}
               <button className={btnD} onClick={() => { if (confirm(`${v.name} жою?`)) deleteVersion(v.id); }}>Жою</button>
             </div>

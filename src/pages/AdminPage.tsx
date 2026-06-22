@@ -4,6 +4,8 @@ import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Check, Load
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLang } from "@/contexts/LangContext";
+import type { TransKey } from "@/i18n/translations";
 import {
   getAllUsers, setUserRole, loadPermissions, savePermissions,
   loadSelfRoleEnabled, setSelfRoleEnabled,
@@ -11,24 +13,25 @@ import {
 } from "@/lib/roles";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
-  admin: { label: "Әкімші", icon: Crown, cls: "status-warn" },
-  paid: { label: "Толық", icon: CreditCard, cls: "status-good" },
-  free: { label: "Тегін", icon: UserIcon, cls: "text-muted-c" },
+  admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
+  paid: { label: "role.paid", icon: CreditCard, cls: "status-good" },
+  free: { label: "role.free", icon: UserIcon, cls: "text-muted-c" },
 };
 
-const FEATURE_LABELS: Record<Feature, string> = {
-  generate: "Кесте генерациясы",
-  excelExport: "Excel экспорт",
-  cloudSync: "Бұлттық сақтау",
-  excelImport: "Excel импорт",
-  deepSearch: "Терең іздеу",
-  softMode: "Жұмсақ режим",
-  aiAdvisor: "РАСПИС AI",
-  unlimitedClasses: "Шектеусіз сынып",
+const FEATURE_LABELS: Record<Feature, TransKey> = {
+  generate: "adm.featGenerate",
+  excelExport: "adm.featExport",
+  cloudSync: "adm.featCloud",
+  excelImport: "adm.featImport",
+  deepSearch: "adm.featDeep",
+  softMode: "adm.featSoft",
+  aiAdvisor: "adm.featAI",
+  unlimitedClasses: "adm.featUnlimited",
 };
 
 export default function AdminPage() {
   const { role } = useAuth();
+  const { t } = useLang();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [perms, setPerms] = useState<Record<Feature, Role>>(DEFAULT_PERMISSIONS);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,7 @@ export default function AdminPage() {
     if (!ok) {
       // Firestore жаза алмады — кері қайтарамыз әрі хабарлаймыз
       setSelfRoleOn(!next);
-      setToggleMsg("Сақталмады. Firestore «config» ережесін тексеріңіз.");
+      setToggleMsg(t("adm.saveErr"));
       setTimeout(() => setToggleMsg(""), 4000);
     }
   };
@@ -65,7 +68,7 @@ export default function AdminPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Shield className="w-12 h-12 text-faint-c mb-3" />
-        <p className="text-muted-c">Бұл бөлім тек әкімшіге қолжетімді.</p>
+        <p className="text-muted-c">{t("adm.onlyAdmin")}</p>
       </div>
     );
   }
@@ -81,7 +84,7 @@ export default function AdminPage() {
 
   const savePerms = async () => {
     const ok = await savePermissions(perms);
-    setSavedMsg(ok ? "Сақталды ✓" : "Қате");
+    setSavedMsg(ok ? t("adm.saved") : t("adm.error"));
     setTimeout(() => setSavedMsg(""), 2000);
   };
 
@@ -101,18 +104,18 @@ export default function AdminPage() {
       <div className="flex items-center gap-3">
         <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center"><Shield className="w-5 h-5 text-white" /></div>
         <div>
-          <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">Әкімші панелі</h1>
-          <p className="text-muted-c mt-0.5 text-sm">Пайдаланушылар мен рұқсаттарды басқару</p>
+          <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("adm.title")}</h1>
+          <p className="text-muted-c mt-0.5 text-sm">{t("adm.subtitle")}</p>
         </div>
       </div>
 
       {/* Статистика */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Барлығы", value: stats.total, icon: Users },
-          { label: "Әкімші", value: stats.admin, icon: Crown },
-          { label: "Толық", value: stats.paid, icon: CreditCard },
-          { label: "Тегін", value: stats.free, icon: UserIcon },
+          { label: t("adm.statAll"), value: stats.total, icon: Users },
+          { label: t("role.admin"), value: stats.admin, icon: Crown },
+          { label: t("role.paid"), value: stats.paid, icon: CreditCard },
+          { label: t("role.free"), value: stats.free, icon: UserIcon },
         ].map((s) => (
           <GlassCard key={s.label} hover={false}>
             <div className="flex items-center gap-3">
@@ -132,11 +135,11 @@ export default function AdminPage() {
           <div className="flex gap-2.5">
             <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${selfRoleOn ? "status-bad" : "text-faint-c"}`} />
             <div>
-              <p className="text-sm font-medium text-strong-c">«Өзіне рөл алу» функциясы</p>
+              <p className="text-sm font-medium text-strong-c">{t("adm.selfRoleName")}</p>
               <p className="text-xs text-muted-c mt-0.5">
                 {selfRoleOn
-                  ? "ҚОСУЛЫ — кез келген кірген адам өзіне әкімші бола алады. Орнатуды бітірген соң ДЕРЕУ жабыңыз!"
-                  : "Жабық — рөлдерді тек осы панельден бересіз (қауіпсіз)."}
+                  ? t("adm.selfRoleOn")
+                  : t("adm.selfRoleOff")}
               </p>
             </div>
           </div>
@@ -153,24 +156,24 @@ export default function AdminPage() {
       {/* Қойындылар */}
       <div className="flex gap-2">
         <button onClick={() => setTab("users")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === "users" ? "gradient-primary text-white" : "bg-input-c text-muted-c border border-soft-c"}`}>
-          <Users className="w-4 h-4 inline mr-1.5" />Пайдаланушылар
+          <Users className="w-4 h-4 inline mr-1.5" />{t("adm.tabUsers")}
         </button>
         <button onClick={() => setTab("permissions")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === "permissions" ? "gradient-primary text-white" : "bg-input-c text-muted-c border border-soft-c"}`}>
-          <Settings2 className="w-4 h-4 inline mr-1.5" />Рұқсат деңгейлері
+          <Settings2 className="w-4 h-4 inline mr-1.5" />{t("adm.tabPerms")}
         </button>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-muted-c py-10 justify-center"><Loader2 className="w-5 h-5 animate-spin accent-c" /> Жүктелуде…</div>
+        <div className="flex items-center gap-2 text-muted-c py-10 justify-center"><Loader2 className="w-5 h-5 animate-spin accent-c" /> {t("adm.loading")}</div>
       ) : tab === "users" ? (
         <GlassCard hover={false}>
           {/* Іздеу */}
           <div className="relative mb-4">
             <Search className="w-4 h-4 text-faint-c absolute left-3 top-2.5" />
-            <input className={inputCls + " !pl-9"} placeholder="Email немесе атау бойынша іздеу" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input className={inputCls + " !pl-9"} placeholder={t("adm.searchUser")} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           {filtered.length === 0 ? (
-            <p className="text-center text-muted-c py-8 text-sm">Пайдаланушы табылмады</p>
+            <p className="text-center text-muted-c py-8 text-sm">{t("adm.noUsers")}</p>
           ) : (
             <div className="space-y-2">
               {filtered.map((u) => {
@@ -192,7 +195,7 @@ export default function AdminPage() {
                           onClick={() => changeRole(u.uid, r)}
                           className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${u.role === r ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
                         >
-                          {ROLE_INFO[r].label}
+                          {t(ROLE_INFO[r].label as TransKey)}
                         </button>
                       ))}
                     </div>
@@ -204,11 +207,11 @@ export default function AdminPage() {
         </GlassCard>
       ) : (
         <GlassCard hover={false}>
-          <p className="text-sm text-muted-c mb-4">Әр функция қай деңгейден бастап қолжетімді екенін реттеңіз:</p>
+          <p className="text-sm text-muted-c mb-4">{t("adm.permsHint")}</p>
           <div className="space-y-2">
             {(Object.keys(FEATURE_LABELS) as Feature[]).map((f) => (
               <div key={f} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-input-c border border-soft-c">
-                <span className="text-sm text-strong-c">{FEATURE_LABELS[f]}</span>
+                <span className="text-sm text-strong-c">{t(FEATURE_LABELS[f] as TransKey)}</span>
                 <div className="flex gap-1.5">
                   {(["free", "paid", "admin"] as Role[]).map((r) => (
                     <button
@@ -216,7 +219,7 @@ export default function AdminPage() {
                       onClick={() => changePerm(f, r)}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${perms[f] === r ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
                     >
-                      {ROLE_INFO[r].label}
+                      {t(ROLE_INFO[r].label as TransKey)}
                     </button>
                   ))}
                 </div>
@@ -225,7 +228,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-3 mt-4">
             <button className={btnP + " flex items-center gap-2"} onClick={savePerms}>
-              <Check className="w-4 h-4" /> Сақтау
+              <Check className="w-4 h-4" /> {t("adm.save")}
             </button>
             {savedMsg && <span className="text-sm status-good">{savedMsg}</span>}
           </div>

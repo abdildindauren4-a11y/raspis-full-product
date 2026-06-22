@@ -23,6 +23,7 @@ import ImportPage from "@/pages/ImportPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import AdminPage from "@/pages/AdminPage";
+import CertificatePage from "@/pages/CertificatePage";
 import { useData } from "@/store/dataStore";
 import { useCloudSync } from "@/hooks/useCloudSync";
 import { useLocation } from "react-router-dom";
@@ -112,6 +113,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/certificate" element={<CertificatePage />} />
       {pages.map(([path, el]) => (
         <Route key={path} path={path} element={<Protected>{el}</Protected>} />
       ))}

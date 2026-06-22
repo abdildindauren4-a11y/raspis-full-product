@@ -139,7 +139,7 @@ export default function GeneratePage() {
             </div>
             {mode === "partial" && active && (
               <select className={inputCls + " mt-4"} value={scopeClass} onChange={(e) => setScopeClass(e.target.value)}>
-                <option value="">— қайта құрылатын сынып —</option>
+                <option value="">{t("gen.rebuildClass")}</option>
                 {data.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
@@ -159,7 +159,7 @@ export default function GeneratePage() {
           <GlassCard hover={false}>
             <h3 className="font-semibold text-strong-c mb-3">{t("imp.preview")}</h3>
             {dedup.length === 0 ? (
-              <p className="status-good text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Барлық деректер дайын</p>
+              <p className="status-good text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {t("gen.dataReady")}</p>
             ) : (
               <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
                 {dedup.map((i, idx) => (
@@ -170,7 +170,7 @@ export default function GeneratePage() {
               </div>
             )}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 my-4 text-center">
-              {[["Сынып", data.classes.length], ["Мұғалім", data.teachers.length], ["Кабинет", data.rooms.length]].map(([l, v]) => (
+              {[[t("gen.statClasses"), data.classes.length], [t("gen.statTeachers"), data.teachers.length], [t("gen.statRooms"), data.rooms.length]].map(([l, v]) => (
                 <div key={String(l)} className="rounded-xl bg-input-c p-3">
                   <p className="text-xl font-bold gradient-text">{v}</p>
                   <p className="text-xs text-muted-c">{l}</p>
@@ -231,15 +231,15 @@ export default function GeneratePage() {
             <div className="rounded-xl border-2 border-[var(--accent)] bg-[rgba(74,144,217,0.06)] p-3 mb-3">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 accent-c" />
-                <p className="text-sm font-semibold text-strong-c">Мұғалім жайлылығы (терезе азайту)</p>
+                <p className="text-sm font-semibold text-strong-c">{t("gen.comfortTitle")}</p>
               </div>
-              <p className="text-xs text-muted-c mb-3">Сабақтарды ауыстырып, мұғалімнің бос сабақтарын (терезе/окно) азайтады. Жоғары деңгей — аз терезе.</p>
+              <p className="text-xs text-muted-c mb-3">{t("gen.comfortDesc")}</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {([
-                  [0, "Өшірулі", "тез"],
-                  [1, "Жұмсақ", "қауіпсіз"],
-                  [2, "Орташа", "ұсынылады"],
-                  [3, "Макс", "ең аз"],
+                  [0, t("gen.comfortOff"), t("gen.comfortFast")],
+                  [1, t("gen.comfortSoft"), t("gen.comfortSafe")],
+                  [2, t("gen.comfortMed"), t("gen.comfortRec")],
+                  [3, t("gen.comfortMax"), t("gen.comfortLeast")],
                 ] as const).map(([lvl, label, hint]) => {
                   const active2 = (data.settings.teacherComfort ?? 0) === lvl;
                   return (
@@ -257,7 +257,7 @@ export default function GeneratePage() {
             </div>
 
             <button className={btnP + " w-full py-3"} disabled={blocked || (mode === "partial" && !scopeClass)} onClick={run}>
-              {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} нұсқа сынау</> : <><Sparkles className="w-4 h-4 inline mr-1.5" /> Генерациялау</>}
+              {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} {t("gen.tryVariants")}</> : <><Sparkles className="w-4 h-4 inline mr-1.5" /> {t("gen.generate")}</>}
             </button>
             {blocked && <p className="text-xs status-bad text-center mt-2">{t("gen.blocked")}</p>}
           </GlassCard>
