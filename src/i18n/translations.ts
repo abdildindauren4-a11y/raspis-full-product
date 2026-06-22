@@ -21,6 +21,9 @@ export const translations = {
   "nav.export": { kk: "Экспорт", ru: "Экспорт", en: "Export" },
   "nav.logout": { kk: "Шығу", ru: "Выйти", en: "Logout" },
   "nav.collapse": { kk: "Жабу", ru: "Свернуть", en: "Collapse" },
+  "nav.settings": { kk: "Баптаулар", ru: "Настройки", en: "Settings" },
+  "nav.profile": { kk: "Профиль", ru: "Профиль", en: "Profile" },
+  "nav.admin": { kk: "Әкімші панелі", ru: "Панель админа", en: "Admin panel" },
 
   // ── Жалпы әрекеттер ──
   "action.add": { kk: "Қосу", ru: "Добавить", en: "Add" },
@@ -563,6 +566,18 @@ export const translations = {
   "cert.scanHint": { kk: "QR-кодты сканерлеп, кесте бетіне қойыңыз. Сканерлеген әркім сапа сертификатын көреді.", ru: "Отсканируйте QR-код и разместите на расписании. Каждый, кто сканирует, увидит сертификат.", en: "Scan the QR code and place it on the schedule. Anyone who scans will see the certificate." },
   "cert.open": { kk: "Сертификатты ашу", ru: "Открыть сертификат", en: "Open certificate" },
   "cert.downloadQr": { kk: "QR суретін жүктеу", ru: "Скачать QR", en: "Download QR" },
+  "cert.printHint": { kk: "Кестенің сапасын растайтын ресми сертификатты ашу үшін QR-кодты сканерлеңіз.", ru: "Отсканируйте QR-код, чтобы открыть официальный сертификат качества расписания.", en: "Scan the QR code to open the official schedule quality certificate." },
+
+  // ── TopBar (жоғарғы панель) ──
+  "top.themeLight": { kk: "Жарық тема", ru: "Светлая тема", en: "Light theme" },
+  "top.themeDark": { kk: "Қараңғы тема", ru: "Тёмная тема", en: "Dark theme" },
+  "top.cloudTitle": { kk: "Деректер бұлтта сақталады", ru: "Данные хранятся в облаке", en: "Data stored in cloud" },
+  "top.cloud": { kk: "Бұлтта", ru: "В облаке", en: "Cloud" },
+  "top.search": { kk: "Іздеу...", ru: "Поиск...", en: "Search..." },
+  "top.notifications": { kk: "Хабарландырулар", ru: "Уведомления", en: "Notifications" },
+  "top.profile": { kk: "Профиль", ru: "Профиль", en: "Profile" },
+  "top.settings": { kk: "Баптаулар", ru: "Настройки", en: "Settings" },
+  "top.logout": { kk: "Шығу", ru: "Выйти", en: "Logout" },
 } as const;
 
 export type TransKey = keyof typeof translations;

@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,30 +35,31 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: GraduationCap, label: "Сыныптар", path: "/classes" },
-  { icon: Users, label: "Мұғалімдер", path: "/teachers" },
-  { icon: DoorOpen, label: "Кабинеттер", path: "/rooms" },
-  { icon: BookOpen, label: "Пәндер", path: "/subjects" },
-  { icon: UsersRound, label: "Топ бөлу", path: "/groups" },
-  { icon: Cpu, label: "Алгоритм", path: "/algorithm" },
-  { icon: Sparkles, label: "Генерация", path: "/generate" },
-  { icon: CalendarDays, label: "Расписание", path: "/schedule" },
-  { icon: History, label: "Нұсқалар", path: "/versions" },
-  { icon: ShieldCheck, label: "Сапа есебі", path: "/quality" },
-  { icon: Bot, label: "РАСПИС AI", path: "/ai-advisor" },
-  { icon: FileUp, label: "Excel импорт", path: "/import" },
-  { icon: FileDown, label: "Export", path: "/export" },
-  { icon: Settings, label: "Баптаулар", path: "/settings" },
-  { icon: User, label: "Профиль", path: "/profile" },
-];
+  { icon: LayoutDashboard, key: "nav.dashboard", path: "/" },
+  { icon: GraduationCap, key: "nav.classes", path: "/classes" },
+  { icon: Users, key: "nav.teachers", path: "/teachers" },
+  { icon: DoorOpen, key: "nav.rooms", path: "/rooms" },
+  { icon: BookOpen, key: "nav.subjects", path: "/subjects" },
+  { icon: UsersRound, key: "nav.groups", path: "/groups" },
+  { icon: Cpu, key: "nav.algorithm", path: "/algorithm" },
+  { icon: Sparkles, key: "nav.generate", path: "/generate" },
+  { icon: CalendarDays, key: "nav.schedule", path: "/schedule" },
+  { icon: History, key: "nav.versions", path: "/versions" },
+  { icon: ShieldCheck, key: "nav.quality", path: "/quality" },
+  { icon: Bot, key: "nav.aiAdvisor", path: "/ai-advisor" },
+  { icon: FileUp, key: "nav.import", path: "/import" },
+  { icon: FileDown, key: "nav.export", path: "/export" },
+  { icon: Settings, key: "nav.settings", path: "/settings" },
+  { icon: User, key: "nav.profile", path: "/profile" },
+] as const;
 
 // Тек әкімшіге көрінетін мәзір
 const adminItems = [
-  { icon: Shield, label: "Әкімші панелі", path: "/admin" },
-];
+  { icon: Shield, key: "nav.admin", path: "/admin" },
+] as const;
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
+  const { t } = useLang();
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useData((s) => s.logout);
@@ -137,7 +139,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                     transition={{ duration: 0.2 }}
                     className="text-sm font-medium whitespace-nowrap overflow-hidden"
                   >
-                    {item.label}
+                    {t(item.key)}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -145,7 +147,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
               {/* Tooltip for collapsed state */}
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-3 py-1.5 bg-surface border border-soft-c rounded-lg text-sm text-strong-c whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[1400]">
-                  {item.label}
+                  {t(item.key)}
                 </div>
               )}
             </motion.button>
@@ -168,7 +170,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                 exit={{ opacity: 0 }}
                 className="text-sm"
               >
-                Жабу
+                {t("nav.collapse")}
               </motion.span>
             )}
           </AnimatePresence>
@@ -186,7 +188,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                 exit={{ opacity: 0 }}
                 className="text-sm"
               >
-                Шығу
+                {t("nav.logout")}
               </motion.span>
             )}
           </AnimatePresence>

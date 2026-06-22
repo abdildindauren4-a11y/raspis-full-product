@@ -63,18 +63,55 @@ export default function ExportPage() {
     }
   };
 
-  const printAll = () => {
+  const printAll = async () => {
     if (!active) return;
     const w = window.open("", "_blank");
     if (!w) return;
+
+    // Сапа сертификатының QR-кодын жасау (кесте астына қою үшін)
+    let qrDataUrl = "";
+    try {
+      const cd = buildCertData(active.result, school.name, {
+        classes: classes.length,
+        teachers: teachers.length,
+        rooms: rooms.length,
+      });
+      qrDataUrl = await QRCode.toDataURL(certUrl(cd), {
+        width: 200,
+        margin: 1,
+        color: { dark: "#1a2230", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      });
+    } catch (e) {
+      console.error("QR жасау қатесі:", e);
+    }
+
+    // Кесте астындағы QR блогы (HTML)
+    const qrBlock = qrDataUrl
+      ? `<div class="qr-foot">
+           <img src="${qrDataUrl}" class="qr-img" />
+           <div class="qr-text">
+             <div class="qr-title">${t("cert.title")}</div>
+             <div class="qr-sub">${t("cert.printHint")}</div>
+             <div class="qr-school">${school.name} · ${t("exp.statQuality")}: ${active.result.quality}/100</div>
+           </div>
+         </div>`
+      : "";
+
     let html = `<html><head><meta charset="utf-8"><title>РАСПИС</title><style>
       body{font-family:Arial,sans-serif;font-size:11px;margin:16px}
       h2{margin:14px 0 6px;page-break-before:always} h2:first-of-type{page-break-before:auto}
       table{border-collapse:collapse;width:100%} td,th{border:1px solid #999;padding:4px;text-align:center}
       th{background:#eef} .r{background:#fde8e8}.y{background:#fdf6dc}.g{background:#e3f6e8}
+      .qr-foot{display:flex;align-items:center;gap:14px;margin-top:14px;padding:12px 14px;border:1.5px solid #1a2230;border-radius:6px;page-break-inside:avoid}
+      .qr-img{width:88px;height:88px;flex-shrink:0}
+      .qr-text{font-family:'Times New Roman',serif}
+      .qr-title{font-size:13px;font-weight:700;color:#1a2230;margin-bottom:3px}
+      .qr-sub{font-size:10.5px;color:#5a5650;line-height:1.5;margin-bottom:4px}
+      .qr-school{font-size:10px;color:#9a7d3a;font-style:italic}
     </style></head><body><h1>${school.name} — ${t("exp.weeklySchedule")}</h1>`;
     for (const c of classes) {
-      html += `<h2>${c.name} ${t("exp.classWord")} (${c.shift}${t("exp.shiftWord")})</h2><table><tr><th>№</th><th>Уақыт</th>${DAYS.slice(1).map((d) => `<th>${d}</th>`).join("")}</tr>`;
+      html += `<h2>${c.name} ${t("exp.classWord")} (${c.shift}${t("exp.shiftWord")})</h2><table><tr><th>№</th><th>${t("exp.colTime")}</th>${DAYS.slice(1).map((d) => `<th>${d}</th>`).join("")}</tr>`;
       for (let slot = 1; slot <= maxSlots(c.grade); slot++) {
         html += `<tr><td>${slot}</td><td>${tl[c.shift][slot].start}–${tl[c.shift][slot].end}</td>`;
         for (let day = 1; day <= 5; day++) {
@@ -87,6 +124,7 @@ export default function ExportPage() {
         html += "</tr>";
       }
       html += "</table>";
+      html += qrBlock; // әр сынып кестесінің астына QR
     }
     html += "</body></html>";
     w.document.write(html);

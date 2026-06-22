@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Search, User, Check, AlertTriangle, Info, Moon, Sun, Cloud } from "lucide-react";
 import { notifications } from "@/lib/mockData";
@@ -7,11 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 
 function ThemeToggleButton() {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLang();
   return (
     <button
       onClick={toggleTheme}
       className="p-2 rounded-xl text-muted-c hover:text-strong-c hover:bg-[rgba(var(--bg-card),0.5)] transition-all"
-      title={theme === "dark" ? "Жарық тема" : "Қараңғы тема"}
+      title={theme === "dark" ? t("top.themeLight") : t("top.themeDark")}
     >
       {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
     </button>
@@ -23,19 +25,21 @@ function ThemeToggleButton() {
 // қосулы екенін тексеріп, белгі көрсетеміз (қайталанбас үшін).
 function SyncIndicator() {
   const { user, configured } = useAuth();
+  const { t } = useLang();
   if (!configured || !user) return null; // Firebase қосылмаған/кірмеген
   return (
     <div
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-input-c border border-soft-c"
-      title="Деректер бұлтта сақталады"
+      title={t("top.cloudTitle")}
     >
       <Cloud className="w-3.5 h-3.5 status-good" />
-      <span className="text-xs text-muted-c hidden sm:inline">Бұлтта</span>
+      <span className="text-xs text-muted-c hidden sm:inline">{t("top.cloud")}</span>
     </div>
   );
 }
 
 export default function TopBar() {
+  const { t } = useLang();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -57,7 +61,7 @@ export default function TopBar() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-c" />
         <input
           type="text"
-          placeholder="Іздеу..."
+          placeholder={t("top.search")}
           className="w-full pl-10 pr-4 py-2 bg-input-c border border-soft-c rounded-xl text-sm text-strong-c placeholder:text-muted-c focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all"
         />
       </div>
@@ -95,7 +99,7 @@ export default function TopBar() {
                   className="absolute right-0 top-full mt-2 w-[300px] sm:w-[360px] max-w-[90vw] glass-strong rounded-2xl border border-soft-c shadow-2xl z-[1200] overflow-hidden"
                 >
                   <div className="p-4 border-b border-soft-c">
-                    <h3 className="font-['IBM_Plex_Sans'] font-semibold text-strong-c">Хабарландырулар</h3>
+                    <h3 className="font-['IBM_Plex_Sans'] font-semibold text-strong-c">{t("top.notifications")}</h3>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
                     {notifications.map((notif) => (
@@ -151,14 +155,14 @@ export default function TopBar() {
                   </div>
                   <div className="p-2">
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors">
-                      Профиль
+                      {t("top.profile")}
                     </button>
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors">
-                      Баптаулар
+                      {t("top.settings")}
                     </button>
                     <hr className="my-1 border-soft-c" />
                     <button className="w-full text-left px-3 py-2 rounded-lg text-sm status-bad hover:bg-red-500/10 transition-colors">
-                      Шыгу
+                      {t("top.logout")}
                     </button>
                   </div>
                 </motion.div>

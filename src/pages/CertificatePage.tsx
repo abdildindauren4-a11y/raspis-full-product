@@ -98,8 +98,8 @@ export default function CertificatePage() {
             </div>
 
             {/* ── Декоративті бөлгіш ── */}
-            <div style={{ textAlign: "center", margin: "16px 0 22px", color: "#9a7d3a", fontSize: 14, letterSpacing: "8px" }}>
-              ❧ ⸻⸻ ❧
+            <div style={{ textAlign: "center", margin: "16px 0 22px", color: "#9a7d3a", fontSize: 13, letterSpacing: "6px" }}>
+              ───── ◆ ─────
             </div>
 
             {/* ── Кіріспе мәтін ── */}
