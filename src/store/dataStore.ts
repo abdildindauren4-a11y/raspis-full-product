@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { School, Settings, Subject, Teacher, Room, Klass, AlgoResult } from "@/algorithm/engine";
 import { seedSchool, seedSettings, seedSubjects, buildSeed } from "@/lib/seed";
+import { buildBigSeed, bigSchool, bigSettings, bigSubjects } from "@/lib/bigSeed";
 
 export interface SubstitutionRecord {
   id: string;
@@ -42,6 +43,7 @@ interface DataState {
   addSubstitution: (s: SubstitutionRecord) => void;
   deleteSubstitution: (id: string) => void;
   resetSeed: () => void;
+  resetBigSeed: () => void;
   clearSchedules: () => void;   // тек кестелерді (нұсқаларды) өшіру
   clearAllData: () => void;     // барлық деректі бос ету (демосыз)
 }
@@ -83,6 +85,10 @@ export const useData = create<DataState>()(
       resetSeed: () => {
         const s = buildSeed();
         set({ school: seedSchool, settings: seedSettings, subjects: seedSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, versions: [], activeVersionId: null });
+      },
+      resetBigSeed: () => {
+        const s = buildBigSeed();
+        set({ school: bigSchool, settings: bigSettings, subjects: bigSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, versions: [], activeVersionId: null, substitutions: [] });
       },
       clearSchedules: () => {
         // тек құрылған кестелерді (нұсқаларды) және алмастыруларды өшіреді

@@ -1,6 +1,6 @@
 // filepath: src/pages/AlgorithmPage.tsx
 import GlassCard from "@/components/shared/GlassCard";
-import { Field, inputCls, btnG } from "@/components/shared/Form";
+import { Field, inputCls, btnG, btnP } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { maxSlots } from "@/algorithm/engine";
@@ -26,7 +26,7 @@ function Slider({ label, value, min, max, step, onChange, suffix }: {
 
 export default function AlgorithmPage() {
   const { t } = useLang();
-  const { school, setSchool, settings, setSettings, resetSeed } = useData();
+  const { school, setSchool, settings, setSettings, resetSeed, resetBigSeed } = useData();
   const dl = settings.dayLimits, ft = settings.fatigue, cf = settings.coeffs;
   const setDL = (patch: Partial<typeof dl>) => setSettings({ dayLimits: { ...dl, ...patch } });
   const setFT = (patch: Partial<typeof ft>) => setSettings({ fatigue: { ...ft, ...patch } });
@@ -90,8 +90,11 @@ export default function AlgorithmPage() {
               </div>
             ))}
           </div>
-          <button className={btnG + " mt-4 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
+          <button className={btnG + " mt-3 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
             <RotateCcw className="w-4 h-4" /> Демо-деректерге қайтару
+          </button>
+          <button className={btnP + " mt-2 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("№165 мектеп — 33 сынып, 53 мұғалім, 44 кабинет. Жүктеу?")) resetBigSeed(); }}>
+            <RotateCcw className="w-4 h-4" /> №165 Үлкен мектеп деректері
           </button>
         </GlassCard>
       </div>
