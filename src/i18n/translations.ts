@@ -584,6 +584,10 @@ export const translations = {
   "diag.hasErrors": { kk: "{n} маңызды мәселе табылды — толық кесте құру үшін түзету қажет:", ru: "Найдено {n} важных проблем — для полного расписания нужно исправить:", en: "{n} critical issues found — fix them for a complete schedule:" },
   "diag.onlyWarnings": { kk: "Кесте құрылады, бірақ жақсартуға болатын тұстар бар:", ru: "Расписание создаётся, но есть что улучшить:", en: "Schedule can be built, but there is room to improve:" },
   "diag.solution": { kk: "Шешім", ru: "Решение", en: "Solution" },
+  "diag.errLabel": { kk: "қате", ru: "ошибок", en: "errors" },
+  "diag.warnLabel": { kk: "ескерту", ru: "предупр.", en: "warnings" },
+  "diag.infoLabel": { kk: "ақпарат", ru: "инфо", en: "info" },
+  "diag.onlyInfos": { kk: "Маңызды мәселе жоқ, бірақ назар аударуға тұрарлық тұстар бар:", ru: "Критичных проблем нет, но есть на что обратить внимание:", en: "No critical issues, but a few things worth noting:" },
 } as const;
 
 export type TransKey = keyof typeof translations;

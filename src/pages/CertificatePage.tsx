@@ -56,11 +56,24 @@ export default function CertificatePage() {
     <div style={{ minHeight: "100vh", background: "#e8e6e1", padding: "28px 16px", fontFamily: "'Times New Roman', Times, serif" }}>
       <style>{`
         @media print {
-          body { background: #fff !important; }
+          html, body {
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .cert-actions { display: none !important; }
-          .cert-sheet { box-shadow: none !important; margin: 0 !important; }
+          .cert-sheet {
+            box-shadow: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+            min-height: auto !important;
+            height: auto !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           @page { size: A4; margin: 0; }
         }
+        .cert-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       `}</style>
 
       <div className="cert-actions" style={{ maxWidth: "210mm", margin: "0 auto 18px", display: "flex", justifyContent: "flex-end" }}>
@@ -69,12 +82,12 @@ export default function CertificatePage() {
         </button>
       </div>
 
-      <div className="cert-sheet" style={{ width: "210mm", minHeight: "297mm", margin: "0 auto", background: "#ffffff", position: "relative", boxShadow: "0 4px 30px rgba(0,0,0,0.15)", overflow: "hidden" }}>
+      <div className="cert-sheet" style={{ width: "210mm", minHeight: "296mm", margin: "0 auto", background: "#ffffff", position: "relative", boxShadow: "0 4px 30px rgba(0,0,0,0.15)", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg, rgba(30,58,95,0.015) 0, rgba(30,58,95,0.015) 1px, transparent 1px, transparent 10px), repeating-linear-gradient(-45deg, rgba(30,58,95,0.015) 0, rgba(30,58,95,0.015) 1px, transparent 1px, transparent 10px)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", inset: "8mm", border: "2.5px solid #1e3a5f" }} />
         <div style={{ position: "absolute", inset: "10mm", border: "0.75px solid #9a7d3a" }} />
 
-        <div style={{ position: "absolute", top: "13mm", left: "15mm", right: "15mm", bottom: "13mm", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "absolute", top: "12mm", left: "15mm", right: "15mm", bottom: "12mm", display: "flex", flexDirection: "column" }}>
 
           {/* Шапка: логотип + ұйым + реквизит */}
           <table style={{ width: "100%", borderBottom: "1.5px solid #1e3a5f", paddingBottom: "4mm", marginBottom: "1mm" }}>

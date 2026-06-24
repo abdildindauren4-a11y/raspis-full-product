@@ -10,13 +10,13 @@ import { diagnose, diagSummary } from "@/algorithm/diagnostics";
 
 export default function QualityPage() {
   const { t } = useLang();
-  const { versions, activeVersionId, activateVersion, classes, teachers, rooms, subjects } = useData();
+  const { versions, activeVersionId, activateVersion, classes, teachers, rooms, subjects, school } = useData();
   const active = useActiveVersion();
 
   // Диагностика — ресурс жетіспеушілігін талдап, нақты шешім ұсынады
   const diagNotes = useMemo(
-    () => diagnose({ classes, teachers, rooms, subjects }),
-    [classes, teachers, rooms, subjects]
+    () => diagnose({ classes, teachers, rooms, subjects, school }),
+    [classes, teachers, rooms, subjects, school]
   );
   const diagSum = diagSummary(diagNotes);
 
@@ -94,32 +94,43 @@ export default function QualityPage() {
       {/* ── ДИАГНОСТИКА: ресурс талдауы мен баптау кеңестері ── */}
       {diagNotes.length > 0 && (
         <GlassCard hover={false}>
-          <div className="flex items-center gap-2 mb-1">
-            <Wrench className="w-5 h-5 accent-c" />
-            <h3 className="font-semibold text-strong-c">{t("diag.title")}</h3>
+          <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 accent-c" />
+              <h3 className="font-semibold text-strong-c">{t("diag.title")}</h3>
+            </div>
+            {/* Санақ белгілері */}
+            <div className="flex items-center gap-2 text-xs">
+              {diagSum.errors > 0 && <span className="px-2 py-0.5 rounded-md bg-red-500/10 status-bad font-semibold">{diagSum.errors} {t("diag.errLabel")}</span>}
+              {diagSum.warnings > 0 && <span className="px-2 py-0.5 rounded-md bg-amber-500/10 status-warn font-semibold">{diagSum.warnings} {t("diag.warnLabel")}</span>}
+              {diagSum.infos > 0 && <span className="px-2 py-0.5 rounded-md bg-[rgba(74,144,217,0.1)] accent-c font-semibold">{diagSum.infos} {t("diag.infoLabel")}</span>}
+            </div>
           </div>
           <p className="text-xs text-muted-c mb-4">
             {diagSum.errors > 0
               ? t("diag.hasErrors").replace("{n}", String(diagSum.errors))
-              : t("diag.onlyWarnings")}
+              : diagSum.warnings > 0 ? t("diag.onlyWarnings") : t("diag.onlyInfos")}
           </p>
           <div className="space-y-2.5">
             {diagNotes.map((n, i) => {
               const styles = n.level === "error"
-                ? { bd: "border-red-500/30", bg: "bg-red-500/5", ic: <XCircle className="w-4 h-4 status-bad shrink-0 mt-0.5" /> }
+                ? { bd: "border-red-500/30", bg: "bg-red-500/5", chip: "bg-red-500/10 status-bad", ic: <XCircle className="w-4 h-4 status-bad shrink-0 mt-0.5" /> }
                 : n.level === "warning"
-                ? { bd: "border-amber-500/30", bg: "bg-amber-500/5", ic: <AlertTriangle className="w-4 h-4 status-warn shrink-0 mt-0.5" /> }
-                : { bd: "border-accent/30", bg: "bg-[rgba(74,144,217,0.05)]", ic: <Lightbulb className="w-4 h-4 accent-c shrink-0 mt-0.5" /> };
+                ? { bd: "border-amber-500/30", bg: "bg-amber-500/5", chip: "bg-amber-500/10 status-warn", ic: <AlertTriangle className="w-4 h-4 status-warn shrink-0 mt-0.5" /> }
+                : { bd: "border-accent/30", bg: "bg-[rgba(74,144,217,0.05)]", chip: "bg-[rgba(74,144,217,0.1)] accent-c", ic: <Lightbulb className="w-4 h-4 accent-c shrink-0 mt-0.5" /> };
               return (
                 <div key={i} className={`rounded-xl border ${styles.bd} ${styles.bg} p-3`}>
                   <div className="flex items-start gap-2.5">
                     {styles.ic}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-strong-c">{n.title}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${styles.chip}`}>{n.code}</span>
+                        <p className="text-sm font-semibold text-strong-c">{n.title}</p>
+                      </div>
                       <p className="text-xs text-muted-c mt-1 leading-relaxed">{n.detail}</p>
                       <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-soft-c">
                         <Lightbulb className="w-3.5 h-3.5 accent-c shrink-0 mt-0.5" />
-                        <p className="text-xs text-strong-c leading-relaxed"><span className="font-semibold">{t("diag.solution")}: </span>{n.fix}</p>
+                        <p className="text-xs text-strong-c leading-relaxed"><span className="font-semibold">{t("diag.solution")}: </span>{n.fix}{n.ref ? <span className="text-muted-c"> · {n.ref}</span> : null}</p>
                       </div>
                     </div>
                   </div>
