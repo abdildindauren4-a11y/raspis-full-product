@@ -58,16 +58,17 @@ export default function CertificatePage() {
         @media print {
           html, body {
             background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           .cert-actions { display: none !important; }
           .cert-sheet {
             box-shadow: none !important;
-            margin: 0 !important;
-            width: 100% !important;
-            min-height: auto !important;
-            height: auto !important;
+            margin: 0 auto !important;
+            height: 296mm !important;
+            min-height: 296mm !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
