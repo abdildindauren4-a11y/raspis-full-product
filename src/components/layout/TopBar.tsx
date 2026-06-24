@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Search, User, Check, AlertTriangle, Info, Moon, Sun, Cloud } from "lucide-react";
-import { notifications } from "@/lib/mockData";
+import { Bell, Search, User, Check, AlertTriangle, Info, Moon, Sun, Cloud, XCircle } from "lucide-react";
+import { buildNotifications } from "@/lib/notify";
+import { useData, useActiveVersion } from "@/store/dataStore";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -39,9 +40,20 @@ function SyncIndicator() {
 }
 
 export default function TopBar() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // Нақты хабарландырулар — қолданба күйінен (диагностика, кесте сапасы)
+  const { classes, teachers, rooms, subjects, school } = useData();
+  const active = useActiveVersion();
+  const notifications = useMemo(
+    () => buildNotifications(
+      { classes, teachers, rooms, subjects, school, hasSchedule: !!active, quality: active?.result.quality },
+      lang
+    ),
+    [classes, teachers, rooms, subjects, school, active, lang]
+  );
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -49,6 +61,8 @@ export default function TopBar() {
         return <Check className="w-4 h-4 status-good" />;
       case "warning":
         return <AlertTriangle className="w-4 h-4 status-warn" />;
+      case "error":
+        return <XCircle className="w-4 h-4 status-bad" />;
       default:
         return <Info className="w-4 h-4 text-blue-400" />;
     }

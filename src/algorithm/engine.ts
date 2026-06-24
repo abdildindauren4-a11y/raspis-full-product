@@ -39,6 +39,9 @@ export interface Settings {
   maximin: boolean; maxIterations: number;
   // Күндік балл лимиттері — параллель топтары бойынша [1-4, 5-6, 7-9, 10-11]
   dayLimits: { g14: number; g56: number; g79: number; g1011: number };
+  // Күндік САБАҚ САНЫ лимиті (СанПиН) — сынып деңгейі бойынша.
+  // Болмаса — әдепкі maxSlots мәндері (1-сынып:4, 2-4:5, 5-6:6, 7-9:7, 10-11:8).
+  maxLessons?: { g1: number; g24: number; g56: number; g79: number; g1011: number };
   // Шаршау шектері
   fatigue: { g14: number; g59: number; g1011: number };
   // Орналасу коэффициенттері (қашықтық айыппұлы): ауыр/орташа/жеңіл
@@ -106,8 +109,25 @@ export function buildTimeline(sc: School): Record<1 | 2, TL[]> {
 }
 
 /* ── СанПиН ережелері ── */
-export const maxSlots = (g: number) => (g === 1 ? 4 : g <= 4 ? 5 : g <= 6 ? 6 : g <= 9 ? 7 : 8);
 export const DEFAULT_DAY_LIMITS = { g14: 25, g56: 35, g79: 45, g1011: 55 };
+// Күндік сабақ саны лимиті (СанПиН). settings.maxLessons болса — соны, әйтпесе әдепкі.
+// Модуль деңгейіндегі _activeSettings generate() басында орнатылады, сонда барлық
+// maxSlots(g) шақырулары settings-сіз де дұрыс лимитті қолданады.
+let _activeSettings: Settings | undefined;
+export const maxSlots = (g: number, st?: Settings) => {
+  const m = (st || _activeSettings)?.maxLessons;
+  if (m) {
+    if (g === 1) return m.g1;
+    if (g <= 4) return m.g24;
+    if (g <= 6) return m.g56;
+    if (g <= 9) return m.g79;
+    return m.g1011;
+  }
+  // әдепкі (СанПиН негізі)
+  return g === 1 ? 4 : g <= 4 ? 5 : g <= 6 ? 6 : g <= 9 ? 7 : 8;
+};
+// Әдепкі сабақ лимиттері (UI бастапқы мәні үшін)
+export const DEFAULT_MAX_LESSONS = { g1: 4, g24: 5, g56: 6, g79: 7, g1011: 8 };
 export const dayLimitS = (g: number, st?: Settings) => {
   const d = st?.dayLimits || DEFAULT_DAY_LIMITS;
   return g <= 4 ? d.g14 : g <= 6 ? d.g56 : g <= 9 ? d.g79 : d.g1011;
@@ -145,6 +165,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const t0 = Date.now();
   const prog = (p: number, st: number) => onProgress && onProgress(p, st);
   const { school, classes, teachers, rooms, subjects, settings } = input;
+  _activeSettings = settings; // maxSlots күндік лимитті осыдан алады (СанПиН)
   // Детерминді кездейсоқ генератор (seed болса — әртүрлі нұсқа; болмаса — тұрақты)
   const seed = input.seed ?? 0;
   let rngState = (seed * 2654435761) >>> 0 || 1;

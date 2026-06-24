@@ -30,7 +30,7 @@ const FEATURE_LABELS: Record<Feature, TransKey> = {
 };
 
 export default function AdminPage() {
-  const { role } = useAuth();
+  const { role, configured } = useAuth();
   const { t } = useLang();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [perms, setPerms] = useState<Record<Feature, Role>>(DEFAULT_PERMISSIONS);
@@ -173,7 +173,22 @@ export default function AdminPage() {
             <input className={inputCls + " !pl-9"} placeholder={t("adm.searchUser")} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           {filtered.length === 0 ? (
-            <p className="text-center text-muted-c py-8 text-sm">{t("adm.noUsers")}</p>
+            <div className="text-center py-10 px-4">
+              <Users className="w-10 h-10 text-faint-c mx-auto mb-3" />
+              {!configured ? (
+                <>
+                  <p className="text-strong-c font-medium mb-1">{t("adm.notConfigured")}</p>
+                  <p className="text-sm text-muted-c max-w-md mx-auto">{t("adm.notConfiguredDesc")}</p>
+                </>
+              ) : query ? (
+                <p className="text-muted-c text-sm">{t("adm.noMatch")}</p>
+              ) : (
+                <>
+                  <p className="text-strong-c font-medium mb-1">{t("adm.noUsersYet")}</p>
+                  <p className="text-sm text-muted-c max-w-md mx-auto">{t("adm.noUsersDesc")}</p>
+                </>
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
               {filtered.map((u) => {

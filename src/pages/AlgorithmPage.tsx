@@ -3,7 +3,7 @@ import GlassCard from "@/components/shared/GlassCard";
 import { Field, inputCls, btnG, btnP } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { maxSlots } from "@/algorithm/engine";
+import { DEFAULT_MAX_LESSONS } from "@/algorithm/engine";
 import { School, Settings2, BarChart3, Battery, Target, RotateCcw, Lightbulb } from "lucide-react";
 import { seedSettings } from "@/lib/seed";
 
@@ -28,6 +28,9 @@ export default function AlgorithmPage() {
   const { t } = useLang();
   const { school, setSchool, settings, setSettings, resetSeed, resetBigSeed } = useData();
   const dl = settings.dayLimits, ft = settings.fatigue, cf = settings.coeffs;
+  // Күндік сабақ саны лимиті (СанПиН) — settings.maxLessons немесе әдепкі
+  const ml = settings.maxLessons || DEFAULT_MAX_LESSONS;
+  const setML = (patch: Partial<typeof ml>) => setSettings({ maxLessons: { ...ml, ...patch } });
   const setDL = (patch: Partial<typeof dl>) => setSettings({ dayLimits: { ...dl, ...patch } });
   const setFT = (patch: Partial<typeof ft>) => setSettings({ fatigue: { ...ft, ...patch } });
   const setCF = (patch: Partial<typeof cf>) => setSettings({ coeffs: { ...cf, ...patch } });
@@ -83,12 +86,28 @@ export default function AlgorithmPage() {
           </label>
           <Field label={t("algo.maximinIter")}><input type="number" className={inputCls} value={settings.maxIterations} onChange={(e) => setSettings({ maxIterations: Number(e.target.value) })} /></Field>
           <div className="mt-4 p-3 rounded-xl bg-surface border border-soft-c">
-            <p className="text-xs font-medium text-muted-c mb-2">{t("algo.slotLimit")}</p>
-            {[1, 3, 5, 7, 10].map((g) => (
-              <div key={g} className="flex justify-between text-xs text-faint-c">
-                <span>{g} {t("com.gradeShort")}</span><span>{t("algo.maxLessons")} {maxSlots(g)} {t("algo.lessonsPerDay")}</span>
-              </div>
-            ))}
+            <p className="text-xs font-medium text-strong-c mb-1 flex items-center gap-1.5">{t("algo.slotLimit")}</p>
+            <p className="text-[11px] text-faint-c mb-3">{t("algo.slotLimitDesc")}</p>
+            <div className="space-y-2">
+              {([
+                ["g1", "1", 1],
+                ["g24", "2–4", 4],
+                ["g56", "5–6", 6],
+                ["g79", "7–9", 9],
+                ["g1011", "10–11", 11],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-c">{label} {t("com.gradeShort")}</span>
+                  <input
+                    type="number" min={1} max={10}
+                    className={inputCls + " w-16 text-center py-1"}
+                    value={ml[key]}
+                    onChange={(e) => setML({ [key]: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-faint-c mt-2">{t("algo.sanpinNote")}</p>
           </div>
           <button className={btnG + " mt-4 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
             <RotateCcw className="w-4 h-4" /> Демо-деректерге қайтару
