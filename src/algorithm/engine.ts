@@ -320,6 +320,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     return m ? parseInt(m[1], 10) : 0;
   };
 
+  // Сыйымдылық ескертулері: "сынып|оқушы|кабинет сыйымдылығы" — сынып сыймаған жағдайлар
+  const capWarn = new Set<string>();
+
   const findRoom = (cls: Klass, subj: Subject, day: number, slot: number, exclude?: Set<string>): string | null => {
     if (subj.room === "gym") {
       if (!gym) return null;
@@ -342,16 +345,29 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
     // Қарапайым кабинет: сол сыныптың сол күнгі сабақтары қай этажда көп болса,
     // соған ЖАҚЫН кабинетті таңдаймыз (этаж ауысуын азайту үшін).
-    const candidates = rooms.filter((r) => r.type === "regular" && rm[r.id][cls.shift][day][slot] === null && (!exclude || !exclude.has(r.id)));
+    let candidates = rooms.filter((r) => r.type === "regular" && rm[r.id][cls.shift][day][slot] === null && (!exclude || !exclude.has(r.id)));
     if (!candidates.length) return null;
+    // СЫЙЫМДЫЛЫҚ: сыныптың оқушысы сыятын кабинеттерді басымдыққа қоямыз.
+    // (capacity берілмеген кабинет шектеусіз деп саналады.)
+    const fitting = candidates.filter((r) => !r.capacity || r.capacity >= cls.students);
+    if (fitting.length) {
+      // сыятындары бар — солардың ішінен таңдаймыз
+      candidates = fitting;
+    } else {
+      // ешқайсы сыймайды — ең үлкенін аламыз (бос қалғаннан гөрі), бірақ ескерту
+      candidates = candidates.slice().sort((a, b) => (b.capacity || 9999) - (a.capacity || 9999));
+      if (capWarn && candidates[0]) {
+        capWarn.add(`${cls.name}|${cls.students}|${candidates[0].capacity || 0}`);
+      }
+    }
     // сол күнгі осы сыныптың басым этажын табамыз
     const dayRooms = slots.filter((o) => o.classId === cls.id && o.day === day && (!o.groupId || o.groupId === "Г1")).map((o) => roomFloor(o.roomId)).filter((f) => f > 0);
-    if (!dayRooms.length) return candidates[0].id; // әлі сабақ жоқ — кез келген
+    if (!dayRooms.length) return candidates[0].id; // әлі сабақ жоқ — кез келген (сыятын)
     // ең жиі этаж
     const freq: Record<number, number> = {};
     dayRooms.forEach((f) => (freq[f] = (freq[f] || 0) + 1));
     const domFloor = Number(Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0]);
-    // басым этажға ең жақын кабинетті таңдаймыз
+    // басым этажға ең жақын кабинетті таңдаймыз (тек сыятындар арасынан)
     candidates.sort((a, b) => Math.abs(roomFloor(a.id) - domFloor) - Math.abs(roomFloor(b.id) - domFloor));
     return candidates[0].id;
   };
@@ -1390,6 +1406,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const missedHours = unplaced.reduce((s, u) => s + (u.need - u.placed), 0);
   const quality = Math.max(0, Math.round(avgC * 0.35 + balance * 0.25 + comfort * 0.2 + stressPct * 0.2) - Math.min(25, missedHours));
   const warnings = [...softWarnings, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
+  // Сыйымдылық ескертулері: сынып тар кабинетке сыймаған жағдайлар
+  for (const cw of capWarn) {
+    const [clsName, students, cap] = cw.split("|");
+    warnings.push(`${clsName} (${students} оқушы) сыятын бос кабинет табылмады — ${cap} орындық кабинетке қойылды. Шешім: үлкенірек кабинет қосыңыз.`);
+  }
 
   /* ТЕСІК ДИАГНОСТИКАСЫ: әр тесіктің НАҚТЫ себебін анықтау.
      Тесіктен кейінгі сабақтарды тексеріп, оларды неге gap-қа

@@ -578,6 +578,12 @@ export const translations = {
   "top.profile": { kk: "Профиль", ru: "Профиль", en: "Profile" },
   "top.settings": { kk: "Баптаулар", ru: "Настройки", en: "Settings" },
   "top.logout": { kk: "Шығу", ru: "Выйти", en: "Logout" },
+
+  // ── Diagnostics (баптау кеңестері) ──
+  "diag.title": { kk: "Баптау талдауы және кеңестер", ru: "Анализ настройки и рекомендации", en: "Setup analysis and recommendations" },
+  "diag.hasErrors": { kk: "{n} маңызды мәселе табылды — толық кесте құру үшін түзету қажет:", ru: "Найдено {n} важных проблем — для полного расписания нужно исправить:", en: "{n} critical issues found — fix them for a complete schedule:" },
+  "diag.onlyWarnings": { kk: "Кесте құрылады, бірақ жақсартуға болатын тұстар бар:", ru: "Расписание создаётся, но есть что улучшить:", en: "Schedule can be built, but there is room to improve:" },
+  "diag.solution": { kk: "Шешім", ru: "Решение", en: "Solution" },
 } as const;
 
 export type TransKey = keyof typeof translations;

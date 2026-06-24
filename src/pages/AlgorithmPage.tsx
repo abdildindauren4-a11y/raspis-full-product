@@ -90,7 +90,7 @@ export default function AlgorithmPage() {
               </div>
             ))}
           </div>
-          <button className={btnG + " mt-3 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
+          <button className={btnG + " mt-4 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
             <RotateCcw className="w-4 h-4" /> Демо-деректерге қайтару
           </button>
           <button className={btnP + " mt-2 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("№165 мектеп — 33 сынып, 53 мұғалім, 44 кабинет. Жүктеу?")) resetBigSeed(); }}>
