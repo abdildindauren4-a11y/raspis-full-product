@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
+import NotificationBell from "@/components/layout/NotificationBell";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ClassesPage from "@/pages/ClassesPage";
@@ -64,7 +65,7 @@ function AppLayout({ children }: { children: ReactNode }) {
           isCollapsed ? "lg:ml-[70px]" : "lg:ml-[260px]"
         } ml-0`}
       >
-        {/* Мобиль үстіңгі жолағы — гамбургер */}
+        {/* Мобиль үстіңгі жолағы — гамбургер + хабарландыру қоңырауы */}
         <div className="lg:hidden flex items-center gap-3 h-14 px-4 glass-strong border-b border-soft-c sticky top-0 z-[1040]">
           <button
             onClick={() => setMobileOpen(true)}
@@ -74,6 +75,9 @@ function AppLayout({ children }: { children: ReactNode }) {
             <Menu className="w-6 h-6" />
           </button>
           <span className="font-['IBM_Plex_Sans'] text-lg font-bold gradient-text">РАСПИС</span>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </div>
         <div className="hidden lg:block">
           <TopBar />

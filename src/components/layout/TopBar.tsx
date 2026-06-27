@@ -1,9 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Search, User, Check, AlertTriangle, Info, Moon, Sun, Cloud, XCircle } from "lucide-react";
-import { buildNotifications } from "@/lib/notify";
-import { useData, useActiveVersion } from "@/store/dataStore";
+import { Search, User, Moon, Sun, Cloud } from "lucide-react";
+import NotificationBell from "@/components/layout/NotificationBell";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -40,33 +39,8 @@ function SyncIndicator() {
 }
 
 export default function TopBar() {
-  const { t, lang } = useLang();
-  const [showNotifications, setShowNotifications] = useState(false);
+  const { t } = useLang();
   const [showProfile, setShowProfile] = useState(false);
-
-  // Нақты хабарландырулар — қолданба күйінен (диагностика, кесте сапасы)
-  const { classes, teachers, rooms, subjects, school } = useData();
-  const active = useActiveVersion();
-  const notifications = useMemo(
-    () => buildNotifications(
-      { classes, teachers, rooms, subjects, school, hasSchedule: !!active, quality: active?.result.quality },
-      lang
-    ),
-    [classes, teachers, rooms, subjects, school, active, lang]
-  );
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return <Check className="w-4 h-4 status-good" />;
-      case "warning":
-        return <AlertTriangle className="w-4 h-4 status-warn" />;
-      case "error":
-        return <XCircle className="w-4 h-4 status-bad" />;
-      default:
-        return <Info className="w-4 h-4 text-blue-400" />;
-    }
-  };
 
   return (
     <header className="h-[70px] glass border-b border-soft-c flex items-center justify-between px-6 sticky top-0 z-[1100]">
@@ -88,54 +62,7 @@ export default function TopBar() {
         <ThemeToggleButton />
 
         {/* Notifications */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2.5 rounded-xl bg-input-c border border-soft-c text-muted-c hover:text-strong-c hover:bg-[rgba(127,127,127,0.1)] transition-all"
-          >
-            <Bell className="w-5 h-5" />
-            {notifications.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full gradient-primary text-[10px] font-bold text-white flex items-center justify-center">
-                {notifications.length}
-              </span>
-            )}
-          </button>
-
-          <AnimatePresence>
-            {showNotifications && (
-              <>
-                <div className="fixed inset-0 z-[1199]" onClick={() => setShowNotifications(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 top-full mt-2 w-[300px] sm:w-[360px] max-w-[90vw] glass-strong rounded-2xl border border-soft-c shadow-2xl z-[1200] overflow-hidden"
-                >
-                  <div className="p-4 border-b border-soft-c">
-                    <h3 className="font-['IBM_Plex_Sans'] font-semibold text-strong-c">{t("top.notifications")}</h3>
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className="flex items-start gap-3 p-4 hover:bg-[rgba(127,127,127,0.1)] transition-colors border-b border-soft-c last:border-0"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-[rgba(127,127,127,0.1)] flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {getNotificationIcon(notif.type)}
-                        </div>
-                        <div>
-                          <p className="text-sm text-soft-c">{notif.message}</p>
-                          <p className="text-xs text-muted-c mt-1">{notif.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+        <NotificationBell />
 
         {/* User Profile */}
         <div className="relative">
