@@ -308,6 +308,7 @@ export const translations = {
   "day.wed": { kk: "Сәрсенбі", ru: "Среда", en: "Wednesday" },
   "day.thu": { kk: "Бейсенбі", ru: "Четверг", en: "Thursday" },
   "day.fri": { kk: "Жұма", ru: "Пятница", en: "Friday" },
+  "sch.shift1": { kk: "1-ауысым", ru: "1-я смена", en: "1st shift" },
   "sch.shift2": { kk: "2-ауысым", ru: "2-я смена", en: "2nd shift" },
   "sch.legend": { kk: "×2 — қос сабақ · Г1/Г2 — топтар", ru: "×2 — сдвоенный · Г1/Г2 — группы", en: "×2 — double · Г1/Г2 — groups" },
 

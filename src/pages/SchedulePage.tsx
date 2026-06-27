@@ -1,5 +1,5 @@
 // filepath: src/pages/SchedulePage.tsx
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Link } from "react-router-dom";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls, subjBg, btnG } from "@/components/shared/Form";
@@ -38,12 +38,18 @@ export default function SchedulePage() {
   const selId = sel && list.some((x) => x.id === sel) ? sel : list[0]?.id || "";
 
   const cls = view === "class" ? classes.find((c) => c.id === selId) : null;
-  const shift: 1 | 2 = cls ? cls.shift : 1;
   const rowsCount = cls ? maxSlots(cls.grade) : 8;
   const filtered = slots.filter((o) =>
     view === "class" ? o.classId === selId : view === "teacher" ? o.teacherId === selId : o.roomId === selId);
+  // Бір кабинет (немесе мұғалім) екі ауысымда да қолданылуы мүмкін. Слот индексі екі
+  // ауысымда бірдей болғандықтан, оларды бір жолда көрсетсек — бір уақытта 2 сынып
+  // отырғандай жалған қақтығыс шығады. Сондықтан әр ауысымды бөлек, өз уақытымен көрсетеміз.
+  const shiftsPresent: (1 | 2)[] = cls
+    ? [cls.shift]
+    : ([1, 2] as const).filter((sh) => filtered.some((o) => o.shift === sh));
+  if (shiftsPresent.length === 0) shiftsPresent.push(1);
   const grid: Record<string, Slot[]> = {};
-  filtered.forEach((o) => { const k = `${o.day}-${o.slot}`; (grid[k] = grid[k] || []).push(o); });
+  filtered.forEach((o) => { const k = `${o.shift}-${o.day}-${o.slot}`; (grid[k] = grid[k] || []).push(o); });
 
   return (
     <div className="space-y-6">
@@ -77,40 +83,50 @@ export default function SchedulePage() {
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: rowsCount }, (_, i) => i + 1).map((slot) => (
-                <tr key={slot} className="border-t border-soft-c">
-                  <td className="p-2 align-top">
-                    <p className="font-bold text-strong-c">{slot}</p>
-                    <p className="text-faint-c">{tl[shift][slot].start}–{tl[shift][slot].end}</p>
-                  </td>
-                  {[1, 2, 3, 4, 5].map((day) => {
-                    const cells = grid[`${day}-${slot}`] || [];
-                    return (
-                      <td key={day} className="p-1 align-top min-w-[140px]">
-                        {cells.length === 0 ? (
-                          <div className="text-center text-faint-c py-3">—</div>
-                        ) : cells.map((o, ci) => {
-                          const s = S(o.subjectId);
-                          return (
-                            <div key={ci} className={`rounded-lg border p-1.5 mb-1 ${s ? subjBg(s.score) : ""}`}>
-                              <p className="font-semibold leading-tight">
-                                {s?.name}{o.dpart ? " ×2" : ""}{o.groupId ? ` · ${o.groupId}` : ""}
-                              </p>
-                              <p className="opacity-70">
-                                {view !== "teacher" && Tn(o.teacherId)}
-                                {view === "teacher" && Cn(o.classId)}
-                              </p>
-                              <p className="opacity-60">
-                                {view !== "room" ? Rn(o.roomId) : Cn(o.classId)}
-                                {view === "room" && o.shift === 2 ? " · " + t("sch.shift2") : ""}
-                              </p>
-                            </div>
-                          );
-                        })}
+              {shiftsPresent.map((sh) => (
+                <Fragment key={sh}>
+                  {shiftsPresent.length > 1 && (
+                    <tr className="border-t border-soft-c">
+                      <td colSpan={6} className="p-2 text-xs font-semibold accent-c bg-input-c">
+                        {sh === 1 ? t("sch.shift1") : t("sch.shift2")}
                       </td>
-                    );
-                  })}
-                </tr>
+                    </tr>
+                  )}
+                  {Array.from({ length: rowsCount }, (_, i) => i + 1).map((slot) => (
+                    <tr key={`${sh}-${slot}`} className="border-t border-soft-c">
+                      <td className="p-2 align-top">
+                        <p className="font-bold text-strong-c">{slot}</p>
+                        <p className="text-faint-c">{tl[sh][slot].start}–{tl[sh][slot].end}</p>
+                      </td>
+                      {[1, 2, 3, 4, 5].map((day) => {
+                        const cells = grid[`${sh}-${day}-${slot}`] || [];
+                        return (
+                          <td key={day} className="p-1 align-top min-w-[140px]">
+                            {cells.length === 0 ? (
+                              <div className="text-center text-faint-c py-3">—</div>
+                            ) : cells.map((o, ci) => {
+                              const s = S(o.subjectId);
+                              return (
+                                <div key={ci} className={`rounded-lg border p-1.5 mb-1 ${s ? subjBg(s.score) : ""}`}>
+                                  <p className="font-semibold leading-tight">
+                                    {s?.name}{o.dpart ? " ×2" : ""}{o.groupId ? ` · ${o.groupId}` : ""}
+                                  </p>
+                                  <p className="opacity-70">
+                                    {view !== "teacher" && Tn(o.teacherId)}
+                                    {view === "teacher" && Cn(o.classId)}
+                                  </p>
+                                  <p className="opacity-60">
+                                    {view !== "room" ? Rn(o.roomId) : Cn(o.classId)}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
