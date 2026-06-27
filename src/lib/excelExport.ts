@@ -200,42 +200,50 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
     const typeKz: Record<string, string> = { regular: "қарапайым", physics: "физика", chemistry: "химия", computer: "информатика", gym: "спортзал" };
     let curRow = 1;
     for (const rm of activeRooms) {
-      curRow = writeGridHeader(ws, curRow, `${rm.number}-кабинет  ·  ${typeKz[rm.type]}`, 7);
-      for (let slot = 1; slot <= 8; slot++) {
-        const r = curRow; ws.getRow(r).height = 28;
-        ws.getCell(r, 1).value = slot;
-        ws.getCell(r, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: "FF374151" } };
-        ws.getCell(r, 1).alignment = { horizontal: "center", vertical: "middle" };
-        ws.getCell(r, 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
-        ws.getCell(r, 1).border = BORDER;
-        ws.getCell(r, 2).value = tl[1][slot] ? tl[1][slot].start : "";
-        ws.getCell(r, 2).font = { name: "Arial", size: 8, color: { argb: "FF64748B" } };
-        ws.getCell(r, 2).alignment = { horizontal: "center", vertical: "middle" };
-        ws.getCell(r, 2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
-        ws.getCell(r, 2).border = BORDER;
-        for (let day = 1; day <= 5; day++) {
-          const cell = ws.getCell(r, 2 + day);
-          const occ = result.slots.filter((x) => x.roomId === rm.id && x.day === day && x.slot === slot);
-          if (occ.length) {
-            const lines = occ.slice(0, 2).map((o) => {
-              const subj = S[o.subjectId], cls = classes.find((c) => c.id === o.classId);
-              return `${cls?.name || ""} ${sShort(subj?.name || "")}`;
-            });
-            cell.value = lines.join("\n");
-            cell.font = { name: "Arial", size: 9, color: { argb: "FF1A2230" } };
-            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
-          } else {
-            cell.value = "бос";
-            cell.font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
-            cell.alignment = { horizontal: "center", vertical: "middle" };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+      // Бір кабинет екі ауысымда да қолданылуы мүмкін (1-ауысым таңертең, 2-ауысым түстен кейін).
+      // Слот индексі екі ауысымда бірдей болғандықтан, оларды бір жолға қоссақ — бір уақытта
+      // 2 сынып отырғандай жалған қақтығыс көрінеді. Сондықтан әр ауысымды бөлек кесте етіп,
+      // өз уақытымен көрсетеміз.
+      const usedShifts = ([1, 2] as const).filter((sh) => result.slots.some((o) => o.roomId === rm.id && o.shift === sh));
+      for (const sh of usedShifts) {
+        const shiftLabel = usedShifts.length > 1 ? `  ·  ${sh}-ауысым` : "";
+        curRow = writeGridHeader(ws, curRow, `${rm.number}-кабинет  ·  ${typeKz[rm.type]}${shiftLabel}`, 7);
+        for (let slot = 1; slot <= 8; slot++) {
+          const r = curRow; ws.getRow(r).height = 28;
+          ws.getCell(r, 1).value = slot;
+          ws.getCell(r, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: "FF374151" } };
+          ws.getCell(r, 1).alignment = { horizontal: "center", vertical: "middle" };
+          ws.getCell(r, 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+          ws.getCell(r, 1).border = BORDER;
+          ws.getCell(r, 2).value = tl[sh][slot] ? tl[sh][slot].start : "";
+          ws.getCell(r, 2).font = { name: "Arial", size: 8, color: { argb: "FF64748B" } };
+          ws.getCell(r, 2).alignment = { horizontal: "center", vertical: "middle" };
+          ws.getCell(r, 2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+          ws.getCell(r, 2).border = BORDER;
+          for (let day = 1; day <= 5; day++) {
+            const cell = ws.getCell(r, 2 + day);
+            const occ = result.slots.filter((x) => x.roomId === rm.id && x.day === day && x.slot === slot && x.shift === sh);
+            if (occ.length) {
+              const lines = occ.slice(0, 2).map((o) => {
+                const subj = S[o.subjectId], cls = classes.find((c) => c.id === o.classId);
+                return `${cls?.name || ""} ${sShort(subj?.name || "")}`;
+              });
+              cell.value = lines.join("\n");
+              cell.font = { name: "Arial", size: 9, color: { argb: "FF1A2230" } };
+              cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
+            } else {
+              cell.value = "бос";
+              cell.font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
+              cell.alignment = { horizontal: "center", vertical: "middle" };
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+            }
+            cell.border = BORDER;
           }
-          cell.border = BORDER;
+          curRow++;
         }
-        curRow++;
+        curRow += 1;
       }
-      curRow += 1;
     }
   }
 
