@@ -5,6 +5,7 @@ import GlassCard from "@/components/shared/GlassCard";
 import { Modal, Field, inputCls, btnP, btnG, btnD } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
+import { teacherBudgets } from "@/lib/dataBudget";
 import type { Teacher } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -19,6 +20,8 @@ export default function TeachersPage() {
 
   const filtered = teachers.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
   const loadOf = (id: string) => active ? active.result.slots.filter((o) => o.teacherId === id).length : 0;
+  // Тірі бюджет: оқу жоспарларында тағайындалған сағат (генерацияға дейін көрінеді)
+  const budgets = teacherBudgets(teachers, classes);
 
   const save = () => {
     if (!form?.name) return;
@@ -59,12 +62,28 @@ export default function TeachersPage() {
           <tbody>
             {filtered.map((tr) => {
               const load = loadOf(tr.id);
+              const b = budgets.get(tr.id);
+              const assigned = b?.assigned ?? 0;
+              const pct = tr.norm ? Math.min(100, Math.round((assigned / tr.norm) * 100)) : 0;
+              const barColor = assigned > tr.norm ? "bg-red-500" : assigned >= tr.norm * 0.9 ? "bg-yellow-500" : "bg-emerald-500";
               return (
                 <tr key={tr.id} className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
                   <td className="py-2.5 font-medium text-strong-c">{tr.name}</td>
                   <td><span className="px-2 py-0.5 rounded text-xs bg-[rgba(74,144,217,0.12)] accent-c">{tr.gradeMin}–{tr.gradeMax} {t("tch.gradeSuffix")}</span></td>
                   <td className="text-soft-c">{tr.shift === 3 ? "1+2" : tr.shift}</td>
-                  <td className={load > tr.norm ? "status-bad" : "text-soft-c"}>{active ? `${load} / ${tr.norm}` : `— / ${tr.norm}`}</td>
+                  <td>
+                    <div className="min-w-[110px]">
+                      <div className="flex items-center justify-between text-xs mb-0.5">
+                        <span className={assigned > tr.norm ? "status-bad font-semibold" : "text-soft-c"}>
+                          {assigned}/{tr.norm} сағ{assigned > tr.norm ? ` (+${assigned - tr.norm})` : ""}
+                        </span>
+                        {active && <span className="text-faint-c" title="Кестедегі нақты жүктеме">кесте: {load}</span>}
+                      </div>
+                      <div className="h-1.5 rounded-full bg-input-c overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor}`} style={{ width: pct + "%" }} />
+                      </div>
+                    </div>
+                  </td>
                   <td className="text-muted-c text-xs">{tr.unavailable.length ? `${tr.unavailable.length} ${t("tch.slotSuffix")}` : "—"}</td>
                   <td className="flex gap-2 py-2">
                     <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...tr })}><Pencil className="w-4 h-4" /></button>

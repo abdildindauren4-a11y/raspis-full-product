@@ -5,13 +5,14 @@ import GlassCard from "@/components/shared/GlassCard";
 import { Modal, Field, inputCls, btnP, btnG, btnD } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
+import { teacherBudgets, classBudget, freeTeachersFor } from "@/lib/dataBudget";
 import type { Klass, CurItem } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function ClassesPage() {
   const { t } = useLang();
-  const { classes, teachers, subjects, setClasses } = useData();
+  const { classes, teachers, subjects, setClasses, settings } = useData();
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<Partial<Klass> | null>(null);
   const [curOf, setCurOf] = useState<string | null>(null);
@@ -54,7 +55,10 @@ export default function ClassesPage() {
                 <td className="text-soft-c">{c.students}</td>
                 <td><span className={`px-2 py-0.5 rounded text-xs ${c.shift === 1 ? "bg-emerald-500/15 status-good" : "bg-yellow-500/15 status-warn"}`}>{c.shift}{t("com.shiftSuffix")}</span></td>
                 <td className="text-soft-c">{c.curriculum.length}</td>
-                <td className="text-soft-c">{c.curriculum.reduce((s, x) => s + x.hours, 0)}</td>
+                <td>{(() => {
+                  const { total, capacity } = classBudget(c, settings);
+                  return <span className={total > capacity ? "status-bad font-semibold" : "text-soft-c"} title={`Сыйымдылық: ${capacity} сағ`}>{total}{total > capacity ? `/${capacity} ⚠` : ""}</span>;
+                })()}</td>
                 <td className="flex gap-2 py-2">
                   <button className={btnG + " !px-2.5 !py-1.5"} title={t("cls.curriculum")} onClick={() => setCurOf(c.id)}><BookOpen className="w-4 h-4" /></button>
                   <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...c })}><Pencil className="w-4 h-4" /></button>
@@ -99,18 +103,39 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
   update: (fn: (cur: CurItem[]) => CurItem[]) => void;
 }) {
   const { t } = useLang();
-  const total = cls.curriculum.reduce((s, x) => s + x.hours, 0);
-  const okTeachers = teachers.filter((t) => t.gradeMin <= cls.grade && t.gradeMax >= cls.grade && (t.shift === 3 || t.shift === cls.shift));
+  const { classes, settings, setTeachers } = useData();
+  // ТІРІ БЮДЖЕТ: барлық сыныптың оқу жоспарын ескере отырып есептеледі,
+  // сондықтан мұғалім нормадан асқанын дәл осы жерде, енгізу сәтінде көреміз
+  const budgets = teacherBudgets(teachers, classes);
+  const { total, capacity } = classBudget(cls, settings);
+  const okTeachers = teachers
+    .filter((t) => t.gradeMin <= cls.grade && t.gradeMax >= cls.grade && (t.shift === 3 || t.shift === cls.shift))
+    .sort((a, b) => (budgets.get(b.id)?.free ?? 0) - (budgets.get(a.id)?.free ?? 0));
+  // Селект жазуы: аты + тағайындалған/норма, асып тұрса ⚠
+  const tLabel = (tid: string) => {
+    const b = budgets.get(tid);
+    if (!b) return "";
+    return `${b.teacher.name} — ${b.assigned}/${b.teacher.norm} сағ${b.free < 0 ? " ⚠ асып тұр" : ""}`;
+  };
+  // Норманы бір басумен көтеру
+  const raiseNorm = (tid: string, to: number) =>
+    setTeachers(teachers.map((x) => (x.id === tid ? { ...x, norm: to } : x)));
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <span className={`text-sm ${total > 36 ? "status-bad" : "text-muted-c"}`}>Барлығы: <b className="text-strong-c">{total}</b> сағ/апта {total > 36 && " — норма асты"}</span>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <span className={`text-sm ${total > capacity ? "status-bad" : "text-muted-c"}`}>
+          Барлығы: <b className="text-strong-c">{total}</b>/{capacity} сағ/апта
+          {total > capacity && ` — сыйымдылықтан ${total - capacity} сағ артық (5 күн × ${capacity / 5} сабақ)`}
+        </span>
         <button className={btnP + " !py-1.5 text-xs"} onClick={() => update((c) => [...c, { id: uid(), subjectId: subjects[0].id, teacherId: okTeachers[0]?.id, hours: 2 }])}>+ Пән қосу</button>
       </div>
       <div className="space-y-2">
         {cls.curriculum.map((cu) => {
           const subj = subjects.find((s) => s.id === cu.subjectId);
           const tooMany = cu.hours > 5 && !subj?.canDouble;
+          // Осы жолға қатысты мұғалімдер (жеке немесе топ) — нормадан асқандары
+          const involved = cu.isSplit ? (cu.groups || []).map((g) => g.teacherId) : cu.teacherId ? [cu.teacherId] : [];
+          const overloaded = [...new Set(involved)].map((id) => budgets.get(id)).filter((b) => b && b.free < 0);
           return (
             <div key={cu.id} className="rounded-xl border border-soft-c bg-surface p-3">
               <div className="grid grid-cols-6 lg:grid-cols-12 gap-2 items-center">
@@ -122,7 +147,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                   <select className={inputCls + " col-span-4 lg:col-span-4"} value={cu.teacherId || ""}
                     onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, teacherId: e.target.value } : x)))}>
                     <option value="">{t("fld.pickTeacher")}</option>
-                    {okTeachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {okTeachers.map((t) => <option key={t.id} value={t.id}>{tLabel(t.id)}</option>)}
                   </select>
                 )}
                 {cu.isSplit && <span className="col-span-6 lg:col-span-4 text-xs accent-c flex items-center gap-1.5"><Split className="w-3.5 h-3.5" /> Топтарға бөлінген</span>}
@@ -137,6 +162,29 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                 <button className={btnD + " col-span-2 lg:col-span-1"} onClick={() => update((c) => c.filter((x) => x.id !== cu.id))}>✕</button>
               </div>
               {tooMany && <p className="text-xs status-bad mt-1 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {cu.hours} сағ: бұл пәнде қос сабақ рұқсаты жоқ (макс 5). Пәндер бетінен «қос сабақ» қосыңыз.</p>}
+              {/* Нормадан асу — бір батырмалы шешімдермен (норманы көтеру / бос мұғалім) */}
+              {overloaded.map((b) => {
+                const alt = freeTeachersFor(cls, budgets, cu.hours, b!.teacher.id)[0];
+                return (
+                  <div key={b!.teacher.id} className="mt-2 rounded-lg border border-red-500/30 bg-red-500/5 p-2">
+                    <p className="text-xs status-bad flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {b!.teacher.name}: {b!.assigned}/{b!.teacher.norm} сағ — норма {-b!.free} сағатқа асып тұр. Кестеде кейбір сабақтары орналаспай қалады.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      <button className={btnG + " !py-1 !px-2 text-xs"} onClick={() => raiseNorm(b!.teacher.id, b!.assigned)}>
+                        Норманы {b!.assigned}-ге көтеру
+                      </button>
+                      {alt && !cu.isSplit && (
+                        <button className={btnG + " !py-1 !px-2 text-xs"}
+                          onClick={() => update((c) => c.map((x) => (x.id === cu.id ? { ...x, teacherId: alt.teacher.id } : x)))}>
+                          Ауыстыру: {alt.teacher.name} ({alt.free} сағ бос)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {cu.isSplit && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   {(cu.groups || []).map((g, gi) => (
@@ -145,7 +193,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                       <select className={inputCls} value={g.teacherId}
                         onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, groups: x.groups!.map((gg, i) => (i === gi ? { ...gg, teacherId: e.target.value } : gg)) } : x)))}>
                         <option value="">{t("fld.pickTeacher")}</option>
-                        {okTeachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        {okTeachers.map((t) => <option key={t.id} value={t.id}>{tLabel(t.id)}</option>)}
                       </select>
                     </div>
                   ))}

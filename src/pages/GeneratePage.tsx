@@ -11,6 +11,7 @@ import { explainSchedule, hasGeminiKey } from "@/lib/gemini";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
+import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
 export default function GeneratePage() {
@@ -54,6 +55,23 @@ export default function GeneratePage() {
       if (s.room && !data.rooms.some((r) => r.type === s.room)) issues.push({ level: "error", text: `${s.name}: арнайы кабинет жоқ` });
     });
   });
+  // ТІРІ БЮДЖЕТ тексерулері — дерек мәселесін генерацияға дейін ұстау
+  {
+    // мұғалім нормадан асып тағайындалған ба
+    for (const b of teacherBudgets(data.teachers, data.classes).values())
+      if (b.free < 0) issues.push({ level: "warn", text: `${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ — норма ${-b.free} сағатқа асып тұр (кейбір сабақ орналаспайды)` });
+    // сынып сағаты сыйымдылықтан асса
+    for (const c of data.classes) {
+      const { total, capacity } = classBudget(c, data.settings);
+      if (total > capacity) issues.push({ level: "error", text: `${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ), ${total - capacity} сағ артық` });
+    }
+    // арнайы кабинет өткізу қабілеті
+    for (const rt of roomThroughputs(data.classes, data.subjects, data.rooms))
+      if (rt.needed > rt.capacity) issues.push({ level: "error", text: `${ROOM_TYPE_KK[rt.type]} кабинеті (${rt.shift}-ауысым): керегі ${rt.needed} сағ, сыйымдылығы ${rt.capacity} — кабинет жетпейді` });
+    // ауысым сыйымдылығы
+    for (const sc of shiftCapacity(data.classes, data.rooms))
+      if (sc.needed > sc.capacity) issues.push({ level: "error", text: `${sc.shift}-ауысым: ${sc.needed} сабаққа ${sc.capacity} орын ғана бар — кабинет қосыңыз` });
+  }
   const dedup = [...new Map(issues.map((i) => [i.text, i])).values()];
   const blocked = dedup.some((i) => i.level === "error");
 
