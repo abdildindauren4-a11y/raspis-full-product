@@ -1,15 +1,40 @@
 // filepath: src/pages/DashboardPage.tsx
 import { Link } from "react-router-dom";
-import { Users, GraduationCap, DoorOpen, Gauge, Sparkles, CheckCircle2, Circle, Calendar, BarChart3, Upload } from "lucide-react";
+import { useMemo } from "react";
+import { Users, GraduationCap, DoorOpen, Gauge, Sparkles, CheckCircle2, Circle, Calendar, BarChart3, Upload, HeartPulse, AlertTriangle } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
+import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
 export default function DashboardPage() {
-  const { classes, teachers, rooms, versions, school } = useData();
+  const { classes, teachers, rooms, subjects, settings, versions, school } = useData();
   const active = useActiveVersion();
   const { t } = useLang();
   const students = classes.reduce((s, c) => s + c.students, 0);
+
+  // ДЕРЕКТЕР ДЕНСАУЛЫҒЫ: 100 балдан бюджет мәселелері үшін ұпай шегеріледі,
+  // әр мәселе өз бетіне сілтейді (бір басып түзетуге)
+  const health = useMemo(() => {
+    const problems: { text: string; to: string }[] = [];
+    if (classes.length) {
+      for (const b of teacherBudgets(teachers, classes).values())
+        if (b.free < 0) problems.push({ text: `${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ (норма +${-b.free})`, to: "/teachers" });
+      for (const c of classes) {
+        if (!c.curriculum.length) { problems.push({ text: `${c.name}: оқу жоспары бос`, to: "/classes" }); continue; }
+        const { total, capacity } = classBudget(c, settings);
+        if (total > capacity) problems.push({ text: `${c.name}: ${total}/${capacity} сағ — сыйымдылықтан артық`, to: "/classes" });
+        for (const cu of c.curriculum)
+          if (!cu.isSplit && !cu.teacherId) { problems.push({ text: `${c.name}: мұғалім тағайындалмаған пән бар`, to: "/classes" }); break; }
+      }
+      for (const rt of roomThroughputs(classes, subjects, rooms))
+        if (rt.needed > rt.capacity) problems.push({ text: `${ROOM_TYPE_KK[rt.type]} (${rt.shift}-ауысым): ${rt.needed}/${rt.capacity} сағ — кабинет жетпейді`, to: "/rooms" });
+      for (const sc of shiftCapacity(classes, rooms))
+        if (sc.needed > sc.capacity) problems.push({ text: `${sc.shift}-ауысым: ${sc.needed}/${sc.capacity} орын — толып тұр`, to: "/rooms" });
+    }
+    const score = Math.max(0, 100 - problems.length * 12);
+    return { score, problems };
+  }, [classes, teachers, rooms, subjects, settings]);
 
   const steps = [
     { label: t("dash.step.classes"), done: classes.length > 0 && classes.every((c) => c.curriculum.length > 0), to: "/classes" },
@@ -46,6 +71,33 @@ export default function DashboardPage() {
           </GlassCard>
         ))}
       </div>
+      {/* ДЕРЕКТЕР ДЕНСАУЛЫҒЫ — мәселе болса ғана көрінеді */}
+      {classes.length > 0 && health.problems.length > 0 && (
+        <GlassCard hover={false}>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="font-semibold text-strong-c flex items-center gap-2">
+              <HeartPulse className="w-4 h-4 accent-c" /> Деректер денсаулығы
+            </h3>
+            <span className={`text-2xl font-bold ${health.score >= 80 ? "status-good" : health.score >= 50 ? "status-warn" : "status-bad"}`}>
+              {health.score}/100
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-input-c overflow-hidden mb-3">
+            <div className={`h-full rounded-full ${health.score >= 80 ? "bg-emerald-500" : health.score >= 50 ? "bg-yellow-500" : "bg-red-500"}`}
+              style={{ width: health.score + "%" }} />
+          </div>
+          <div className="space-y-1.5 max-h-44 overflow-y-auto scrollbar-thin">
+            {health.problems.map((p, i) => (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <span className="text-xs status-warn flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {p.text}
+                </span>
+                <Link to={p.to} className="text-xs accent-c hover:underline shrink-0">Түзету →</Link>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <GlassCard hover={false}>
           <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 accent-c" /> {t("dash.checklist")}</h3>

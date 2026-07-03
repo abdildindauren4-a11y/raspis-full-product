@@ -6,6 +6,7 @@ import { Modal, Field, inputCls, btnP, btnG, btnD } from "@/components/shared/Fo
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { teacherBudgets, classBudget, freeTeachersFor } from "@/lib/dataBudget";
+import { buildFromTemplate, autoAssignTeachers } from "@/lib/curriculumTemplates";
 import type { Klass, CurItem } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -120,6 +121,26 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
   // Норманы бір басумен көтеру
   const raiseNorm = (tid: string, to: number) =>
     setTeachers(teachers.map((x) => (x.id === tid ? { ...x, norm: to } : x)));
+  // Үлгіден толтыру (ҚР үлгілік жоспары): пән + сағат дұрыс, тек мұғалім қалады
+  const applyTemplate = () => {
+    const { items, missing } = buildFromTemplate(cls, subjects);
+    if (!items.length) { alert("Үлгідегі пәндер тізімде табылмады. Алдымен Пәндер бетін толтырыңыз."); return; }
+    if (cls.curriculum.length > 0 && !confirm(`Ағымдағы ${cls.curriculum.length} пән үлгімен алмастырылады. Жалғастыру?`)) return;
+    update(() => items);
+    if (missing.length) alert(`Мына пәндер тізімде жоқ, қосылмады: ${missing.join(", ")}. Пәндер бетінен қосуға болады.`);
+  };
+  // Бос мұғалімдерді автотағайындау (мұғалімі жоқ жолдарға)
+  const autoAssign = () => {
+    const res = autoAssignTeachers(cls, cls.curriculum, teachers, classes);
+    if (res.assigned === 0) { alert(res.unassigned.length ? "Сай әрі сағаты бос мұғалім табылмады — Мұғалімдер бетінен нормаларды тексеріңіз." : "Барлық жолда мұғалім бар."); return; }
+    update(() => res.items);
+    if (res.unassigned.length) {
+      const names = [...new Set(res.unassigned.map((id) => subjects.find((s) => s.id === id)?.name || id))];
+      alert(`${res.assigned} жолға мұғалім қойылды. Мыналарға бос мұғалім табылмады: ${names.join(", ")}`);
+    }
+  };
+  const emptyTeacherRows = cls.curriculum.filter((cu) =>
+    cu.isSplit ? (cu.groups || []).some((g) => !g.teacherId) : !cu.teacherId).length;
   return (
     <div>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -127,7 +148,17 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
           Барлығы: <b className="text-strong-c">{total}</b>/{capacity} сағ/апта
           {total > capacity && ` — сыйымдылықтан ${total - capacity} сағ артық (5 күн × ${capacity / 5} сабақ)`}
         </span>
-        <button className={btnP + " !py-1.5 text-xs"} onClick={() => update((c) => [...c, { id: uid(), subjectId: subjects[0].id, teacherId: okTeachers[0]?.id, hours: 2 }])}>+ Пән қосу</button>
+        <div className="flex flex-wrap gap-2">
+          <button className={btnG + " !py-1.5 text-xs"} title={`${cls.grade}-сынып үлгілік жоспары (ҚР)`} onClick={applyTemplate}>
+            Үлгіден толтыру
+          </button>
+          {emptyTeacherRows > 0 && (
+            <button className={btnG + " !py-1.5 text-xs"} title="Мұғалімі жоқ жолдарға ең бос мұғалімді қою" onClick={autoAssign}>
+              Мұғалім автотағайындау ({emptyTeacherRows})
+            </button>
+          )}
+          <button className={btnP + " !py-1.5 text-xs"} onClick={() => update((c) => [...c, { id: uid(), subjectId: subjects[0].id, teacherId: okTeachers[0]?.id, hours: 2 }])}>+ Пән қосу</button>
+        </div>
       </div>
       <div className="space-y-2">
         {cls.curriculum.map((cu) => {
