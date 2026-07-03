@@ -194,13 +194,13 @@ export default function CertificatePage() {
                 </div>
               </td>
               <td style={{ width: "45%", textAlign: "right", verticalAlign: "bottom" }}>
-                {/* Мөр — сиямен соғылған із (фонсыз PNG). Сәл қисайту шынайылық береді. */}
+                {/* Мөр — сиямен соғылған із (фонсыз PNG) */}
                 <img
                   src={stampUrl}
                   alt="РАСПИС сапа мөрі"
                   style={{
                     width: "34mm", height: "34mm", objectFit: "contain",
-                    display: "inline-block", transform: "rotate(-7deg)",
+                    display: "inline-block",
                     marginRight: "3mm", marginBottom: "-2mm",
                   }}
                 />
