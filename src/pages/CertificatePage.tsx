@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { decodeCert, type CertData } from "@/lib/certificate";
 import logoUrl from "@/assets/logo.png";
 import stampUrl from "@/assets/stamp.png";
+import signatureUrl from "@/assets/signature.png";
 
 export default function CertificatePage() {
   const [params] = useSearchParams();
@@ -186,10 +187,20 @@ export default function CertificatePage() {
           <table style={{ width: "100%", marginTop: "6mm" }}>
             <tbody><tr>
               <td style={{ width: "55%", verticalAlign: "bottom" }}>
+                {/* Қолтаңба — нақты қолмен қойылған (фонсыз PNG), сызықтың үстінде */}
+                <img
+                  src={signatureUrl}
+                  alt="Қолтаңба"
+                  style={{
+                    width: "24mm", display: "block",
+                    marginLeft: "12mm", marginBottom: "-5.5mm",
+                    position: "relative", zIndex: 1,
+                  }}
+                />
                 <div style={{ borderBottom: "1px solid #1a1a1a", width: "58mm", marginBottom: "1.5mm" }} />
                 <div style={{ fontSize: "8pt", color: "#5a5650", lineHeight: 1.6 }}>
-                  <div style={{ fontWeight: 700, color: "#1a1a1a", fontSize: "9pt" }}>РАСПИС жүйесі</div>
-                  <div>Автоматты сапа бақылау бөлімі</div>
+                  <div style={{ fontWeight: 700, color: "#1a1a1a", fontSize: "9pt" }}>ABDILDIN DAUREN</div>
+                  <div>РАСПИС жүйесі · Автоматты сапа бақылау бөлімі</div>
                   <div style={{ fontSize: "7pt", color: "#9a948a", marginTop: "1mm", fontStyle: "italic" }}>Бұл құжат электронды түрде жасалды</div>
                 </div>
               </td>
