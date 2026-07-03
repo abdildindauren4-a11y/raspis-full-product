@@ -10,12 +10,12 @@ import { diagnose, diagSummary } from "@/algorithm/diagnostics";
 
 export default function QualityPage() {
   const { t } = useLang();
-  const { versions, activeVersionId, activateVersion, classes, teachers, rooms, subjects, school } = useData();
+  const { versions, activeVersionId, activateVersion, classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
 
   // Диагностика — ресурс жетіспеушілігін талдап, нақты шешім ұсынады
   const diagNotes = useMemo(
-    () => diagnose({ classes, teachers, rooms, subjects, school }),
+    () => diagnose({ classes, teachers, rooms, subjects, school, settings }),
     [classes, teachers, rooms, subjects, school]
   );
   const diagSum = diagSummary(diagNotes);

@@ -1045,7 +1045,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       return false;
     };
 
-    // Бір ұяны матрицада қою/алу (инкременталды)
+    // Бір ұяны матрицада қою/алу (инкременталды).
+    // dScore/dayList да жаңарады — әйтпесе күн ауыстырған swap-тан кейін
+    // күндік балл есебі ескіріп, лимит тексерулері мен апта балансы бұзылады.
     const setCell = (o: Slot, on: boolean) => {
       const v = on ? o.classId : null;
       tm[o.teacherId][o.shift][o.day][o.slot] = v;
@@ -1058,6 +1060,16 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (!o.groupId || o.groupId === "Г1") {
         cm[o.classId][o.day][o.slot] = on ? o.subjectId : null;
         if (on) ds[o.classId][o.day].add(o.subjectId); else ds[o.classId][o.day].delete(o.subjectId);
+        const effV = eff(C[o.classId], S[o.subjectId]);
+        if (on) {
+          dScore[o.classId][o.day] += effV;
+          dayList[o.classId][o.day].push({ slot: o.slot, score: effV });
+        } else {
+          dScore[o.classId][o.day] -= effV;
+          const dl = dayList[o.classId][o.day];
+          const i = dl.findIndex((x) => x.slot === o.slot);
+          if (i >= 0) dl.splice(i, 1);
+        }
       }
       scoreCache[o.classId] = null;
     };
@@ -1067,20 +1079,22 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       // мұғалім бос па
       const tCell = tm[tid][sh][day][slot];
       if (tCell && tCell !== ignoreA.classId && tCell !== ignoreB.classId) return false;
-      // дәлірек: сол ұяда басқа сабақ (ignore-лардан өзге) бар ма
-      const occupied = slots.some((o) => o !== ignoreA && o !== ignoreB && o.day === day && o.slot === slot && o.shift === sh && o.teacherId === tid && !o.groupId);
+      // дәлірек: сол ұяда басқа сабақ (ignore-лардан өзге) бар ма.
+      // Топ (Г1/Г2) сабақтары да мұғалімді алады — оларды да қараймыз.
+      const occupied = slots.some((o) => o !== ignoreA && o !== ignoreB && o.day === day && o.slot === slot && o.shift === sh && o.teacherId === tid);
       if (occupied) return false;
       // сынып бос па
       const clsOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.classId === cls.id && o.day === day && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
       if (clsOcc) return false;
-      // кабинет бос па
+      // кабинет бос па (спортзал әдепкісі — 1, findRoom-мен бірдей)
       if (gym && roomId === gym.id) {
         const cnt = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId).length;
-        if (cnt >= (gym.gymMax ?? 2)) return false;
+        if (cnt >= (gym.gymMax || 1)) return false;
       } else {
         const rCell = rm[roomId][sh][day][slot];
         if (rCell && rCell !== ignoreA.classId && rCell !== ignoreB.classId) {
-          const rOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.roomId === roomId && o.day === day && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
+          // Топ (Г2) сабағы да кабинетті алады — сүзгісіз қараймыз.
+          const rOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.roomId === roomId && o.day === day && o.slot === slot && o.shift === sh);
           if (rOcc) return false;
         }
       }
@@ -1148,6 +1162,14 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const A = { day: a.day, slot: a.slot, room: a.roomId, score: a.score, shift: a.shift };
       const B = { day: b.day, slot: b.slot, room: b.roomId, score: b.score, shift: b.shift };
 
+      // Слот лимиті (СанПиН): жаңа орын сынып лимитінен аспауы керек
+      if (B.slot > maxSlots(clsA.grade)) return false;
+      if (A.slot > maxSlots(clsB.grade)) return false;
+      // Күндік балл лимиті — swap-қа ДЕЙІНГІ мәндер (асқанын жаңадан асырмау үшін)
+      const dayLimBefore: Record<string, number> = {};
+      for (const [cid, d] of [[a.classId, A.day], [a.classId, B.day], [b.classId, A.day], [b.classId, B.day]] as const)
+        dayLimBefore[`${cid}|${d}`] = dScore[cid][d];
+
       // А B-ның орнына, B А-ның орнына сыя ма (slots-та тексеру, екеуін елемей)
       // Алдымен матрицадан екеуін аламыз
       setCell(a, false); setCell(b, false);
@@ -1169,8 +1191,19 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       b.day = A.day; b.slot = A.slot; b.roomId = roomB; b.shift = bShiftNew; b.score = pScore(subjB, A.slot, settings);
       setCell(a, true); setCell(b, true);
 
+      // Күндік балл лимиті (СанПиН): swap лимиттен асырса — қабылданбайды.
+      // (Бұрын асып тұрған күнге — softFill ізі — одан әрі көбейтуге болмайды.)
+      let dayOver = false;
+      for (const [cid, d, grade] of [
+        [a.classId, A.day, clsA.grade], [a.classId, B.day, clsA.grade],
+        [b.classId, A.day, clsB.grade], [b.classId, B.day, clsB.grade],
+      ] as const) {
+        const lim = Math.max(dayLimitS(grade, settings), dayLimBefore[`${cid}|${d}`]);
+        if (dScore[cid][d] > lim) { dayOver = true; break; }
+      }
       // Сынып тесігі (әсер еткен сыныптар мен күндер)
-      const gap = classGapAfter(a.classId, a.day) || classGapAfter(a.classId, B.day) ||
+      const gap = dayOver ||
+                  classGapAfter(a.classId, a.day) || classGapAfter(a.classId, B.day) ||
                   classGapAfter(b.classId, b.day) || classGapAfter(b.classId, A.day) ||
                   classGapAfter(a.classId, A.day) || classGapAfter(b.classId, B.day);
       if (gap) {

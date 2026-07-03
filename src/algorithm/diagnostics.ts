@@ -20,7 +20,7 @@
 //   8xx — Конфигурация / жалпы (config)
 // ════════════════════════════════════════════════════════════════════
 
-import type { Subject, Teacher, Room, Klass, RoomType, School } from "./engine";
+import type { Subject, Teacher, Room, Klass, RoomType, School, Settings } from "./engine";
 import { maxSlots } from "./engine";
 
 export interface DiagInput {
@@ -29,6 +29,7 @@ export interface DiagInput {
   rooms: Room[];
   subjects: Subject[];
   school?: School;
+  settings?: Settings; // maxLessons лимиті — сыйымдылық есептеріне
 }
 
 export interface DiagNote {
@@ -60,7 +61,7 @@ const CAT_PREFIX: Record<DiagNote["category"], number> = {
 // ════════════════════════════════════════════════════════════════════
 export function diagnose(input: DiagInput): DiagNote[] {
   const notes: DiagNote[] = [];
-  const { classes, teachers, rooms, subjects, school } = input;
+  const { classes, teachers, rooms, subjects, school, settings } = input;
 
   const subjById = new Map(subjects.map((s) => [s.id, s]));
   const subjByName = new Map(subjects.map((s) => [s.name, s]));
@@ -469,12 +470,12 @@ export function diagnose(input: DiagInput): DiagNote[] {
       bySubject.set(key, Math.max(bySubject.get(key) || 0, cu.hours));
     }
     const totalSlots = [...bySubject.values()].reduce((a, b) => a + b, 0);
-    const limit = maxSlots(c.grade) * WEEK_DAYS;
+    const limit = maxSlots(c.grade, settings) * WEEK_DAYS;
     if (totalSlots > limit) {
       const over = totalSlots - limit;
       add({ num: 1, level: "error", category: "subject",
         title: `${c.name}: сабақ сыймайды`,
-        detail: `${c.name} сыныбына аптасына ${totalSlots} слот керек, бірақ бір ауысымда тек ${limit} орын (${WEEK_DAYS} күн × ${maxSlots(c.grade)} сабақ). ${over} сабақ артық.`,
+        detail: `${c.name} сыныбына аптасына ${totalSlots} слот керек, бірақ бір ауысымда тек ${limit} орын (${WEEK_DAYS} күн × ${maxSlots(c.grade, settings)} сабақ). ${over} сабақ артық.`,
         fix: `${c.name} оқу жоспарынан ${over} сағат азайтыңыз (екінші дәреже пәндерден), немесе ${c.grade}-сынып үшін күндік сабақ лимитін арттырыңыз (Алгоритм бетінде).`, ref: "Сыныптар / Алгоритм" });
     }
   }
@@ -503,7 +504,7 @@ export function diagnose(input: DiagInput): DiagNote[] {
     for (const cu of c.curriculum || []) {
       const s = getSubj(cu.subjectId);
       if (!s || !s.black || s.black.length === 0) continue;
-      const totalCells = WEEK_DAYS * maxSlots(c.grade);
+      const totalCells = WEEK_DAYS * maxSlots(c.grade, settings);
       if (s.black.length > totalCells * 0.6) {
         add({ num: 4, level: "info", category: "subject",
           title: `«${s.name}» пәнінің қара тізімі тым қатаң`,

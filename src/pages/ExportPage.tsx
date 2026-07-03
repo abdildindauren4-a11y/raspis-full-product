@@ -14,7 +14,7 @@ import QRCode from "qrcode";
 
 
 export default function ExportPage() {
-  const { classes, teachers, rooms, subjects, school } = useData();
+  const { classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
   const { t } = useLang();
   const DAYS = ["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
@@ -31,7 +31,7 @@ export default function ExportPage() {
     setBusy(true);
     try {
       await exportProfessionalExcel({
-        school, classes, teachers, rooms, subjects, result: active.result,
+        school, classes, teachers, rooms, subjects, settings, result: active.result,
       });
     } catch (e) {
       console.error("Excel export қатесі:", e);
@@ -112,7 +112,7 @@ export default function ExportPage() {
     </style></head><body><h1>${school.name} — ${t("exp.weeklySchedule")}</h1>`;
     for (const c of classes) {
       html += `<h2>${c.name} ${t("exp.classWord")} (${c.shift}${t("exp.shiftWord")})</h2><table><tr><th>№</th><th>${t("exp.colTime")}</th>${DAYS.slice(1).map((d) => `<th>${d}</th>`).join("")}</tr>`;
-      for (let slot = 1; slot <= maxSlots(c.grade); slot++) {
+      for (let slot = 1; slot <= maxSlots(c.grade, settings); slot++) {
         html += `<tr><td>${slot}</td><td>${tl[c.shift][slot].start}–${tl[c.shift][slot].end}</td>`;
         for (let day = 1; day <= 5; day++) {
           const o = active.result.slots.find((x) => x.classId === c.id && x.day === day && x.slot === slot && (!x.groupId || x.groupId === "Г1"));

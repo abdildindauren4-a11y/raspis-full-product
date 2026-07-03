@@ -3,7 +3,7 @@
 // Диагностика қателері, кесте дайындығы, ресурс жетіспеушілігі негізінде.
 
 import { diagnose, diagSummary } from "@/algorithm/diagnostics";
-import type { Klass, Teacher, Room, Subject, School } from "@/algorithm/engine";
+import type { Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
 
 export interface AppNotification {
   id: string;
@@ -18,6 +18,7 @@ interface NotifyInput {
   rooms: Room[];
   subjects: Subject[];
   school?: School;
+  settings?: Settings;
   hasSchedule: boolean; // кесте жасалған ба
   quality?: number;     // кесте сапасы (бар болса)
 }
@@ -25,7 +26,7 @@ interface NotifyInput {
 // Қолданба күйінен хабарландырулар жасау
 export function buildNotifications(input: NotifyInput, lang: "kk" | "ru" | "en"): AppNotification[] {
   const notes: AppNotification[] = [];
-  const { classes, teachers, rooms, subjects, school, hasSchedule, quality } = input;
+  const { classes, teachers, rooms, subjects, school, settings, hasSchedule, quality } = input;
 
   const tr = (kk: string, ru: string, en: string) => (lang === "kk" ? kk : lang === "ru" ? ru : en);
   const now = tr("қазір", "сейчас", "now");
@@ -40,7 +41,7 @@ export function buildNotifications(input: NotifyInput, lang: "kk" | "ru" | "en")
   }
 
   // Диагностика қателері
-  const diag = diagnose({ classes, teachers, rooms, subjects, school });
+  const diag = diagnose({ classes, teachers, rooms, subjects, school, settings });
   const sum = diagSummary(diag);
 
   if (sum.errors > 0) {

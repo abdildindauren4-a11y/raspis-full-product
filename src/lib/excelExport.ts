@@ -1,7 +1,7 @@
 // filepath: src/lib/excelExport.ts
 // Кәсіби Excel экспорты (exceljs) — топтап сыныптар + толық мұғалім/кабинет кестелері
 import ExcelJS from "exceljs";
-import type { AlgoResult, Klass, Teacher, Room, Subject, School } from "@/algorithm/engine";
+import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
 import { maxSlots, buildTimeline } from "@/algorithm/engine";
 
 const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
@@ -26,7 +26,7 @@ function academicYear(): string {
 
 interface ExportCtx {
   school: School; classes: Klass[]; teachers: Teacher[];
-  rooms: Room[]; subjects: Subject[]; result: AlgoResult;
+  rooms: Room[]; subjects: Subject[]; settings?: Settings; result: AlgoResult;
 }
 
 const BORDER: Partial<ExcelJS.Borders> = {
@@ -77,7 +77,7 @@ function writeGridHeader(ws: ExcelJS.Worksheet, row: number, title: string, last
 }
 
 export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
-  const { school, classes, teachers, rooms, subjects, result } = ctx;
+  const { school, classes, teachers, rooms, subjects, settings, result } = ctx;
   const tl = buildTimeline(school);
   const S: Record<string, Subject> = {}; subjects.forEach((x) => (S[x.id] = x));
   const T: Record<string, Teacher> = {}; teachers.forEach((x) => (T[x.id] = x));
@@ -101,7 +101,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
 
     let curRow = 1;
     for (const c of grpClasses) {
-      const slotCount = maxSlots(c.grade);
+      const slotCount = maxSlots(c.grade, settings);
       curRow = writeGridHeader(ws, curRow, `${c.name} сынып · ${school.name} · ${year} оқу жылы`, 7);
       for (let slot = 1; slot <= slotCount; slot++) {
         const r = curRow; ws.getRow(r).height = 38;

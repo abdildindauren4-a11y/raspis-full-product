@@ -99,10 +99,10 @@ export default function AlgorithmPage() {
                 <div key={key} className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-c">{label} {t("com.gradeShort")}</span>
                   <input
-                    type="number" min={1} max={10}
+                    type="number" min={1} max={8}
                     className={inputCls + " w-16 text-center py-1"}
                     value={ml[key]}
-                    onChange={(e) => setML({ [key]: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+                    onChange={(e) => setML({ [key]: Math.max(1, Math.min(8, Number(e.target.value) || 1)) })}
                   />
                 </div>
               ))}

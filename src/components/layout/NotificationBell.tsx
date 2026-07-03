@@ -12,14 +12,14 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   // Нақты хабарландырулар — қолданба күйінен (диагностика, кесте сапасы)
-  const { classes, teachers, rooms, subjects, school } = useData();
+  const { classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
   const notifications = useMemo(
     () => buildNotifications(
-      { classes, teachers, rooms, subjects, school, hasSchedule: !!active, quality: active?.result.quality },
+      { classes, teachers, rooms, subjects, school, settings, hasSchedule: !!active, quality: active?.result.quality },
       lang
     ),
-    [classes, teachers, rooms, subjects, school, active, lang]
+    [classes, teachers, rooms, subjects, school, settings, active, lang]
   );
 
   const icon = (type: string) => {

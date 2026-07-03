@@ -11,7 +11,7 @@ import type { Slot } from "@/algorithm/engine";
 
 
 export default function SchedulePage() {
-  const { classes, teachers, rooms, subjects, school } = useData();
+  const { classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
   const [view, setView] = useState<"class" | "teacher" | "room">("class");
   const { t } = useLang();
@@ -38,7 +38,9 @@ export default function SchedulePage() {
   const selId = sel && list.some((x) => x.id === sel) ? sel : list[0]?.id || "";
 
   const cls = view === "class" ? classes.find((c) => c.id === selId) : null;
-  const rowsCount = cls ? maxSlots(cls.grade) : 8;
+  // settings міндетті: алгоритм worker-де жүреді, негізгі ағында maxSlots
+  // әдепкіге түсіп қалады — пайдаланушы лимитті өзгертсе қатар жоғалады
+  const rowsCount = cls ? maxSlots(cls.grade, settings) : 8;
   const filtered = slots.filter((o) =>
     view === "class" ? o.classId === selId : view === "teacher" ? o.teacherId === selId : o.roomId === selId);
   // Бір кабинет (немесе мұғалім) екі ауысымда да қолданылуы мүмкін. Слот индексі екі
