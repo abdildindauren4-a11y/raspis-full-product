@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { useMemo } from "react";
 import { decodeCert, type CertData } from "@/lib/certificate";
 import logoUrl from "@/assets/logo.png";
+import stampUrl from "@/assets/stamp.png";
 
 export default function CertificatePage() {
   const [params] = useSearchParams();
@@ -193,30 +194,16 @@ export default function CertificatePage() {
                 </div>
               </td>
               <td style={{ width: "45%", textAlign: "right", verticalAlign: "bottom" }}>
-                <svg width="32mm" height="32mm" viewBox="0 0 200 200" style={{ display: "inline-block" }}>
-                  <circle cx="100" cy="100" r="95" fill="none" stroke="#1e3a5f" strokeWidth="3" />
-                  <circle cx="100" cy="100" r="80" fill="none" stroke="#1e3a5f" strokeWidth="1" />
-                  <defs>
-                    <path id="sT" d="M 100,100 m -87,0 a 87,87 0 0,1 174,0" fill="none" />
-                    <path id="sB" d="M 100,100 m -87,0 a 87,87 0 0,0 174,0" fill="none" />
-                  </defs>
-                  <text fontSize="10.5" fontWeight="bold" fill="#1e3a5f" letterSpacing="2"><textPath href="#sT" startOffset="50%" textAnchor="middle">РАСПИС · САПА ЖҮЙЕСІ</textPath></text>
-                  <text fontSize="8.5" fill="#1e3a5f" letterSpacing="1.5"><textPath href="#sB" startOffset="50%" textAnchor="middle">VERIFIED QUALITY 2026</textPath></text>
-                  <text x="100" y="46" fontSize="11" fill="#9a7d3a" textAnchor="middle">★ ★ ★</text>
-                  <g transform="translate(100,108)">
-                    <path d="M -28,-30 L 28,-30 L 28,5 Q 28,28 0,38 Q -28,28 -28,5 Z" fill="none" stroke="#1e3a5f" strokeWidth="2.5" />
-                    <path d="M -28,-30 L 28,-30 L 28,5 Q 28,28 0,38 Q -28,28 -28,5 Z" fill="#1e3a5f" opacity="0.06" />
-                    <g stroke="#1e3a5f" strokeWidth="1.8" fill="none">
-                      <rect x="-17" y="-20" width="34" height="26" rx="1.5" />
-                      <line x1="-17" y1="-11" x2="17" y2="-11" />
-                      <line x1="-17" y1="-2" x2="17" y2="-2" />
-                      <line x1="-5.7" y1="-20" x2="-5.7" y2="6" />
-                      <line x1="5.7" y1="-20" x2="5.7" y2="6" />
-                    </g>
-                    <rect x="-5.7" y="-11" width="11.4" height="9" fill="#9a7d3a" opacity="0.8" />
-                    <text x="0" y="30" fontSize="14" fill="#9a7d3a" textAnchor="middle">★</text>
-                  </g>
-                </svg>
+                {/* Мөр — сиямен соғылған із (фонсыз PNG). Сәл қисайту шынайылық береді. */}
+                <img
+                  src={stampUrl}
+                  alt="РАСПИС сапа мөрі"
+                  style={{
+                    width: "34mm", height: "34mm", objectFit: "contain",
+                    display: "inline-block", transform: "rotate(-7deg)",
+                    marginRight: "3mm", marginBottom: "-2mm",
+                  }}
+                />
               </td>
             </tr></tbody>
           </table>
