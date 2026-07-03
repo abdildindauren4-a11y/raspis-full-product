@@ -5,7 +5,7 @@ import { Users, GraduationCap, DoorOpen, Gauge, Sparkles, CheckCircle2, Circle, 
 import GlassCard from "@/components/shared/GlassCard";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
 export default function DashboardPage() {
   const { classes, teachers, rooms, subjects, settings, versions, school } = useData();
@@ -24,6 +24,8 @@ export default function DashboardPage() {
         if (!c.curriculum.length) { problems.push({ text: `${c.name}: оқу жоспары бос`, to: "/classes" }); continue; }
         const { total, capacity } = classBudget(c, settings);
         if (total > capacity) problems.push({ text: `${c.name}: ${total}/${capacity} сағ — сыйымдылықтан артық`, to: "/classes" });
+        const sb = classScoreBudget(c, subjects, settings);
+        if (sb.tight) problems.push({ text: `${c.name}: балл қоры тығыз (${sb.total}/${sb.capacity}) — лимитті көтеріңіз`, to: "/algorithm" });
         for (const cu of c.curriculum)
           if (!cu.isSplit && !cu.teacherId) { problems.push({ text: `${c.name}: мұғалім тағайындалмаған пән бар`, to: "/classes" }); break; }
       }

@@ -55,14 +55,16 @@ export function autoAssignTeachers(
 ): { items: CurItem[]; assigned: number; unassigned: string[] } {
   // ағымдағы бюджет (осы сыныптың толтырылмағандары әлі есепте жоқ)
   const budgets = teacherBudgets(teachers, allClasses);
-  const eligible = (need: number, exclude?: Set<string>): TeacherBudget | null => {
+  const eligible = (need: number, subjectId: string, exclude?: Set<string>): TeacherBudget | null => {
     const list = [...budgets.values()]
       .filter((b) =>
         b.teacher.gradeMin <= cls.grade && cls.grade <= b.teacher.gradeMax &&
         (b.teacher.shift === 3 || b.teacher.shift === cls.shift) &&
         (!exclude || !exclude.has(b.teacher.id)))
       .sort((a, b) => b.free - a.free);
-    const fit = list.find((b) => b.free >= need);
+    // ПӘН БІЛІКТІЛІГІ басым: осы пәнді басқа жерде беретін мұғалім алдымен
+    const match = list.filter((b) => b.subjects.has(subjectId));
+    const fit = match.find((b) => b.free >= need) || list.find((b) => b.free >= need);
     return fit || null; // сыймаса — тағайындамаймыз (жасырын асып кетпес үшін)
   };
   let assigned = 0;
@@ -72,7 +74,7 @@ export function autoAssignTeachers(
       const used = new Set((cu.groups || []).map((g) => g.teacherId).filter(Boolean));
       const groups = (cu.groups || []).map((g) => {
         if (g.teacherId) return g;
-        const b = eligible(cu.hours, used);
+        const b = eligible(cu.hours, cu.subjectId, used);
         if (!b) { unassigned.push(cu.subjectId); return g; }
         b.free -= cu.hours; b.assigned += cu.hours; used.add(b.teacher.id); assigned++;
         return { ...g, teacherId: b.teacher.id };
@@ -80,7 +82,7 @@ export function autoAssignTeachers(
       return { ...cu, groups };
     }
     if (cu.teacherId) return cu;
-    const b = eligible(cu.hours);
+    const b = eligible(cu.hours, cu.subjectId);
     if (!b) { unassigned.push(cu.subjectId); return cu; }
     b.free -= cu.hours; b.assigned += cu.hours; assigned++;
     return { ...cu, teacherId: b.teacher.id };

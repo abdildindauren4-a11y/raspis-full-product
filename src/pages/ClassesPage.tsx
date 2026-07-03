@@ -195,7 +195,8 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
               {tooMany && <p className="text-xs status-bad mt-1 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {cu.hours} сағ: бұл пәнде қос сабақ рұқсаты жоқ (макс 5). Пәндер бетінен «қос сабақ» қосыңыз.</p>}
               {/* Нормадан асу — бір батырмалы шешімдермен (норманы көтеру / бос мұғалім) */}
               {overloaded.map((b) => {
-                const alt = freeTeachersFor(cls, budgets, cu.hours, b!.teacher.id)[0];
+                // Пән біліктілігі ескеріледі: осы пәнді басқа жерде беретін бос мұғалім басым
+                const alt = freeTeachersFor(cls, budgets, cu.hours, b!.teacher.id, cu.subjectId)[0];
                 return (
                   <div key={b!.teacher.id} className="mt-2 rounded-lg border border-red-500/30 bg-red-500/5 p-2">
                     <p className="text-xs status-bad flex items-center gap-1.5">

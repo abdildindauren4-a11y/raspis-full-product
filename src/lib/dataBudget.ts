@@ -9,7 +9,7 @@
 //   • Ауысым сыйымдылығы: сабақ саны / (кабинет × слот)
 
 import type { Klass, Teacher, Room, Subject, Settings, RoomType } from "@/algorithm/engine";
-import { maxSlots } from "@/algorithm/engine";
+import { maxSlots, dayLimitS } from "@/algorithm/engine";
 
 const WEEK_DAYS = 5;
 
@@ -18,12 +18,13 @@ export interface TeacherBudget {
   assigned: number;         // оқу жоспарларында тағайындалған сағат
   free: number;             // norm - assigned (теріс = асып тұр)
   classes: string[];        // қай сыныптарда
+  subjects: Set<string>;    // қай пәндерді береді (біліктілік — жоспардан шығарылады)
 }
 
 /** Барлық мұғалімнің оқу жоспарындағы жүктемесі (генерацияға дейінгі жоспар). */
 export function teacherBudgets(teachers: Teacher[], classes: Klass[]): Map<string, TeacherBudget> {
   const map = new Map<string, TeacherBudget>();
-  for (const t of teachers) map.set(t.id, { teacher: t, assigned: 0, free: t.norm, classes: [] });
+  for (const t of teachers) map.set(t.id, { teacher: t, assigned: 0, free: t.norm, classes: [], subjects: new Set() });
   for (const c of classes) {
     for (const cu of c.curriculum || []) {
       const ids = cu.isSplit ? (cu.groups || []).map((g) => g.teacherId) : cu.teacherId ? [cu.teacherId] : [];
@@ -31,6 +32,7 @@ export function teacherBudgets(teachers: Teacher[], classes: Klass[]): Map<strin
         const b = map.get(id);
         if (!b) continue;
         b.assigned += cu.hours;
+        b.subjects.add(cu.subjectId);
         if (!b.classes.includes(c.name)) b.classes.push(c.name);
       }
     }
@@ -45,17 +47,45 @@ export function classBudget(cls: Klass, settings?: Settings): { total: number; c
   return { total, capacity: WEEK_DAYS * maxSlots(cls.grade, settings) };
 }
 
-/** Осы сыныпқа сай (диапазон + ауысым) әрі сағаты бос мұғалімдер, бос сағаты көбінен бастап. */
+/** Сынып БАЛЛ бюджеті: апталық Σ(ауырлық×сағат) және балл сыйымдылығы.
+    Сыйымдылық = 5 × күндік балл лимиті МИНУС ең ауыр пәннің баллы (headroom):
+    күндер лимитке дейін толса, соңғы сабаққа орын қалмайды — алгоритм оны
+    орналастыра алмай «күндік балл лимиті» деп қайтарады. */
+export function classScoreBudget(
+  cls: Klass, subjects: Subject[], settings?: Settings
+): { total: number; capacity: number; tight: boolean } {
+  const S = new Map(subjects.map((s) => [s.id, s]));
+  let total = 0, maxScore = 0;
+  for (const cu of cls.curriculum || []) {
+    const su = S.get(cu.subjectId);
+    if (!su) continue;
+    const eff = cls.grade <= 4 && su.primaryScore != null ? su.primaryScore : su.score;
+    total += eff * cu.hours;
+    if (eff > maxScore) maxScore = eff;
+  }
+  const limit = dayLimitS(cls.grade, settings);
+  const capacity = WEEK_DAYS * limit;
+  // тығыз: соңғы (ең ауыр) сабаққа бос күн-қор қалмайды
+  const tight = total > capacity - maxScore;
+  return { total, capacity, tight };
+}
+
+/** Осы сыныпқа сай (диапазон + ауысым) әрі сағаты бос мұғалімдер, бос сағаты көбінен бастап.
+    subjectId берілсе — сол ПӘНДІ басқа жерде беретіндер (біліктілігі сай) басым:
+    олар болса тек солар қайтады; болмаса — жалпы тізім (жаңа мектеп/бос жоспар жағдайы). */
 export function freeTeachersFor(
-  cls: Klass, budgets: Map<string, TeacherBudget>, needHours: number, excludeId?: string
+  cls: Klass, budgets: Map<string, TeacherBudget>, needHours: number, excludeId?: string, subjectId?: string
 ): TeacherBudget[] {
-  return [...budgets.values()]
+  const base = [...budgets.values()]
     .filter((b) =>
       b.teacher.id !== excludeId &&
       b.teacher.gradeMin <= cls.grade && cls.grade <= b.teacher.gradeMax &&
       (b.teacher.shift === 3 || b.teacher.shift === cls.shift) &&
       b.free >= needHours)
     .sort((a, b) => b.free - a.free);
+  if (!subjectId) return base;
+  const match = base.filter((b) => b.subjects.has(subjectId));
+  return match.length ? match : base;
 }
 
 export interface RoomThroughput {

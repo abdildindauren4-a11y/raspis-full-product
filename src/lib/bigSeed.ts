@@ -20,7 +20,10 @@ export const bigSchool: School = {
 export const bigSettings: Settings = {
   maximin: true,
   maxIterations: 400,
-  dayLimits: { g14: 28, g56: 36, g79: 46, g1011: 56 },
+  // Балл лимиттері апталық балл қорына сай: апталық Σ(балл×сағат) 5 күнге
+  // + соңғы сабаққа қор (headroom) сыятындай. 36/46 кезінде 5-6 және 8-9
+  // сыныптарда 1-сағаттық пәндер (тарих) ешбір күнге сыймай қалатын.
+  dayLimits: { g14: 28, g56: 38, g79: 48, g1011: 56 },
   fatigue: { g14: 28, g59: 36, g1011: 46 },
   coeffs: { hard: 4, medium: 3, easy: 2 },
   relax: { extraSlots: 2, extraScore: 20, allowFatigue: true, allowBlacklist: true, allowDigital: true },
@@ -161,17 +164,20 @@ const TEACHERS_RAW: {
   name: string; subjects: string[]; gradeMin: number; gradeMax: number;
   shift: 1|2|3; norm: number;
 }[] = [
-  // Математика (5-11)
+  // Математика (5-11) — сұраныс: Мат 30 + Алг 48 + Геом 30 = 108 сағ → 6 мұғалім (буфермен)
   { name: "Сейткали Б.Т.", subjects: ["Алгебра","Геометрия"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Ахметова Г.М.",  subjects: ["Алгебра","Геометрия"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 22 },
+  { name: "Қайырбекова А.Ж.", subjects: ["Алгебра","Геометрия"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Нұрлыбаева А.С.", subjects: ["Математика","Алгебра"], gradeMin: 5, gradeMax: 9, shift: 1, norm: 22 },
-  { name: "Ержанова Д.Б.",  subjects: ["Математика"], gradeMin: 5, gradeMax: 6, shift: 1, norm: 18 },
+  { name: "Ержанова Д.Б.",  subjects: ["Математика"], gradeMin: 5, gradeMax: 6, shift: 1, norm: 20 },
+  { name: "Төлеген С.М.",   subjects: ["Математика","Алгебра"], gradeMin: 5, gradeMax: 9, shift: 1, norm: 18 },
 
-  // Қазақ тілі мен әдебиеті (5-11)
+  // Қазақ тілі мен әдебиеті (5-11) — сұраныс: 54 + 39 = 93 сағ → 5 мұғалім (буфермен)
   { name: "Байжанова Р.Қ.", subjects: ["Қазақ тілі","Қазақ әдебиеті"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Мұсаева З.А.",   subjects: ["Қазақ тілі","Қазақ әдебиеті"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Тілеуова К.М.",  subjects: ["Қазақ тілі","Қазақ әдебиеті"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 20 },
   { name: "Дюсенова А.Б.",  subjects: ["Қазақ тілі","Қазақ әдебиеті"], gradeMin: 5, gradeMax: 9, shift: 1, norm: 18 },
+  { name: "Әбдіраш Ж.С.",   subjects: ["Қазақ тілі","Қазақ әдебиеті"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 20 },
 
   // Орыс тілі мен әдебиеті (5-11) — 84 сағат → 5 мұғалім (буфермен)
   { name: "Иванова Н.В.",   subjects: ["Орыс тілі","Орыс әдебиеті"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
@@ -185,9 +191,9 @@ const TEACHERS_RAW: {
   { name: "Абдрахманова С.К.", subjects: ["Ағылшын тілі"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Ким А.П.",          subjects: ["Ағылшын тілі"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
 
-  // Физика (7-11)
+  // Физика (7-11) — сұраныс 39 сағ → 20+21 = 41 (буфермен)
   { name: "Рысқалиев М.Ж.", subjects: ["Физика"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 20 },
-  { name: "Ғаббасов Е.Т.",  subjects: ["Физика"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 18 },
+  { name: "Ғаббасов Е.Т.",  subjects: ["Физика"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 21 },
 
   // Химия (8-11)
   { name: "Сатыбалдина Ш.Н.", subjects: ["Химия"], gradeMin: 8, gradeMax: 11, shift: 1, norm: 18 },
@@ -206,6 +212,9 @@ const TEACHERS_RAW: {
   { name: "Маусымбекова Г.Д.", subjects: ["Қазақстан тарихы","Дүниежүзі тарихы"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 22 },
   { name: "Бекова Ж.Т.",    subjects: ["Қазақстан тарихы","Дүниежүзі тарихы"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 20 },
   { name: "Мамытов А.Б.",   subjects: ["Қазақстан тарихы","Дүниежүзі тарихы"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 16 },
+  // Дүниежүзі тарихы — арнайы мұғалім (1-сағаттық пән лық толы параллельдерде
+  // слот таңдауда қысылмас үшін ҚТ жүктемесінен бөлек жүреді)
+  { name: "Есімханова А.Т.", subjects: ["Дүниежүзі тарихы"], gradeMin: 7, gradeMax: 11, shift: 1, norm: 16 },
 
   // Информатика (5-11)
   { name: "Сейтжан А.Б.",   subjects: ["Информатика"], gradeMin: 5, gradeMax: 11, shift: 1, norm: 20 },
@@ -221,9 +230,11 @@ const TEACHERS_RAW: {
   { name: "Темірбек Р.Б.",   subjects: ["Дене шынықтыру"], gradeMin: 1, gradeMax: 4,  shift: 2, norm: 24 },
   { name: "Қыдырбаев Т.М.",  subjects: ["Дене шынықтыру"], gradeMin: 1, gradeMax: 4,  shift: 2, norm: 24 },
 
-  // Музыка (1-6) — 18 сынып × 1с = 18с → 2 мұғалім
+  // Музыка (1-6) — 18 сынып × 1с = 18с → 2 мұғалім + 5-6 сыныпқа 1-ауысымдық
+  // (ауысым аралық 40-мин үзіліс шектеуі 1-ауысым сабақтарын бұғаттамас үшін)
   { name: "Жанпейісова А.М.", subjects: ["Музыка"], gradeMin: 1, gradeMax: 6, shift: 3, norm: 18 },
   { name: "Байболова Р.С.",   subjects: ["Музыка"], gradeMin: 1, gradeMax: 6, shift: 3, norm: 18 },
+  { name: "Сағынаева Д.Е.",   subjects: ["Музыка"], gradeMin: 5, gradeMax: 6, shift: 1, norm: 8 },
 
   // Бейнелеу өнері (1-4)
   { name: "Нұрғалиева Г.Н.", subjects: ["Бейнелеу өнері"], gradeMin: 1, gradeMax: 4, shift: 2, norm: 14 },
@@ -298,14 +309,18 @@ export function buildBigSeed(): BigSeedResult {
     });
   });
 
-  // Жүктеме балансы
+  // Жүктеме балансы — НОРМА-БІЛГІШ: алдымен норма шегінде қалатындардан таңдаймыз,
+  // әйтпесе (қуат жетпесе ғана) ең аз жүктелгенге береміз. Бұрын норма мүлдем
+  // тексерілмей, кейбір мұғалімдер 37/22 сағатқа дейін асып кететін.
   const load: Record<string, number> = {};
   const pick = (subj: string, grade: number, h: number): Teacher | null => {
     const pool = (subjectToTeachers[subj] || []).filter(
       t => t.gradeMin <= grade && t.gradeMax >= grade
     );
     if (!pool.length) return null;
-    const t = pool.slice().sort((a, b) => (load[a.id]||0) - (load[b.id]||0))[0];
+    const fits = pool.filter(t => (load[t.id]||0) + h <= t.norm);
+    const cand = (fits.length ? fits : pool).slice().sort((a, b) => (load[a.id]||0) - (load[b.id]||0));
+    const t = cand[0];
     load[t.id] = (load[t.id]||0) + h;
     return t;
   };
@@ -345,8 +360,11 @@ export function buildBigSeed(): BigSeedResult {
     }
   }
 
-  // Жоғары (5-11 сынып, 1-ауысым) — 3 параллель
-  for (let g = 5; g <= 11; g++) {
+  // Жоғары (5-11 сынып, 1-ауысым) — 3 параллель.
+  // КЕМУ РЕТІМЕН (11→5): тек жоғары сыныптарға ғана кіре алатын мұғалімдер
+  // (мыс. Алгебра 7-11) алдымен жүктеледі, кең диапазондылар қалдықты алады —
+  // әйтпесе greedy 5-6-ға ерте толтырып, 10-11-ге мұғалім қалмай қалады.
+  for (let g = 11; g >= 5; g--) {
     for (const L of ["А","Б","В"]) {
       const cls: Klass = {
         id: uid(), name: `${g}${L}`, grade: g, students: 28 + (g % 6),

@@ -11,7 +11,7 @@ import { explainSchedule, hasGeminiKey } from "@/lib/gemini";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
-import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 import Markdown from "@/components/shared/Markdown";
 import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
@@ -65,6 +65,9 @@ export default function GeneratePage() {
     for (const c of data.classes) {
       const { total, capacity } = classBudget(c, data.settings);
       if (total > capacity) issues.push({ level: "error", text: `${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ), ${total - capacity} сағ артық` });
+      // балл қоры тығыз болса — 1-сағаттық пәндер сыймай қалады
+      const sb = classScoreBudget(c, data.subjects, data.settings);
+      if (sb.tight) issues.push({ level: "warn", text: `${c.name}: апталық балл ${sb.total}/${sb.capacity} — күндік балл лимиті тығыз, кейбір сабақ сыймауы мүмкін. Алгоритм бетінде лимитті көтеріңіз немесе ауыр пәндерді азайтыңыз` });
     }
     // арнайы кабинет өткізу қабілеті
     for (const rt of roomThroughputs(data.classes, data.subjects, data.rooms))
