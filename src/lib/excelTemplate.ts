@@ -66,46 +66,83 @@ export async function downloadTemplate() {
   const wb = new ExcelJS.Workbook();
   wb.creator = "РАСПИС";
 
-  // ═══ Парақ 1 — СЫНЫПТАР ═══
+  // ═══ Парақ 1 — СЫНЫПТАР (тірі бюджет бағандарымен) ═══
   const ws1 = wb.addWorksheet("Сыныптар", { views: [{ state: "frozen", ySplit: 1 }] });
-  ws1.columns = [{ width: 14 }, { width: 14 }, { width: 22 }, { width: 22 }];
-  ws1.addRow(["Сынып атауы", "Оқушы саны", "Ауысым", "Бастауыш кабинеті"]);
+  ws1.columns = [{ width: 14 }, { width: 14 }, { width: 22 }, { width: 22 }, { width: 18 }, { width: 14 }, { width: 22 }];
+  ws1.addRow(["Сынып атауы", "Оқушы саны", "Ауысым", "Бастауыш кабинеті", "Апталық сағат (авто)", "Лимит (авто)", "Күйі (авто)"]);
   ws1.addRow(["5А", 28, "Таңғы", ""]);
   ws1.addRow(["5Б", 27, "Таңғы", ""]);
   ws1.addRow(["1А", 25, "Түстен кейінгі", "105"]);
-  styleHeader(ws1, 4);
+  styleHeader(ws1, 7);
   styleRows(ws1, 2, 4, 4, EXAMPLE_FILL);
   addNote(ws1, 1, 1, "Сынып атауын жазыңыз: 5А, 7Б, 11В. Нешінші сынып екені атауынан анықталады.");
   addNote(ws1, 1, 3, "Таңғы (1-ауысым) немесе Түстен кейінгі (2-ауысым).");
   addNote(ws1, 1, 4, "Тек БАСТАУЫШ (1-4 сынып) үшін: балалар отыратын тұрақты кабинет нөмірі. Жоғары сыныптарға бос қалдырыңыз.");
-  for (let r = 5; r <= 60; r++) {
-    ws1.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
-    ws1.getCell(r, 3).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі"'] };
-    for (let c = 1; c <= 4; c++) ws1.getCell(r, c).border = BORDER;
+  addNote(ws1, 1, 5, "АВТОМАТТЫ ЕСЕП — өзгертпеңіз! «Оқу жоспары» парағынан осы сыныптың апталық сағаты (топ сабақтары бір рет саналады).");
+  addNote(ws1, 1, 6, "АВТОМАТТЫ ЕСЕП — сыныптың апталық сыйымдылығы: 5 күн × күндік сабақ лимиті (СанПиН).");
+  addNote(ws1, 1, 7, "АВТОМАТТЫ ТЕКСЕРУ: сағат лимитке сыймаса ҚЫЗЫЛ ⚠ шығады — «Оқу жоспарынан» сағат азайтыңыз.");
+  // Сынып нөмірін атаудан алатын өрнек ("11Б"→11, "5А"→5)
+  const gradeExpr = (r: number) => `IFERROR(VALUE(LEFT(A${r},2)),IFERROR(VALUE(LEFT(A${r},1)),5))`;
+  for (let r = 2; r <= 60; r++) {
+    if (r >= 5) {
+      ws1.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
+      ws1.getCell(r, 3).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі"'] };
+    }
+    for (let c = 1; c <= 7; c++) ws1.getCell(r, c).border = BORDER;
+    // Тірі бюджет формулалары: апталық сағат (топ жолдары 2 есе саналмас үшін «Иә» жолдары /2)
+    ws1.getCell(r, 5).value = { formula: `IF(A${r}="","",SUMIFS('Оқу жоспары'!$D$2:$D$400,'Оқу жоспары'!$A$2:$A$400,A${r},'Оқу жоспары'!$E$2:$E$400,"<>Иә")+SUMIFS('Оқу жоспары'!$D$2:$D$400,'Оқу жоспары'!$A$2:$A$400,A${r},'Оқу жоспары'!$E$2:$E$400,"Иә")/2)` };
+    ws1.getCell(r, 6).value = { formula: `IF(A${r}="","",5*IF(${gradeExpr(r)}=1,4,IF(${gradeExpr(r)}<=4,5,IF(${gradeExpr(r)}<=6,6,IF(${gradeExpr(r)}<=9,7,8)))))` };
+    ws1.getCell(r, 7).value = { formula: `IF(OR(A${r}="",E${r}=""),"",IF(E${r}=0,"— бос",IF(E${r}>F${r},"⚠ СЫЙМАЙДЫ (+"&(E${r}-F${r})&" сағ)","OK ✓")))` };
+    for (const c of [5, 6, 7]) {
+      ws1.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+      ws1.getCell(r, c).font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
+    }
   }
+  // Шартты бояу: ⚠ болса — қызыл
+  ws1.addConditionalFormatting({
+    ref: "G2:G60",
+    rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
+      style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
+  });
   ws1.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 4 } };
 
-  // ═══ Парақ 2 — МҰҒАЛІМДЕР ═══
+  // ═══ Парақ 2 — МҰҒАЛІМДЕР (тірі бюджет бағандарымен) ═══
   const ws2 = wb.addWorksheet("Мұғалімдер", { views: [{ state: "frozen", ySplit: 1 }] });
-  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }];
-  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым"]);
+  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 22 }, { width: 26 }];
+  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым", "Тағайындалған сағат (авто)", "Күйі (авто)"]);
   ws2.addRow(["Ахметова Айгүл Қызы", 20, 5, 11, "Таңғы"]);
   ws2.addRow(["Серікбаева Нұргүл", 18, 5, 11, "Таңғы"]);
   ws2.addRow(["Лебедева Ирина", 12, 1, 7, "Екеуінде де"]);
-  styleHeader(ws2, 5);
+  styleHeader(ws2, 7);
   styleRows(ws2, 2, 4, 5, EXAMPLE_FILL);
   addNote(ws2, 1, 1, "Мұғалімнің толық аты-жөні. Оқу жоспарында ДӘЛ осылай жазылуы керек.");
   addNote(ws2, 1, 2, "Аптасына неше сағат сабақ беруі керек (жүктеме нормасы).");
   addNote(ws2, 1, 3, "Мұғалім сабақ беретін ЕҢ КІШІ сынып (мысалы 5).");
   addNote(ws2, 1, 4, "Мұғалім сабақ беретін ЕҢ ҮЛКЕН сынып (мысалы 11).");
   addNote(ws2, 1, 5, "Таңғы, Түстен кейінгі, немесе Екеуінде де.");
-  for (let r = 5; r <= 100; r++) {
-    ws2.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
-    ws2.getCell(r, 3).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
-    ws2.getCell(r, 4).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
-    ws2.getCell(r, 5).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі,Екеуінде де"'] };
-    for (let c = 1; c <= 5; c++) ws2.getCell(r, c).border = BORDER;
+  addNote(ws2, 1, 6, "АВТОМАТТЫ ЕСЕП — өзгертпеңіз! «Оқу жоспары» парағында осы мұғалімге тағайындалған барлық сағат.");
+  addNote(ws2, 1, 7, "АВТОМАТТЫ ТЕКСЕРУ: тағайындалған сағат нормадан асса ҚЫЗЫЛ ⚠ шығады — норманы көтеріңіз немесе сағатты басқа мұғалімге беріңіз.");
+  for (let r = 2; r <= 100; r++) {
+    if (r >= 5) {
+      ws2.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
+      ws2.getCell(r, 3).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
+      ws2.getCell(r, 4).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
+      ws2.getCell(r, 5).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі,Екеуінде де"'] };
+    }
+    for (let c = 1; c <= 7; c++) ws2.getCell(r, c).border = BORDER;
+    // Тірі бюджет: «Оқу жоспарындағы» тағайындалған сағат және норма күйі
+    ws2.getCell(r, 6).value = { formula: `IF(A${r}="","",SUMIF('Оқу жоспары'!$C$2:$C$400,A${r},'Оқу жоспары'!$D$2:$D$400))` };
+    ws2.getCell(r, 7).value = { formula: `IF(OR(A${r}="",F${r}=""),"",IF(F${r}=0,"— сабақ жоқ",IF(F${r}>B${r},"⚠ НОРМАДАН АСТЫ (+"&(F${r}-B${r})&" сағ)","OK ✓")))` };
+    for (const c of [6, 7]) {
+      ws2.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+      ws2.getCell(r, c).font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
+    }
   }
+  ws2.addConditionalFormatting({
+    ref: "G2:G100",
+    rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
+      style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
+  });
   ws2.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 5 } };
 
   // ═══ Парақ 3 — ОҚУ ЖОСПАРЫ (ең маңызды) ═══
@@ -196,6 +233,12 @@ export async function downloadTemplate() {
     "",
     "ТҮСТЕР: сары жолдар — МЫСАЛ (өшіріп, өзіңіздікін жазыңыз). Көк жолдар — ДАЙЫН деректер.",
     "Әр баған тақырыбына тінтуірді апарсаңыз — толық түсініктеме шығады.",
+    "",
+    "ТІРІ ТЕКСЕРУ (авто бағандар): «Сыныптар» мен «Мұғалімдер» парақтарында сұр «(авто)» бағандар бар.",
+    "   • Олар «Оқу жоспарын» толтырған сайын ӨЗДІГІНЕН есептеледі — оларды өзгертпеңіз!",
+    "   • Мұғалімге нормадан артық сағат тағайындасаңыз — «Күйі» бағанында ҚЫЗЫЛ ⚠ шығады",
+    "   • Сынып сағаты лимитке сыймаса — «Сыныптар» парағында ҚЫЗЫЛ ⚠ шығады",
+    "   • Импорттамас бұрын барлық ⚠ белгіні жойыңыз — сонда кесте толық құрылады",
     "",
     "1. «Сыныптар» парағы:",
     "   • Әр сыныпты бір жолға жазыңыз (5А, 5Б, ...)",

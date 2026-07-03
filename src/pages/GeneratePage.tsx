@@ -12,6 +12,7 @@ import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
 import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+import Markdown from "@/components/shared/Markdown";
 import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
 export default function GeneratePage() {
@@ -406,7 +407,7 @@ export default function GeneratePage() {
               )}
               {explainErr && <p className="text-sm text-muted-c py-2">{explainErr}</p>}
               {explanation && (
-                <div className="text-sm text-soft-c leading-relaxed whitespace-pre-wrap markdown-body">{explanation}</div>
+                <div className="text-soft-c leading-relaxed"><Markdown text={explanation} /></div>
               )}
             </GlassCard>
           )}

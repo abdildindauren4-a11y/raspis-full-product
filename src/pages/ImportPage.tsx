@@ -11,6 +11,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
 import { Lock } from "lucide-react";
 import { downloadTemplate, parseWorkbook, type ParsedData } from "@/lib/excelTemplate";
+import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+
+// Импортталатын деректің БЮДЖЕТ тексеруі: құрылым дұрыс болса да,
+// мұғалім нормасы/сынып сыйымдылығы/кабинет қабілеті асып тұрса — ескертеміз
+function budgetWarnings(p: ParsedData): string[] {
+  const w: string[] = [];
+  for (const b of teacherBudgets(p.teachers, p.classes).values())
+    if (b.free < 0) w.push(`${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ — норма ${-b.free} сағатқа асып тұр`);
+  for (const c of p.classes) {
+    const { total, capacity } = classBudget(c);
+    if (total > capacity) w.push(`${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ)`);
+  }
+  for (const rt of roomThroughputs(p.classes, p.subjects, p.rooms))
+    if (rt.needed > rt.capacity) w.push(`${ROOM_TYPE_KK[rt.type]} кабинеті (${rt.shift}-ауысым): керегі ${rt.needed} сағ / сыйымдылығы ${rt.capacity}`);
+  for (const sc of shiftCapacity(p.classes, p.rooms))
+    if (sc.needed > sc.capacity) w.push(`${sc.shift}-ауысым: ${sc.needed} сабаққа ${sc.capacity} орын ғана бар`);
+  return w;
+}
 
 export default function ImportPage() {
   const { t } = useLang();
@@ -132,6 +150,24 @@ export default function ImportPage() {
                 </div>
               ))}
             </div>
+            {/* Бюджет ескертулері: импортқа кедергі емес, бірақ кестеге әсер етеді */}
+            {errorCount === 0 && (() => {
+              const bw = budgetWarnings(parsed);
+              if (!bw.length) return null;
+              return (
+                <div className="mb-3">
+                  <p className="status-warn text-sm flex items-center gap-2 mb-2"><AlertTriangle className="w-4 h-4" /> {bw.length} бюджет ескертуі (импортқа болады, бірақ кесте толық шықпауы мүмкін)</p>
+                  <div className="max-h-44 overflow-y-auto scrollbar-thin space-y-1 rounded-xl bg-yellow-500/5 border border-yellow-400/20 p-3">
+                    {bw.map((m, i) => (
+                      <p key={i} className="text-xs status-warn flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {m}
+                      </p>
+                    ))}
+                  </div>
+                  <p className="text-xs text-faint-c mt-1.5">Excel үлгісіндегі «Күйі (авто)» бағандары да дәл осыны көрсетеді — файлда түзетіп қайта жүктеуге болады.</p>
+                </div>
+              );
+            })()}
             {errorCount === 0 ? (
               <p className="status-good text-sm flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {t("imp.noErrors")}</p>
             ) : (

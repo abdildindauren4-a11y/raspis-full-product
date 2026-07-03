@@ -127,7 +127,13 @@ export async function askGemini(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+      generationConfig: {
+        temperature: 0.7,
+        // 2.5-flash "ойлану" токендері де осы лимиттен есептеледі — лимит
+        // аз болса жауап үзіліп қалады. Ойлануды өшіріп, қор жеткілікті береміз.
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
   });
 
@@ -221,7 +227,13 @@ ${dataText}
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+      generationConfig: {
+        temperature: 0.7,
+        // 2.5-flash "ойлану" токендері де осы лимиттен есептеледі — лимит
+        // аз болса жауап үзіліп қалады. Ойлануды өшіріп, қор жеткілікті береміз.
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
   });
 
