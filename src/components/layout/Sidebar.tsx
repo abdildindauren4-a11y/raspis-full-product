@@ -1,10 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
+  Database,
   GraduationCap,
   Users,
   DoorOpen,
@@ -23,9 +25,12 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LogOut,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { TransKey } from "@/i18n/translations";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -34,13 +39,22 @@ interface SidebarProps {
   setMobileOpen: (v: boolean) => void;
 }
 
-const menuItems = [
-  { icon: LayoutDashboard, key: "nav.dashboard", path: "/" },
+interface NavLeaf { icon: LucideIcon; key: TransKey; path: string }
+interface NavGroup { icon: LucideIcon; key: TransKey; children: NavLeaf[] }
+type NavItem = NavLeaf | NavGroup;
+
+// Дерек енгізу беттері — бір «Деректер» модуліне жиналған (панель қысқа болуы үшін)
+const dataChildren: NavLeaf[] = [
   { icon: GraduationCap, key: "nav.classes", path: "/classes" },
   { icon: Users, key: "nav.teachers", path: "/teachers" },
   { icon: DoorOpen, key: "nav.rooms", path: "/rooms" },
   { icon: BookOpen, key: "nav.subjects", path: "/subjects" },
   { icon: UsersRound, key: "nav.groups", path: "/groups" },
+];
+
+const menuItems: NavItem[] = [
+  { icon: LayoutDashboard, key: "nav.dashboard", path: "/" },
+  { icon: Database, key: "nav.data", children: dataChildren },
   { icon: Cpu, key: "nav.algorithm", path: "/algorithm" },
   { icon: Sparkles, key: "nav.generate", path: "/generate" },
   { icon: CalendarDays, key: "nav.schedule", path: "/schedule" },
@@ -51,12 +65,12 @@ const menuItems = [
   { icon: FileDown, key: "nav.export", path: "/export" },
   { icon: Settings, key: "nav.settings", path: "/settings" },
   { icon: User, key: "nav.profile", path: "/profile" },
-] as const;
+];
 
 // Тек әкімшіге көрінетін мәзір
-const adminItems = [
+const adminItems: NavItem[] = [
   { icon: Shield, key: "nav.admin", path: "/admin" },
-] as const;
+];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { t } = useLang();
@@ -66,6 +80,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
   const { logout: authLogout, role } = useAuth();
   // Әкімшіге admin элементтерін қосамыз
   const items = role === "admin" ? [...menuItems, ...adminItems] : menuItems;
+
+  // «Деректер» тобы: ішіндегі бет ашық болса — автоматты ашылады
+  const dataActive = dataChildren.some((c) => c.path === location.pathname);
+  const [dataOpen, setDataOpen] = useState(dataActive);
+  useEffect(() => { if (dataActive) setDataOpen(true); }, [dataActive]);
 
   return (
     <motion.aside
@@ -113,9 +132,89 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto scrollbar-thin">
         {items.map((item, index) => {
-          const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
+          // ── «Деректер» тобы: ашылмалы модуль ──
+          if ("children" in item) {
+            return (
+              <div key={item.key}>
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
+                  onClick={() => {
+                    // жиналған панельде: панельді ашып, топты жаямыз
+                    if (isCollapsed) { setIsCollapsed(false); setDataOpen(true); }
+                    else setDataOpen(!dataOpen);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
+                    dataActive
+                      ? "bg-[rgba(0,198,255,0.12)] accent-c border-l-[3px] border-[var(--accent)]"
+                      : "text-muted-c hover:bg-[rgba(127,127,127,0.1)] hover:text-soft-c"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${dataActive ? "accent-c" : ""}`} />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-sm font-medium whitespace-nowrap overflow-hidden flex-1 text-left"
+                      >
+                        {t(item.key)}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {!isCollapsed && (
+                    <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${dataOpen ? "" : "-rotate-90"}`} />
+                  )}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-3 px-3 py-1.5 bg-surface border border-soft-c rounded-lg text-sm text-strong-c whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[1400]">
+                      {t(item.key)}
+                    </div>
+                  )}
+                </motion.button>
+                {/* Ішкі модульдер */}
+                <AnimatePresence>
+                  {!isCollapsed && dataOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="ml-4 pl-3 border-l border-soft-c space-y-0.5 py-1">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = location.pathname === child.path;
+                          return (
+                            <button
+                              key={child.path}
+                              onClick={() => navigate(child.path)}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ${
+                                childActive
+                                  ? "bg-[rgba(0,198,255,0.12)] accent-c"
+                                  : "text-muted-c hover:bg-[rgba(127,127,127,0.1)] hover:text-soft-c"
+                              }`}
+                            >
+                              <ChildIcon className={`w-4 h-4 flex-shrink-0 ${childActive ? "accent-c" : ""}`} />
+                              <span className="text-[13px] font-medium whitespace-nowrap">{t(child.key)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          }
+
+          // ── Қарапайым элемент ──
+          const isActive = location.pathname === item.path;
           return (
             <motion.button
               key={item.path}

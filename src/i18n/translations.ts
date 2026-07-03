@@ -6,6 +6,7 @@ export type Lang = "kk" | "ru" | "en";
 export const translations = {
   // ── Навигация ──
   "nav.dashboard": { kk: "Басты бет", ru: "Главная", en: "Dashboard" },
+  "nav.data": { kk: "Деректер", ru: "Данные", en: "Data" },
   "nav.classes": { kk: "Сыныптар", ru: "Классы", en: "Classes" },
   "nav.teachers": { kk: "Мұғалімдер", ru: "Учителя", en: "Teachers" },
   "nav.rooms": { kk: "Кабинеттер", ru: "Кабинеты", en: "Rooms" },
