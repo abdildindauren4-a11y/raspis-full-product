@@ -193,7 +193,7 @@ export default function CertificatePage() {
                   alt="Қолтаңба"
                   style={{
                     width: "24mm", display: "block",
-                    marginLeft: "12mm", marginBottom: "-9mm",
+                    marginLeft: "12mm", marginBottom: "-7mm",
                     position: "relative", zIndex: 1,
                   }}
                 />
