@@ -108,12 +108,12 @@ export async function downloadTemplate() {
 
   // ═══ Парақ 2 — МҰҒАЛІМДЕР (тірі бюджет бағандарымен) ═══
   const ws2 = wb.addWorksheet("Мұғалімдер", { views: [{ state: "frozen", ySplit: 1 }] });
-  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 22 }, { width: 26 }];
-  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым", "Тағайындалған сағат (авто)", "Күйі (авто)"]);
+  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 22 }, { width: 26 }, { width: 16 }, { width: 30 }];
+  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым", "Тағайындалған сағат (авто)", "Күйі (авто)", "Сынып саны (авто)", "Тарылу қаупі (авто)"]);
   ws2.addRow(["Ахметова Айгүл Қызы", 20, 5, 11, "Таңғы"]);
   ws2.addRow(["Серікбаева Нұргүл", 18, 5, 11, "Таңғы"]);
   ws2.addRow(["Лебедева Ирина", 12, 1, 7, "Екеуінде де"]);
-  styleHeader(ws2, 7);
+  styleHeader(ws2, 9);
   styleRows(ws2, 2, 4, 5, EXAMPLE_FILL);
   addNote(ws2, 1, 1, "Мұғалімнің толық аты-жөні. Оқу жоспарында ДӘЛ осылай жазылуы керек.");
   addNote(ws2, 1, 2, "Аптасына неше сағат сабақ беруі керек (жүктеме нормасы).");
@@ -122,6 +122,8 @@ export async function downloadTemplate() {
   addNote(ws2, 1, 5, "Таңғы, Түстен кейінгі, немесе Екеуінде де.");
   addNote(ws2, 1, 6, "АВТОМАТТЫ ЕСЕП — өзгертпеңіз! «Оқу жоспары» парағында осы мұғалімге тағайындалған барлық сағат.");
   addNote(ws2, 1, 7, "АВТОМАТТЫ ТЕКСЕРУ: тағайындалған сағат нормадан асса ҚЫЗЫЛ ⚠ шығады — норманы көтеріңіз немесе сағатты басқа мұғалімге беріңіз.");
+  addNote(ws2, 1, 8, "АВТОМАТТЫ ЕСЕП — «Оқу жоспары» парағында осы мұғалімге тағайындалған БӨЛЕК сынып-жол саны (шамамен).");
+  addNote(ws2, 1, 9, "АВТОМАТТЫ ТЕКСЕРУ: мұғалім тым көп бөлек сыныпқа (9-дан көп) тағайындалса ҚЫЗЫЛ ⚠ шығады — сағаты дұрыс болса да, әр сыныптың бос слотын жалғыз адаммен үйлестіру қиынға соғып, кестеде бос слот (тесік) қалу қаупі артады. Шешім: жүктемені 2-мұғалімге бөліңіз.");
   for (let r = 2; r <= 100; r++) {
     if (r >= 5) {
       ws2.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
@@ -129,17 +131,25 @@ export async function downloadTemplate() {
       ws2.getCell(r, 4).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
       ws2.getCell(r, 5).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі,Екеуінде де"'] };
     }
-    for (let c = 1; c <= 7; c++) ws2.getCell(r, c).border = BORDER;
+    for (let c = 1; c <= 9; c++) ws2.getCell(r, c).border = BORDER;
     // Тірі бюджет: «Оқу жоспарындағы» тағайындалған сағат және норма күйі
     ws2.getCell(r, 6).value = { formula: `IF(A${r}="","",SUMIF('Оқу жоспары'!$C$2:$C$400,A${r},'Оқу жоспары'!$D$2:$D$400))` };
     ws2.getCell(r, 7).value = { formula: `IF(OR(A${r}="",F${r}=""),"",IF(F${r}=0,"— сабақ жоқ",IF(F${r}>B${r},"⚠ НОРМАДАН АСТЫ (+"&(F${r}-B${r})&" сағ)","OK ✓")))` };
-    for (const c of [6, 7]) {
+    // Тарылу тексерісі: бөлек сынып-жол саны (шамамен — сынып атауы бойынша COUNTIF)
+    ws2.getCell(r, 8).value = { formula: `IF(A${r}="","",COUNTIF('Оқу жоспары'!$C$2:$C$400,A${r}))` };
+    ws2.getCell(r, 9).value = { formula: `IF(OR(A${r}="",H${r}=""),"",IF(H${r}>9,"⚠ ТЫМ КӨП СЫНЫП ("&H${r}&") — 2-мұғалімге бөліңіз","OK ✓"))` };
+    for (const c of [6, 7, 8, 9]) {
       ws2.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
       ws2.getCell(r, c).font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
     }
   }
   ws2.addConditionalFormatting({
     ref: "G2:G100",
+    rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
+      style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
+  });
+  ws2.addConditionalFormatting({
+    ref: "I2:I100",
     rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
       style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
   });
@@ -237,6 +247,7 @@ export async function downloadTemplate() {
     "ТІРІ ТЕКСЕРУ (авто бағандар): «Сыныптар» мен «Мұғалімдер» парақтарында сұр «(авто)» бағандар бар.",
     "   • Олар «Оқу жоспарын» толтырған сайын ӨЗДІГІНЕН есептеледі — оларды өзгертпеңіз!",
     "   • Мұғалімге нормадан артық сағат тағайындасаңыз — «Күйі» бағанында ҚЫЗЫЛ ⚠ шығады",
+    "   • Мұғалім тым көп бөлек сыныпқа (9-дан көп) тағайындалса — «Тарылу қаупі» бағанында ҚЫЗЫЛ ⚠ шығады (сағаты дұрыс болса да, кестеде бос слот қалу қаупі артады)",
     "   • Сынып сағаты лимитке сыймаса — «Сыныптар» парағында ҚЫЗЫЛ ⚠ шығады",
     "   • Импорттамас бұрын барлық ⚠ белгіні жойыңыз — сонда кесте толық құрылады",
     "",

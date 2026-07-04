@@ -5,7 +5,7 @@ import { Users, GraduationCap, DoorOpen, Gauge, Sparkles, CheckCircle2, Circle, 
 import GlassCard from "@/components/shared/GlassCard";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+import { teacherBudgets, classBudget, classScoreBudget, teacherSpread, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
 export default function DashboardPage() {
   const { classes, teachers, rooms, subjects, settings, versions, school } = useData();
@@ -18,8 +18,11 @@ export default function DashboardPage() {
   const health = useMemo(() => {
     const problems: { text: string; to: string }[] = [];
     if (classes.length) {
-      for (const b of teacherBudgets(teachers, classes).values())
+      const budgets = teacherBudgets(teachers, classes);
+      for (const b of budgets.values())
         if (b.free < 0) problems.push({ text: `${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ (норма +${-b.free})`, to: "/teachers" });
+      for (const s of teacherSpread(budgets))
+        if (s.tight) problems.push({ text: `${s.teacher.name}: ${s.classCount} бөлек сыныпқа тағайындалған — тым көп (тесік қаупі жоғары), 2-мұғалімге бөліңіз`, to: "/teachers" });
       for (const c of classes) {
         if (!c.curriculum.length) { problems.push({ text: `${c.name}: оқу жоспары бос`, to: "/classes" }); continue; }
         const { total, capacity } = classBudget(c, settings);

@@ -70,6 +70,21 @@ export function classScoreBudget(
   return { total, capacity, tight };
 }
 
+export interface TeacherSpread {
+  teacher: Teacher;
+  classCount: number;
+  tight: boolean;
+}
+
+/** Мұғалімнің тым көп бөлек сыныпқа "жайылып кетуі": сағаты нормамен дәл теңгерілсе де,
+    әр сыныптың бос слотын жалғыз адаммен үйлестіру керек болғандықтан икемділік азаяды —
+    осы мұғалімнің күні толығымен бітеліп, тесік (бос слот) пайда болу қаупі артады. */
+export function teacherSpread(budgets: Map<string, TeacherBudget>, threshold = 9): TeacherSpread[] {
+  return [...budgets.values()]
+    .filter((b) => b.classes.length > 0)
+    .map((b) => ({ teacher: b.teacher, classCount: b.classes.length, tight: b.classes.length > threshold }));
+}
+
 /** Осы сыныпқа сай (диапазон + ауысым) әрі сағаты бос мұғалімдер, бос сағаты көбінен бастап.
     subjectId берілсе — сол ПӘНДІ басқа жерде беретіндер (біліктілігі сай) басым:
     олар болса тек солар қайтады; болмаса — жалпы тізім (жаңа мектеп/бос жоспар жағдайы). */

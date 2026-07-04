@@ -11,14 +11,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
 import { Lock } from "lucide-react";
 import { downloadTemplate, parseWorkbook, type ParsedData } from "@/lib/excelTemplate";
-import { teacherBudgets, classBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
+import { teacherBudgets, classBudget, teacherSpread, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
 // Импортталатын деректің БЮДЖЕТ тексеруі: құрылым дұрыс болса да,
 // мұғалім нормасы/сынып сыйымдылығы/кабинет қабілеті асып тұрса — ескертеміз
 function budgetWarnings(p: ParsedData): string[] {
   const w: string[] = [];
-  for (const b of teacherBudgets(p.teachers, p.classes).values())
+  const budgets = teacherBudgets(p.teachers, p.classes);
+  for (const b of budgets.values())
     if (b.free < 0) w.push(`${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ — норма ${-b.free} сағатқа асып тұр`);
+  for (const s of teacherSpread(budgets))
+    if (s.tight) w.push(`${s.teacher.name}: ${s.classCount} бөлек сыныпқа тағайындалған — тым көп (сағаты дұрыс болса да, тесік қаупі жоғары)`);
   for (const c of p.classes) {
     const { total, capacity } = classBudget(c);
     if (total > capacity) w.push(`${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ)`);
