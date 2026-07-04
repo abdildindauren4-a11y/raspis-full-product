@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canUse } from "@/lib/roles";
 import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 import Markdown from "@/components/shared/Markdown";
+import { useSchedulerStore } from "@/store/schedulerStore";
 import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
 export default function GeneratePage() {
@@ -25,7 +26,11 @@ export default function GeneratePage() {
   const canSoft = canUse(role, "softMode");
   const { running, pct, stage, result, error, start, cancel, reset } = useScheduler();
   const multi = useMultiScheduler();
-  const [mode, setMode] = useState<"full" | "partial" | "deep">("full");
+  // mode жаһандық дүкенде: пайдаланушы «Генерация» бетінен шығып, терең іздеу
+  // фонда жалғасып жатқанда қайта кірсе, дұрыс прогресс экраны көрінуі үшін
+  // (жергілікті useState болса, бет қайта құрылғанда "full"-ға түсіп қалатын еді).
+  const mode = useSchedulerStore((s) => s.mode);
+  const setMode = useSchedulerStore((s) => s.setMode);
   const [deepCount, setDeepCount] = useState(100);
   const [scopeClass, setScopeClass] = useState("");
   const [saved, setSaved] = useState(false);
@@ -104,7 +109,7 @@ export default function GeneratePage() {
     setSaved(true);
   };
 
-  const resetAll = () => { reset(); multi.reset(); setSaved(false); setExplanation(""); setExplainErr(""); };
+  const resetAll = () => { reset(); multi.reset(); setMode("full"); setSaved(false); setExplanation(""); setExplainErr(""); };
 
   // Автотүсіндірме: нәтиже сәтті болғанда РАСПИС AI түсіндірме жазады
   useEffect(() => {
