@@ -63,6 +63,10 @@ export interface Settings {
   // 2 = орташа (теңдестірілген), 3 = агрессивті (терезе минимум).
   // Swap физика заңын (конфликт, тесік, бір күн бір пән) ЕШҚАШАН бұзбайды.
   teacherComfort?: 0 | 1 | 2 | 3;
+  // Мұғалімнің апталық сағатын күндерге ТЕҢ бөлу деңгейі (teacherComfort-тан
+  // тәуелсіз): 0 = өшірулі, 1 = жұмсақ, 2 = орташа, 3 = агрессивті. Мақсаты —
+  // терезе емес, күндік сағат саны (мыс. дүйсенбіде 6, бейсенбіде 1 болмасын).
+  teacherDayBalance?: 0 | 1 | 2 | 3;
 }
 export interface AlgoInput {
   school: School; subjects: Subject[]; classes: Klass[];
@@ -1019,8 +1023,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
 
      МІНСІЗДІК: swap қабылданбаса, дәл кері ауыстырып, күй бұзылмайды. */
   const comfortLevel = settings.teacherComfort ?? 0;
+  // Мұғалімнің апталық сағатын күндерге тең бөлу деңгейі (0=өшірулі, 1=жұмсақ,
+  // 2=орташа, 3=агрессивті) — comfortLevel-ден ТӘУЕЛСІЗ баптау.
+  const dayBalanceLevel = settings.teacherDayBalance ?? 0;
 
-  if (comfortLevel >= 1) {
+  if (comfortLevel >= 1 || dayBalanceLevel >= 1) {
     // Мұғалімнің бір күндегі терезе саны (tm матрицасынан — жылдам)
     const tWindows = (tid: string, sh: number, day: number): number => {
       const row = tm[tid]?.[sh]?.[day];
@@ -1045,11 +1052,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       return false;
     };
 
+    // Мұғалімнің күндік сабақ саны (инкременталды) — day-balance swap-ы үшін.
+    // slots-ты толық сканерлемей O(1) оқу мүмкін болу үшін алдын ала есептейміз.
+    const tdCount: Record<string, number[]> = {};
+    for (const t of teachers) tdCount[t.id] = [0, 0, 0, 0, 0, 0];
+    for (const o of slots) tdCount[o.teacherId][o.day]++;
+
     // Бір ұяны матрицада қою/алу (инкременталды).
     // dScore/dayList да жаңарады — әйтпесе күн ауыстырған swap-тан кейін
     // күндік балл есебі ескіріп, лимит тексерулері мен апта балансы бұзылады.
     const setCell = (o: Slot, on: boolean) => {
       const v = on ? o.classId : null;
+      tdCount[o.teacherId][o.day] += on ? 1 : -1;
       tm[o.teacherId][o.shift][o.day][o.slot] = v;
       if (gym && o.roomId === gym.id) {
         const arr = gymOcc[o.shift][o.day][o.slot];
@@ -1135,8 +1149,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       return false;
     };
 
-    /* МІНСІЗ SWAP: a мен b сабақтарын ауыстырады (сыныпаралық та).
-       Инкременталды: 2 ұя ғана жаңарады. Қабылданбаса — кері. */
+  if (comfortLevel >= 1) {
+    /* МІНСІЗ SWAP (мұғалім жайлылығы — терезе): a мен b сабақтарын ауыстырады
+       (сыныпаралық та). Инкременталды: 2 ұя ғана жаңарады. Қабылданбаса — кері. */
     const trySwap = (a: Slot, b: Slot): boolean => {
       if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
       if (a === b) return false;
@@ -1252,8 +1267,126 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       }
       if (improved === 0) break;
     }
+  }
 
-    // Swap-тан кейін тесіксіздікті қайта кепілдейміз (сақтық)
+  /* ЭТАП 7.8 — МҰҒАЛІМ АПТАЛЫҚ ТЕҢГЕРІМІ: әр мұғалімнің апталық сағаты
+     күндерге мүмкіндігінше ТЕҢ бөлінеді (мыс. дүйсенбіде 6 сағат, бейсенбіде
+     1 сағат болмас үшін). teacherComfort (терезе азайту) секілді swap
+     механизмі, бірақ мақсаты басқа: терезе емес, КҮНДІК САҒАТ ТАРАЛУЫ.
+     Тәуелсіз баптау (settings.teacherDayBalance) — comfort өшірулі болса да
+     жұмыс істейді. ЕШҚАШАН бұзылмайды: конфликт, сынып тесігі, күндік балл
+     лимиті, мұғалім ауысымы/диапазоны/қолжетімсіздігі (comfort-пен бірдей
+     cellFree/classGapAfter арқылы). */
+  if (dayBalanceLevel >= 1) {
+    // Мұғалімнің әр күндегі сабақ саны — tdCount арқылы O(1) (setCell
+    // инкременталды жаңартады, slots-ты сканерлемейді).
+    const teacherDayCounts = (tid: string): number[] => tdCount[tid];
+    // Квадраттар қосындысы: тұрақты қосынды үшін теңдей бөлінгенде ЕҢ АЗ болады
+    // (QM-AM теңсіздігі) — вариансты есептемей-ақ теңгерім өлшемі ретінде қолданамыз.
+    const spreadScore = (counts: number[]): number => counts.slice(1).reduce((s, c) => s + c * c, 0);
+
+    const tryDayBalanceSwap = (a: Slot, b: Slot): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      if (a === b || a.day === b.day) return false; // бір күнде ауыстыру теңгерімге әсер етпейді
+      if (a.teacherId === b.teacherId) return false; // бір мұғалім — өз ішінде ауыстыру мағынасыз
+      if (a.classId === b.classId && a.subjectId === b.subjectId) return false;
+
+      const clsA = C[a.classId], clsB = C[b.classId];
+      const subjA = S[a.subjectId], subjB = S[b.subjectId];
+
+      const before = spreadScore(teacherDayCounts(a.teacherId)) + spreadScore(teacherDayCounts(b.teacherId));
+      const cScoreBefore = a.score + b.score;
+
+      const A = { day: a.day, slot: a.slot, room: a.roomId, score: a.score };
+      const B = { day: b.day, slot: b.slot, room: b.roomId, score: b.score };
+
+      if (B.slot > maxSlots(clsA.grade, settings)) return false;
+      if (A.slot > maxSlots(clsB.grade, settings)) return false;
+      const dayLimBefore: Record<string, number> = {};
+      for (const [cid, d] of [[a.classId, A.day], [a.classId, B.day], [b.classId, A.day], [b.classId, B.day]] as const)
+        dayLimBefore[`${cid}|${d}`] = dScore[cid][d];
+
+      setCell(a, false); setCell(b, false);
+
+      const roomA = findRoom(clsA, subjA, B.day, B.slot);
+      const roomB = findRoom(clsB, subjB, A.day, A.slot);
+      const restore = () => { setCell(a, true); setCell(b, true); };
+      if (!roomA || !roomB) { restore(); return false; }
+
+      const okA = cellFree(clsA, a.teacherId, subjA, clsA.shift, B.day, B.slot, roomA, a, b);
+      const okB = cellFree(clsB, b.teacherId, subjB, clsB.shift, A.day, A.slot, roomB, a, b);
+      if (!okA || !okB) { restore(); return false; }
+
+      a.day = B.day; a.slot = B.slot; a.roomId = roomA; a.score = pScore(subjA, B.slot, settings);
+      b.day = A.day; b.slot = A.slot; b.roomId = roomB; b.score = pScore(subjB, A.slot, settings);
+      setCell(a, true); setCell(b, true);
+
+      let dayOver = false;
+      for (const [cid, d, grade] of [
+        [a.classId, A.day, clsA.grade], [a.classId, B.day, clsA.grade],
+        [b.classId, A.day, clsB.grade], [b.classId, B.day, clsB.grade],
+      ] as const) {
+        const lim = Math.max(dayLimitS(grade, settings), dayLimBefore[`${cid}|${d}`]);
+        if (dScore[cid][d] > lim) { dayOver = true; break; }
+      }
+      const gap = dayOver ||
+                  classGapAfter(a.classId, a.day) || classGapAfter(a.classId, B.day) ||
+                  classGapAfter(b.classId, b.day) || classGapAfter(b.classId, A.day) ||
+                  classGapAfter(a.classId, A.day) || classGapAfter(b.classId, B.day);
+      if (gap) {
+        setCell(a, false); setCell(b, false);
+        a.day = A.day; a.slot = A.slot; a.roomId = A.room; a.score = A.score;
+        b.day = B.day; b.slot = B.slot; b.roomId = B.room; b.score = B.score;
+        setCell(a, true); setCell(b, true);
+        return false;
+      }
+
+      const after = spreadScore(teacherDayCounts(a.teacherId)) + spreadScore(teacherDayCounts(b.teacherId));
+      const spreadGain = before - after; // оң болса — теңгерім жақсарды
+      const scoreLoss = cScoreBefore - (a.score + b.score);
+      let accept = false;
+      if (dayBalanceLevel === 1) accept = spreadGain > 0 && scoreLoss <= 0;
+      else if (dayBalanceLevel === 2) accept = spreadGain > 0 && scoreLoss <= spreadGain * 1.5;
+      else accept = spreadGain > 0 && scoreLoss <= spreadGain * 3;
+
+      if (accept) return true;
+      setCell(a, false); setCell(b, false);
+      a.day = A.day; a.slot = A.slot; a.roomId = A.room; a.score = A.score;
+      b.day = B.day; b.slot = B.slot; b.roomId = B.room; b.score = B.score;
+      setCell(a, true); setCell(b, true);
+      return false;
+    };
+
+    // Мұғалімнің сол күні «шың» ба (ол аптада ЕҢ КӨП сабағы бар күн(дер)і) —
+    // тек сол сабақтарды жылжытуға тырысамыз (tWindows===0 жеткізу секілді
+    // арзан алдын-ала сүзгі): басқа сабақты жылжыту теңгерімге көмектеспейді,
+    // әрі cellFree/findRoom (slots сканерлеуі бар, қымбат) шақыруын үнемдейді.
+    const isPeakDay = (tid: string, day: number): boolean => {
+      const c = tdCount[tid];
+      const mx = Math.max(c[1], c[2], c[3], c[4], c[5]);
+      return mx > 0 && c[day] === mx;
+    };
+
+    const dbPasses = dayBalanceLevel === 3 ? 5 : dayBalanceLevel === 2 ? 4 : 3;
+    for (let pass = 0; pass < dbPasses; pass++) {
+      let improved = 0;
+      const movable = slots.filter((o) => !o.groupId && !o.dpart && !o.locked);
+      for (let i = 0; i < movable.length; i++) {
+        const a = movable[i];
+        if (!isPeakDay(a.teacherId, a.day)) continue;
+        for (let j = 0; j < movable.length; j++) {
+          if (i === j) continue;
+          const b = movable[j];
+          if (a.teacherId === b.teacherId || a.day === b.day) continue;
+          if (tryDayBalanceSwap(a, b)) { improved++; break; }
+        }
+      }
+      if (improved === 0) break;
+    }
+  }
+
+    // Екі swap кезеңінен де (comfort + day-balance) кейін тесіксіздікті
+    // қайта кепілдейміз (сақтық) — cHasGap/rebuildDay сыртқы блокта анықталған.
     for (const c of targetClasses) {
       for (let day = 1; day <= 5; day++) {
         if (cHasGap(c.id, day)) rebuildDay(c, day, false);

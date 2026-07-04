@@ -1,7 +1,7 @@
 // filepath: src/pages/GeneratePage.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock, Users } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock, Users, CalendarRange } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG, inputCls } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
@@ -274,6 +274,35 @@ export default function GeneratePage() {
                       key={lvl}
                       onClick={() => data.setSettings({ teacherComfort: lvl as 0 | 1 | 2 | 3 })}
                       className={`py-2 px-1 rounded-lg text-center transition-all ${active2 ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
+                    >
+                      <p className="text-xs font-semibold">{label}</p>
+                      <p className="text-[10px] mt-0.5 opacity-80">{hint}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Апталық сағат теңгерімі (мұғалім күндік жүктемесі) — comfort-тан тәуелсіз */}
+            <div className="rounded-xl border-2 border-[var(--accent)] bg-[rgba(74,144,217,0.06)] p-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarRange className="w-4 h-4 accent-c" />
+                <p className="text-sm font-semibold text-strong-c">{t("gen.dayBalanceTitle")}</p>
+              </div>
+              <p className="text-xs text-muted-c mb-3">{t("gen.dayBalanceDesc")}</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {([
+                  [0, t("gen.dayBalanceOff"), t("gen.dayBalanceFast")],
+                  [1, t("gen.dayBalanceSoft"), t("gen.dayBalanceSafe")],
+                  [2, t("gen.dayBalanceMed"), t("gen.dayBalanceRec")],
+                  [3, t("gen.dayBalanceMax"), t("gen.dayBalanceLeast")],
+                ] as const).map(([lvl, label, hint]) => {
+                  const active3 = (data.settings.teacherDayBalance ?? 0) === lvl;
+                  return (
+                    <button
+                      key={lvl}
+                      onClick={() => data.setSettings({ teacherDayBalance: lvl as 0 | 1 | 2 | 3 })}
+                      className={`py-2 px-1 rounded-lg text-center transition-all ${active3 ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
                     >
                       <p className="text-xs font-semibold">{label}</p>
                       <p className="text-[10px] mt-0.5 opacity-80">{hint}</p>
