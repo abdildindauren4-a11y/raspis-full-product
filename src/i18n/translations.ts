@@ -236,11 +236,15 @@ export const translations = {
   "exp.subtitle": { kk: "Кестені жүктеу немесе басып шығару", ru: "Скачать или распечатать расписание", en: "Download or print schedule" },
   "exp.noSchedule": { kk: "Экспорттау үшін алдымен кесте керек", ru: "Для экспорта нужно расписание", en: "Schedule needed for export" },
   "exp.excelTitle": { kk: "Кәсіби Excel", ru: "Профессиональный Excel", en: "Professional Excel" },
-  "exp.excelDesc": { kk: "Кәсіби форматта: мектеп атауы, оқу жылы, түсті ұяшықтар, рамкалар, әр сабақта пән + мұғалім + кабинет. Сыныптар топтап + мұғалім кестесі + кабинет кестесі.", ru: "Профессиональный формат: название школы, учебный год, цветные ячейки, рамки. Классы группами + расписание учителей + кабинетов.", en: "Professional format: school name, academic year, colored cells, borders. Grouped classes + teacher and room schedules." },
+  "exp.excelDesc": { kk: "Мұқaba парағы (мазмұны + үлкен QR) + сыныптар топтап + мұғалім/кабинет кестесі + жүктеме қорытынды. Әр парақта QR сертификаты, сілтемелер, колонтитул мен бет нөмірі.", ru: "Обложка (содержание + большой QR) + классы группами + расписание учителей/кабинетов + сводка нагрузки. QR-код и колонтитулы на каждом листе.", en: "Cover sheet (contents + big QR) + grouped classes + teacher/room schedules + load summary. QR code and headers/footers on every sheet." },
   "exp.excelButton": { kk: "Кәсіби Excel жүктеу", ru: "Скачать Excel", en: "Download Excel" },
   "exp.preparing": { kk: "Дайындалуда…", ru: "Подготовка…", en: "Preparing…" },
-  "exp.printTitle": { kk: "Басып шығару / PDF", ru: "Печать / PDF", en: "Print / PDF" },
-  "exp.printDesc": { kk: "Барлық сынып бір құжатта, түстермен. PDF алу үшін басып шығару терезесінде «PDF ретінде сақтау» таңдаңыз.", ru: "Все классы в одном документе. Для PDF выберите «Сохранить как PDF».", en: "All classes in one document. For PDF, choose 'Save as PDF' in print dialog." },
+  "exp.pdfTitle": { kk: "PDF жүктеу", ru: "Скачать PDF", en: "Download PDF" },
+  "exp.pdfSub": { kk: "тікелей жүктеу", ru: "прямое скачивание", en: "direct download" },
+  "exp.pdfDesc": { kk: "Дайын .pdf файл бірден жүктеледі — баспа терезесі ашылмайды. Әр сынып жеке бетте, түстермен, әр бет соңында QR сертификаты.", ru: "Готовый .pdf файл скачивается сразу — без диалога печати. Каждый класс на отдельной странице, с QR-кодом внизу.", en: "A ready .pdf file downloads immediately — no print dialog. Each class on its own page, with a QR code at the bottom." },
+  "exp.pdfButton": { kk: "PDF жүктеу", ru: "Скачать PDF", en: "Download PDF" },
+  "exp.printTitle": { kk: "Басып шығару", ru: "Печать", en: "Print" },
+  "exp.printDesc": { kk: "Браузердің баспа терезесін ашады — принтерге тікелей шығару немесе алдын ала қарау үшін.", ru: "Открывает диалог печати браузера — для прямой печати или предпросмотра.", en: "Opens the browser's print dialog — for direct printing or preview." },
   "exp.printButton": { kk: "Басып шығару", ru: "Печать", en: "Print" },
 
   // ── Import ──

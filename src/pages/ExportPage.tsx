@@ -2,13 +2,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ExcelIcon, PrintIcon } from "@/components/shared/BrandIcons";
-import { Download, Printer, FileSpreadsheet, Sparkles, QrCode, ExternalLink, Award } from "lucide-react";
+import { Download, Printer, FileSpreadsheet, Sparkles, QrCode, ExternalLink, Award, FileText } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import { exportProfessionalExcel } from "@/lib/excelExport";
+import { exportSchedulePDF } from "@/lib/pdfExport";
 import { buildCertData, certUrl } from "@/lib/certificate";
 import QRCode from "qrcode";
 
@@ -18,7 +19,7 @@ export default function ExportPage() {
   const active = useActiveVersion();
   const { t } = useLang();
   const DAYS = ["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
-  const [busy, setBusy] = useState(false);
+  const [busyType, setBusyType] = useState<"excel" | "pdf" | null>(null);
   const [qrImg, setQrImg] = useState<string>("");
   const [certLink, setCertLink] = useState<string>("");
   const tl = buildTimeline(school);
@@ -28,7 +29,7 @@ export default function ExportPage() {
 
   const exportExcel = async () => {
     if (!active) return;
-    setBusy(true);
+    setBusyType("excel");
     try {
       await exportProfessionalExcel({
         school, classes, teachers, rooms, subjects, settings, result: active.result,
@@ -36,7 +37,22 @@ export default function ExportPage() {
     } catch (e) {
       console.error("Excel export қатесі:", e);
     } finally {
-      setBusy(false);
+      setBusyType(null);
+    }
+  };
+
+  // Нақты жүктелетін PDF файлы — баспа диалогынсыз, бір батырмамен
+  const exportPDF = async () => {
+    if (!active) return;
+    setBusyType("pdf");
+    try {
+      await exportSchedulePDF({
+        school, classes, teachers, rooms, subjects, settings, result: active.result,
+      });
+    } catch (e) {
+      console.error("PDF export қатесі:", e);
+    } finally {
+      setBusyType(null);
     }
   };
 
@@ -152,7 +168,7 @@ export default function ExportPage() {
           <p className="text-muted-c">{active.name} · {classes.length} {t("exp.statClasses")} · {t("exp.statQuality")} {active.result.quality}/100</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         <GlassCard hover={false}>
           <div className="flex items-center gap-3 mb-3">
             <ExcelIcon size={44} />
@@ -162,8 +178,23 @@ export default function ExportPage() {
             </div>
           </div>
           <p className="text-xs text-muted-c mb-4">{t("exp.excelDesc")}</p>
-          <button className={btnP + " w-full flex items-center justify-center gap-2"} onClick={exportExcel} disabled={busy}>
-            {busy ? <>{t("exp.preparing")}</> : <><Download className="w-4 h-4" /> {t("exp.excelButton")}</>}
+          <button className={btnP + " w-full flex items-center justify-center gap-2"} onClick={exportExcel} disabled={busyType !== null}>
+            {busyType === "excel" ? <>{t("exp.preparing")}</> : <><Download className="w-4 h-4" /> {t("exp.excelButton")}</>}
+          </button>
+        </GlassCard>
+        <GlassCard hover={false}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
+              <FileText className="w-6 h-6" style={{ color: "#dc2626" }} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-strong-c">{t("exp.pdfTitle")}</h3>
+              <p className="text-xs text-muted-c">.pdf · {t("exp.pdfSub")}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-c mb-4">{t("exp.pdfDesc")}</p>
+          <button className={btnP + " w-full flex items-center justify-center gap-2"} onClick={exportPDF} disabled={busyType !== null}>
+            {busyType === "pdf" ? <>{t("exp.preparing")}</> : <><Download className="w-4 h-4" /> {t("exp.pdfButton")}</>}
           </button>
         </GlassCard>
         <GlassCard hover={false}>
