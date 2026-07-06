@@ -137,7 +137,7 @@ export default function GeneratePage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="text-center">
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("gen.title")}</h1>
-        <p className="text-muted-c mt-1">Greedy + Maximin алгоритмі (браузерде, Web Worker)</p>
+        <p className="text-muted-c mt-1">{t("gen.subtitle")}</p>
       </div>
 
       {!isRunning && !activeResult && !runError && (

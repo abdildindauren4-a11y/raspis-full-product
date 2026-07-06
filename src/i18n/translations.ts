@@ -178,7 +178,7 @@ export const translations = {
 
   // ── Generate ──
   "gen.title": { kk: "Кесте генерациясы", ru: "Генерация расписания", en: "Generate schedule" },
-  "gen.subtitle": { kk: "Алгоритм кестені автоматты құрады", ru: "Алгоритм создаёт расписание автоматически", en: "Algorithm builds the schedule automatically" },
+  "gen.subtitle": { kk: "Бірнеше секундта дайын, қақтығыссыз кесте", ru: "Готовое расписание без конфликтов за секунды", en: "A conflict-free schedule, ready in seconds" },
   "gen.mode.fast": { kk: "Жылдам", ru: "Быстро", en: "Fast" },
   "gen.mode.fastDesc": { kk: "Бір нұсқа (~0.2 сек)", ru: "Один вариант (~0.2 сек)", en: "One variant (~0.2s)" },
   "gen.mode.deep": { kk: "Терең іздеу", ru: "Глубокий поиск", en: "Deep search" },
@@ -236,12 +236,12 @@ export const translations = {
   "exp.subtitle": { kk: "Кестені жүктеу немесе басып шығару", ru: "Скачать или распечатать расписание", en: "Download or print schedule" },
   "exp.noSchedule": { kk: "Экспорттау үшін алдымен кесте керек", ru: "Для экспорта нужно расписание", en: "Schedule needed for export" },
   "exp.excelTitle": { kk: "Кәсіби Excel", ru: "Профессиональный Excel", en: "Professional Excel" },
-  "exp.excelDesc": { kk: "Мұқaba парағы (мазмұны + үлкен QR) + сыныптар топтап + мұғалім/кабинет кестесі + жүктеме қорытынды. Әр парақта QR сертификаты, сілтемелер, колонтитул мен бет нөмірі.", ru: "Обложка (содержание + большой QR) + классы группами + расписание учителей/кабинетов + сводка нагрузки. QR-код и колонтитулы на каждом листе.", en: "Cover sheet (contents + big QR) + grouped classes + teacher/room schedules + load summary. QR code and headers/footers on every sheet." },
+  "exp.excelDesc": { kk: "Мектепке толық дайын, кәсіби ресімделген Excel кестесі — сыныптар, мұғалімдер мен кабинеттер бойынша толық ақпаратпен.", ru: "Полностью готовая, профессионально оформленная таблица Excel — с полной информацией по классам, учителям и кабинетам.", en: "A fully ready, professionally formatted Excel workbook — with complete class, teacher, and room information." },
   "exp.excelButton": { kk: "Кәсіби Excel жүктеу", ru: "Скачать Excel", en: "Download Excel" },
   "exp.preparing": { kk: "Дайындалуда…", ru: "Подготовка…", en: "Preparing…" },
   "exp.pdfTitle": { kk: "PDF жүктеу", ru: "Скачать PDF", en: "Download PDF" },
   "exp.pdfSub": { kk: "тікелей жүктеу", ru: "прямое скачивание", en: "direct download" },
-  "exp.pdfDesc": { kk: "Дайын .pdf файл бірден жүктеледі — баспа терезесі ашылмайды. Әр сынып жеке бетте, түстермен, әр бет соңында QR сертификаты.", ru: "Готовый .pdf файл скачивается сразу — без диалога печати. Каждый класс на отдельной странице, с QR-кодом внизу.", en: "A ready .pdf file downloads immediately — no print dialog. Each class on its own page, with a QR code at the bottom." },
+  "exp.pdfDesc": { kk: "Дайын, кәсіби ресімделген PDF — бір батырмамен жүктеліп, бірден баспаға беруге дайын.", ru: "Готовый, профессионально оформленный PDF — скачивается в один клик и сразу готов к печати.", en: "A ready, professionally formatted PDF — downloads in one click, ready to print." },
   "exp.pdfButton": { kk: "PDF жүктеу", ru: "Скачать PDF", en: "Download PDF" },
   "exp.printTitle": { kk: "Басып шығару", ru: "Печать", en: "Print" },
   "exp.printDesc": { kk: "Браузердің баспа терезесін ашады — принтерге тікелей шығару немесе алдын ала қарау үшін.", ru: "Открывает диалог печати браузера — для прямой печати или предпросмотра.", en: "Opens the browser's print dialog — for direct printing or preview." },
@@ -461,7 +461,7 @@ export const translations = {
   "cls.nameLabel": { kk: "Атауы (мыс. 5А)", ru: "Название (напр. 5А)", en: "Name (e.g. 5A)" },
   "cls.studentsLabel": { kk: "Оқушы саны", ru: "Кол-во учеников", en: "Student count" },
   // ── Login ──
-  "log.feat1": { kk: "Greedy + Maximin алгоритмі — конфликтсіз кесте", ru: "Алгоритм Greedy + Maximin — расписание без конфликтов", en: "Greedy + Maximin algorithm — conflict-free schedule" },
+  "log.feat1": { kk: "Толық автоматты, қақтығыссыз кесте", ru: "Полностью автоматическое расписание без конфликтов", en: "Fully automatic, conflict-free schedule" },
   "log.feat2": { kk: "18 қатаң ереже + СанПиН ауыртпалық балдары", ru: "18 строгих правил + баллы нагрузки СанПиН", en: "18 strict rules + SanPiN load scores" },
   "log.feat3": { kk: "Кәсіби Excel импорт/экспорт", ru: "Профессиональный импорт/экспорт Excel", en: "Professional Excel import/export" },
   "log.feat4": { kk: "РАСПИС AI — кеңесші және автоталдау", ru: "РАСПИС AI — советник и автоанализ", en: "RASPIS AI — advisor and auto-analysis" },
