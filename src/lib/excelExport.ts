@@ -1,13 +1,11 @@
 // filepath: src/lib/excelExport.ts
-// Кәсіби Excel экспорты (exceljs) — мұқаба (мазмұны + жақтаулы үлкен QR) +
+// Кәсіби Excel экспорты (exceljs) — мұқаба (мазмұны + жалпы статистика) +
 // топтап сыныптар + толық мұғалім/кабинет кестелері + жүктеме қорытынды.
 // Әр парақ мұқабаға сілтеме арқылы оралады, баспа үшін колонтитул мен
-// бет нөмірі бар. QR тек мұқабада, бір жерде ғана.
+// бет нөмірі бар.
 import ExcelJS from "exceljs";
-import QRCode from "qrcode";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
 import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
-import { buildCertData, certUrl } from "@/lib/certificate";
 
 const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
 const COVER_SHEET = "Мұқаба";
@@ -113,15 +111,6 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const R: Record<string, Room> = {}; rooms.forEach((x) => (R[x.id] = x));
   const year = academicYear();
 
-  // Сапа сертификатының QR-коды (барлық парақтардың соңында ортақ қолданылады)
-  let qrDataUrl = "";
-  try {
-    const cd = buildCertData(result, school.name, { classes: classes.length, teachers: teachers.length, rooms: rooms.length });
-    qrDataUrl = await QRCode.toDataURL(certUrl(cd), { width: 300, margin: 1, color: { dark: "#1a2230", light: "#ffffff" }, errorCorrectionLevel: "M" });
-  } catch (e) {
-    console.error("QR жасау қатесі:", e);
-  }
-
   const wb = new ExcelJS.Workbook();
   wb.creator = "РАСПИС";
   wb.company = "РАСПИС — Мектеп кестесін автоматты құру жүйесі";
@@ -132,11 +121,10 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   wb.description = `Автоматты құрылған сабақ кестесі. Сапа: ${result.quality}/100.`;
   wb.created = new Date();
 
-  const qrImageId = qrDataUrl ? wb.addImage({ extension: "png", base64: qrDataUrl }) : -1;
   const sheetLinks: { title: string; sheet: string }[] = [];
 
-  // ═══ МҰҚАБА: мазмұны + үлкен QR + жалпы статистика ═══
-  // Баған схемасы: A/F — жиек, B-C — статистика (белгі/мән), D — саңылау, E — QR блогы
+  // ═══ МҰҚАБА: мазмұны + жалпы статистика ═══
+  // Баған схемасы: A/F — жиек, B-C — статистика (белгі/мән)
   const cover = wb.addWorksheet(COVER_SHEET, {
     properties: { tabColor: { argb: TAB_COLORS.cover } },
     views: [{ showGridLines: false }],
@@ -164,9 +152,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   qCell.value = `Сапа көрсеткіші: ${result.quality} / 100`;
   qCell.font = { name: "Arial", size: 13, bold: true, color: { argb: result.quality >= 70 ? "FF16A34A" : result.quality >= 50 ? "FFCA8A04" : "FFDC2626" } };
 
-  // ── Статистика (B/C бағандары, 11-жолдан бастап) ──
-  // (10-жол — таза саңылау: жоғарыдағы біріктірілген B8:E8 "Сапа көрсеткіші"
-  // ұяшығымен QR жақтауының үстіңгі жиегі тікелей жанаспас үшін.)
+  // ── Статистика (B/C бағандары, 11-жолдан бастап; 10-жол — таза саңылау) ──
   const STAT_TOP = 11;
   const statRows: [string, string | number][] = [
     ["Сыныптар саны", classes.length],
@@ -185,51 +171,9 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
     cover.getCell(rr, 3).value = val;
     cover.getCell(rr, 3).font = { name: "Arial", size: 9.5, bold: true, color: { argb: "FF1A2230" } };
   });
-  const statBottom = STAT_TOP + statRows.length - 1; // 17
+  const statBottom = STAT_TOP + statRows.length - 1; // 18
 
-  // ── QR блогы (E бағанында, статистикамен қатар, жақтаулы карточка) ──
-  // Ұяшық ауқымы жол-жолмен (мыс. "E10:E16") арқылы қосылады — бөлшек
-  // col/row ығысуын қолмен есептеу қатеге (шекарадан асып кету) әкелді,
-  // сондықтан нақты, бүтін жол диапазонына сүйенеміз.
-  const QR_TOP = STAT_TOP; // 10 — статистикамен бір деңгейден басталады
-  const QR_IMG_ROWS = 7;   // QR суретіне бөлінген БҮТІН жол саны (баған енімен шаршы болатындай)
-  const boxTop = QR_TOP - 1;              // жақтаудың жіңішке жоғарғы жиегі
-  const imgBottom = QR_TOP + QR_IMG_ROWS - 1; // суреттің соңғы жолы
-  const capRow1 = imgBottom + 1;          // "Сапа сертификаты" тақырыбы
-  const capRow2 = imgBottom + 2;          // сипаттама жолы
-  const qrBottom = capRow2 + 1;           // жақтаудың жіңішке төменгі жиегі
-  if (qrImageId >= 0) {
-    cover.getRow(boxTop).height = 26;
-    for (let rr = QR_TOP; rr <= imgBottom; rr++) cover.getRow(rr).height = 23;
-    cover.getRow(capRow1).height = 18;
-    cover.getRow(capRow2).height = 16;
-    cover.getRow(qrBottom).height = 6;
-    // Жоғарғы/төменгі жиек — жіңішке шекара сызығы емес, тұтас алтын жолақ
-    // (кейбір рендерлеу қолданбаларында үстіңгі cell border сызығы дұрыс
-    // шықпайды, ал тұтас fill әрдайым нақты көрінеді).
-    for (const rr of [boxTop, qrBottom]) {
-      const cell = cover.getCell(rr, 5);
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4AF37" } };
-    }
-    for (let rr = QR_TOP; rr <= qrBottom - 1; rr++) {
-      const cell = cover.getCell(rr, 5);
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
-      cell.border = {
-        left: { style: "medium", color: { argb: "FFD4AF37" } },
-        right: { style: "medium", color: { argb: "FFD4AF37" } },
-      };
-    }
-    cover.addImage(qrImageId, `E${QR_TOP}:E${imgBottom}`);
-    cover.getCell(capRow1, 5).value = "Сапа сертификаты (QR)";
-    cover.getCell(capRow1, 5).font = { name: "Arial", size: 10.5, bold: true, color: { argb: "FF1E3A5F" } };
-    cover.getCell(capRow1, 5).alignment = { horizontal: "center" };
-    cover.getCell(capRow2, 5).value = "Растау үшін сканерлеңіз";
-    cover.getCell(capRow2, 5).font = { name: "Arial", size: 8.5, color: { argb: "FF64748B" } };
-    cover.getCell(capRow2, 5).alignment = { horizontal: "center" };
-  }
-
-  const contentBottom = Math.max(statBottom, qrBottom);
-  const tocStartRow = contentBottom + 3;
+  const tocStartRow = statBottom + 3;
   cover.mergeCells(tocStartRow, 2, tocStartRow, 5);
   const tocTitle = cover.getCell(tocStartRow, 2);
   tocTitle.value = "МАЗМҰНЫ";
