@@ -1,8 +1,8 @@
 // filepath: src/lib/excelExport.ts
-// Кәсіби Excel экспорты (exceljs) — мұқaba (мазмұны + үлкен QR) + топтап
-// сыныптар + толық мұғалім/кабинет кестелері + жүктеме қорытынды.
-// Әр парақтың төменгі жағында сапа сертификатының QR-коды бар, әр парақ
-// мұқабаға сілтеме арқылы оралады, баспа үшін колонтитул мен бет нөмірі бар.
+// Кәсіби Excel экспорты (exceljs) — мұқаба (мазмұны + жақтаулы үлкен QR) +
+// топтап сыныптар + толық мұғалім/кабинет кестелері + жүктеме қорытынды.
+// Әр парақ мұқабаға сілтеме арқылы оралады, баспа үшін колонтитул мен
+// бет нөмірі бар. QR тек мұқабада, бір жерде ғана.
 import ExcelJS from "exceljs";
 import QRCode from "qrcode";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
@@ -82,39 +82,6 @@ function addBackLink(ws: ExcelJS.Worksheet, row: number) {
   return row + 1;
 }
 
-// Парақ соңына сапа сертификатының QR-коды мен қысқа түсінік — көзге бірден
-// түсуі үшін жақтаулы, түсті блок ішінде, үлкенірек QR-мен көрсетеміз.
-function addQrFooter(ws: ExcelJS.Worksheet, qrImageId: number, row: number, quality: number, schoolName: string) {
-  const r = row + 1;
-  const boxRows = 6;
-  // Түсті жақтаулы фон блогы (A:G, 6 жол) — QR соқыр бұрышта қалмасын деп
-  for (let rr = r; rr < r + boxRows; rr++) {
-    ws.getRow(rr).height = rr === r ? 8 : 20;
-    for (let cc = 1; cc <= 7; cc++) {
-      const cell = ws.getCell(rr, cc);
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
-      cell.border = {
-        top: rr === r ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
-        bottom: rr === r + boxRows - 1 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
-        left: cc === 1 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
-        right: cc === 7 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
-      };
-    }
-  }
-  ws.getRow(r + 1).height = 26; ws.getRow(r + 2).height = 26;
-  ws.addImage(qrImageId, { tl: { col: 0.15, row: r + 0.15 }, ext: { width: 108, height: 108 } });
-  const tc = ws.getCell(r + 1, 3);
-  tc.value = "📄 Сапа сертификаты (QR)";
-  tc.font = { name: "Arial", size: 12, bold: true, color: { argb: "FF1E3A5F" } };
-  const sc = ws.getCell(r + 2, 3);
-  sc.value = "Растау үшін телефон камерасымен QR-кодты сканерлеңіз";
-  sc.font = { name: "Arial", size: 9.5, color: { argb: "FF64748B" } };
-  const qc = ws.getCell(r + 3, 3);
-  qc.value = `${schoolName}  ·  сапа ${quality}/100`;
-  qc.font = { name: "Arial", size: 9.5, italic: true, bold: true, color: { argb: "FF9A7D3A" } };
-  return r + boxRows + 2;
-}
-
 // Бір сабақ блогының тақырыбы мен кесте торын салатын көмекші
 function writeGridHeader(ws: ExcelJS.Worksheet, row: number, title: string, lastCol: number): number {
   ws.mergeCells(row, 1, row, lastCol);
@@ -169,33 +136,38 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const sheetLinks: { title: string; sheet: string }[] = [];
 
   // ═══ МҰҚАБА: мазмұны + үлкен QR + жалпы статистика ═══
+  // Баған схемасы: A/F — жиек, B-C — статистика (белгі/мән), D — саңылау, E — QR блогы
   const cover = wb.addWorksheet(COVER_SHEET, {
     properties: { tabColor: { argb: TAB_COLORS.cover } },
     views: [{ showGridLines: false }],
     pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, horizontalCentered: true },
   });
-  cover.columns = [{ width: 4 }, { width: 30 }, { width: 22 }, { width: 22 }, { width: 4 }];
-  cover.mergeCells("B2:D2");
+  cover.columns = [{ width: 4 }, { width: 26 }, { width: 16 }, { width: 3 }, { width: 30 }, { width: 4 }];
+  cover.mergeCells("B2:E2");
   const titleCell = cover.getCell("B2");
   titleCell.value = "РАСПИС";
   titleCell.font = { name: "IBM Plex Sans", size: 26, bold: true, color: { argb: "FF1E3A5F" } };
-  cover.mergeCells("B3:D3");
+  cover.mergeCells("B3:E3");
   const subCell = cover.getCell("B3");
   subCell.value = "Мектеп кестесін автоматты құру жүйесі";
   subCell.font = { name: "Arial", size: 11, italic: true, color: { argb: "FF64748B" } };
-  cover.mergeCells("B5:D5");
+  cover.mergeCells("B5:E5");
   const schoolCell = cover.getCell("B5");
   schoolCell.value = school.name;
   schoolCell.font = { name: "Arial", size: 16, bold: true, color: { argb: "FF1A2230" } };
-  cover.mergeCells("B6:D6");
+  cover.mergeCells("B6:E6");
   cover.getCell("B6").value = `${year} оқу жылы · апталық сабақ кестесі`;
   cover.getCell("B6").font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
 
-  cover.mergeCells("B8:D8");
+  cover.mergeCells("B8:E8");
   const qCell = cover.getCell("B8");
   qCell.value = `Сапа көрсеткіші: ${result.quality} / 100`;
   qCell.font = { name: "Arial", size: 13, bold: true, color: { argb: result.quality >= 70 ? "FF16A34A" : result.quality >= 50 ? "FFCA8A04" : "FFDC2626" } };
 
+  // ── Статистика (B/C бағандары, 11-жолдан бастап) ──
+  // (10-жол — таза саңылау: жоғарыдағы біріктірілген B8:E8 "Сапа көрсеткіші"
+  // ұяшығымен QR жақтауының үстіңгі жиегі тікелей жанаспас үшін.)
+  const STAT_TOP = 11;
   const statRows: [string, string | number][] = [
     ["Сыныптар саны", classes.length],
     ["Мұғалімдер саны", teachers.length],
@@ -206,35 +178,68 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
     ["Стресс-тесттер", `${result.tests.filter((t) => t.passed).length}/${result.tests.length}`],
     ["Экспорт күні", new Date().toLocaleDateString("kk-KZ")],
   ];
-  let sr = 10;
-  statRows.forEach(([label, val]) => {
-    cover.getCell(sr, 2).value = label;
-    cover.getCell(sr, 2).font = { name: "Arial", size: 9.5, color: { argb: "FF64748B" } };
-    cover.getCell(sr, 3).value = val;
-    cover.getCell(sr, 3).font = { name: "Arial", size: 9.5, bold: true, color: { argb: "FF1A2230" } };
-    sr++;
+  statRows.forEach(([label, val], i) => {
+    const rr = STAT_TOP + i;
+    cover.getCell(rr, 2).value = label;
+    cover.getCell(rr, 2).font = { name: "Arial", size: 9.5, color: { argb: "FF64748B" } };
+    cover.getCell(rr, 3).value = val;
+    cover.getCell(rr, 3).font = { name: "Arial", size: 9.5, bold: true, color: { argb: "FF1A2230" } };
   });
+  const statBottom = STAT_TOP + statRows.length - 1; // 17
 
+  // ── QR блогы (E бағанында, статистикамен қатар, жақтаулы карточка) ──
+  // Ұяшық ауқымы жол-жолмен (мыс. "E10:E16") арқылы қосылады — бөлшек
+  // col/row ығысуын қолмен есептеу қатеге (шекарадан асып кету) әкелді,
+  // сондықтан нақты, бүтін жол диапазонына сүйенеміз.
+  const QR_TOP = STAT_TOP; // 10 — статистикамен бір деңгейден басталады
+  const QR_IMG_ROWS = 7;   // QR суретіне бөлінген БҮТІН жол саны (баған енімен шаршы болатындай)
+  const boxTop = QR_TOP - 1;              // жақтаудың жіңішке жоғарғы жиегі
+  const imgBottom = QR_TOP + QR_IMG_ROWS - 1; // суреттің соңғы жолы
+  const capRow1 = imgBottom + 1;          // "Сапа сертификаты" тақырыбы
+  const capRow2 = imgBottom + 2;          // сипаттама жолы
+  const qrBottom = capRow2 + 1;           // жақтаудың жіңішке төменгі жиегі
   if (qrImageId >= 0) {
-    cover.addImage(qrImageId, { tl: { col: 3.3, row: 9 }, ext: { width: 130, height: 130 } });
-    cover.getCell(sr + 2, 4).value = "QR: сапа сертификаты";
-    cover.getCell(sr + 2, 4).font = { name: "Arial", size: 8, italic: true, color: { argb: "FF9A7D3A" } };
+    cover.getRow(boxTop).height = 26;
+    for (let rr = QR_TOP; rr <= imgBottom; rr++) cover.getRow(rr).height = 23;
+    cover.getRow(capRow1).height = 18;
+    cover.getRow(capRow2).height = 16;
+    cover.getRow(qrBottom).height = 6;
+    // Жоғарғы/төменгі жиек — жіңішке шекара сызығы емес, тұтас алтын жолақ
+    // (кейбір рендерлеу қолданбаларында үстіңгі cell border сызығы дұрыс
+    // шықпайды, ал тұтас fill әрдайым нақты көрінеді).
+    for (const rr of [boxTop, qrBottom]) {
+      const cell = cover.getCell(rr, 5);
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD4AF37" } };
+    }
+    for (let rr = QR_TOP; rr <= qrBottom - 1; rr++) {
+      const cell = cover.getCell(rr, 5);
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      cell.border = {
+        left: { style: "medium", color: { argb: "FFD4AF37" } },
+        right: { style: "medium", color: { argb: "FFD4AF37" } },
+      };
+    }
+    cover.addImage(qrImageId, `E${QR_TOP}:E${imgBottom}`);
+    cover.getCell(capRow1, 5).value = "Сапа сертификаты (QR)";
+    cover.getCell(capRow1, 5).font = { name: "Arial", size: 10.5, bold: true, color: { argb: "FF1E3A5F" } };
+    cover.getCell(capRow1, 5).alignment = { horizontal: "center" };
+    cover.getCell(capRow2, 5).value = "Растау үшін сканерлеңіз";
+    cover.getCell(capRow2, 5).font = { name: "Arial", size: 8.5, color: { argb: "FF64748B" } };
+    cover.getCell(capRow2, 5).alignment = { horizontal: "center" };
   }
 
-  const tocStartRow = sr + 5;
-  cover.mergeCells(tocStartRow, 2, tocStartRow, 4);
+  const contentBottom = Math.max(statBottom, qrBottom);
+  const tocStartRow = contentBottom + 3;
+  cover.mergeCells(tocStartRow, 2, tocStartRow, 5);
   const tocTitle = cover.getCell(tocStartRow, 2);
   tocTitle.value = "МАЗМҰНЫ";
   tocTitle.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
   tocTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
   tocTitle.alignment = { vertical: "middle", indent: 1 };
   cover.getRow(tocStartRow).height = 20;
-  // Мазмұн тізімі кейінірек (парақтар құрылғаннан кейін) толтырылады — орындарын есте сақтаймыз
+  // Мазмұн тізімі мен төменгі ескерту кейінірек (парақтар құрылғаннан кейін,
+  // sheetLinks толық белгілі болғанда) толтырылады — орынын есте сақтаймыз.
   const tocLinkStartRow = tocStartRow + 1;
-
-  cover.mergeCells(sr + 30, 2, sr + 30, 4);
-  cover.getCell(sr + 30, 2).value = "Бұл құжат РАСПИС жүйесімен автоматты құрылды.";
-  cover.getCell(sr + 30, 2).font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
 
   // ═══ 1-БӨЛІМ: СЫНЫПТАР (топтап) ═══
   for (const grp of GROUPS) {
@@ -296,7 +301,6 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
       }
       curRow += 1;
     }
-    if (qrImageId >= 0) curRow = addQrFooter(ws, qrImageId, curRow, result.quality, school.name);
   }
 
   // ═══ 2-БӨЛІМ: МҰҒАЛІМДЕР КЕСТЕСІ (толық) ═══
@@ -346,7 +350,6 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
       }
       curRow += 1;
     }
-    if (qrImageId >= 0) addQrFooter(ws, qrImageId, curRow, result.quality, school.name);
   }
 
   // ═══ 3-БӨЛІМ: КАБИНЕТТЕР КЕСТЕСІ (толық) ═══
@@ -409,7 +412,6 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
         curRow += 1;
       }
     }
-    if (qrImageId >= 0) addQrFooter(ws, qrImageId, curRow, result.quality, school.name);
   }
 
   // ═══ 4-БӨЛІМ: ЖҮКТЕМЕ ҚОРЫТЫНДЫ ═══
@@ -456,18 +458,21 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
           cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1.2 }] } as unknown as ExcelJS.DataBarRuleType],
       });
     }
-    if (qrImageId >= 0) addQrFooter(ws, qrImageId, dataRow + 1, result.quality, school.name);
   }
 
   // ═══ Мазмұнды толтыру (барлық парақ жасалғаннан кейін, сілтемелермен) ═══
   sheetLinks.forEach((link, i) => {
     const row = tocLinkStartRow + i;
-    cover.mergeCells(row, 2, row, 4);
+    cover.mergeCells(row, 2, row, 5);
     const cell = cover.getCell(row, 2);
     cell.value = { text: `📄  ${link.title}`, hyperlink: `#'${link.sheet}'!A1` };
     cell.font = { name: "Arial", size: 10.5, color: { argb: "FF2563EB" }, underline: true };
     cover.getRow(row).height = 18;
   });
+  const footerRow = tocLinkStartRow + sheetLinks.length + 2;
+  cover.mergeCells(footerRow, 2, footerRow, 5);
+  cover.getCell(footerRow, 2).value = "Бұл құжат РАСПИС жүйесімен автоматты құрылды.";
+  cover.getCell(footerRow, 2).font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
