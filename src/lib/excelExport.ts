@@ -10,7 +10,7 @@ import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/
 import { buildCertData, certUrl } from "@/lib/certificate";
 
 const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
-const COVER_SHEET = "Мұқaba";
+const COVER_SHEET = "Мұқаба";
 
 function subjectColor(subj: Subject | undefined): string {
   if (!subj) return "FFFFFF";
@@ -82,21 +82,37 @@ function addBackLink(ws: ExcelJS.Worksheet, row: number) {
   return row + 1;
 }
 
-// Парақ соңына сапа сертификатының QR-коды мен қысқа түсінік
+// Парақ соңына сапа сертификатының QR-коды мен қысқа түсінік — көзге бірден
+// түсуі үшін жақтаулы, түсті блок ішінде, үлкенірек QR-мен көрсетеміз.
 function addQrFooter(ws: ExcelJS.Worksheet, qrImageId: number, row: number, quality: number, schoolName: string) {
   const r = row + 1;
-  ws.addImage(qrImageId, { tl: { col: 0, row: r - 1 }, ext: { width: 72, height: 72 } });
-  ws.getRow(r).height = 16; ws.getRow(r + 1).height = 16; ws.getRow(r + 2).height = 16; ws.getRow(r + 3).height = 16;
-  const tc = ws.getCell(r, 3);
-  tc.value = "Сапа сертификаты (QR)";
-  tc.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF1A2230" } };
-  const sc = ws.getCell(r + 1, 3);
-  sc.value = "Растау үшін QR-кодты сканерлеңіз";
-  sc.font = { name: "Arial", size: 8.5, color: { argb: "FF64748B" } };
-  const qc = ws.getCell(r + 2, 3);
-  qc.value = `${schoolName} · сапа ${quality}/100`;
-  qc.font = { name: "Arial", size: 8.5, italic: true, color: { argb: "FF9A7D3A" } };
-  return r + 5;
+  const boxRows = 6;
+  // Түсті жақтаулы фон блогы (A:G, 6 жол) — QR соқыр бұрышта қалмасын деп
+  for (let rr = r; rr < r + boxRows; rr++) {
+    ws.getRow(rr).height = rr === r ? 8 : 20;
+    for (let cc = 1; cc <= 7; cc++) {
+      const cell = ws.getCell(rr, cc);
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      cell.border = {
+        top: rr === r ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
+        bottom: rr === r + boxRows - 1 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
+        left: cc === 1 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
+        right: cc === 7 ? { style: "medium", color: { argb: "FF1E3A5F" } } : undefined,
+      };
+    }
+  }
+  ws.getRow(r + 1).height = 26; ws.getRow(r + 2).height = 26;
+  ws.addImage(qrImageId, { tl: { col: 0.15, row: r + 0.15 }, ext: { width: 108, height: 108 } });
+  const tc = ws.getCell(r + 1, 3);
+  tc.value = "📄 Сапа сертификаты (QR)";
+  tc.font = { name: "Arial", size: 12, bold: true, color: { argb: "FF1E3A5F" } };
+  const sc = ws.getCell(r + 2, 3);
+  sc.value = "Растау үшін телефон камерасымен QR-кодты сканерлеңіз";
+  sc.font = { name: "Arial", size: 9.5, color: { argb: "FF64748B" } };
+  const qc = ws.getCell(r + 3, 3);
+  qc.value = `${schoolName}  ·  сапа ${quality}/100`;
+  qc.font = { name: "Arial", size: 9.5, italic: true, bold: true, color: { argb: "FF9A7D3A" } };
+  return r + boxRows + 2;
 }
 
 // Бір сабақ блогының тақырыбы мен кесте торын салатын көмекші
