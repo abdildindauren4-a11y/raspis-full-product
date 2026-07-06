@@ -6,7 +6,7 @@ import { inputCls, subjBg, btnG } from "@/components/shared/Form";
 import { useLang } from "@/contexts/LangContext";
 import { Sparkles, Printer } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
-import { buildTimeline, maxSlots } from "@/algorithm/engine";
+import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import type { Slot } from "@/algorithm/engine";
 
 
@@ -107,6 +107,13 @@ export default function SchedulePage() {
                             {cells.length === 0 ? (
                               <div className="text-center text-faint-c py-3">—</div>
                             ) : cells.map((o, ci) => {
+                              if (o.subjectId === HOMEROOM_SUBJECT_ID) {
+                                return (
+                                  <div key={ci} className="rounded-lg border p-1.5 mb-1 text-center italic text-faint-c bg-[rgba(127,127,127,0.08)]">
+                                    {HOMEROOM_LABEL}
+                                  </div>
+                                );
+                              }
                               const s = S(o.subjectId);
                               return (
                                 <div key={ci} className={`rounded-lg border p-1.5 mb-1 ${s ? subjBg(s.score) : ""}`}>

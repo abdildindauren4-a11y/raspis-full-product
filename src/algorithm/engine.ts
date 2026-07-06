@@ -8,6 +8,10 @@ export interface Subject {
   id: string; name: string; score: number; coeff: number;
   ideal: number[]; room: RoomType | null; primaryScore?: number;
   digital: boolean; corr: boolean; canDouble: boolean; black: string[];
+  // Электив (факультатив): күндік балл лимиті мен шаршау есебіне кірмейді
+  // (eff()=0), сондықтан приоритет кезегінде ең соңында, негізгі пәндер
+  // орналасқаннан кейінгі бос слоттарға ғана орналасады.
+  elective?: boolean;
 }
 export interface Teacher {
   id: string; name: string; norm: number;
@@ -67,6 +71,10 @@ export interface Settings {
   // тәуелсіз): 0 = өшірулі, 1 = жұмсақ, 2 = орташа, 3 = агрессивті. Мақсаты —
   // терезе емес, күндік сағат саны (мыс. дүйсенбіде 6, бейсенбіде 1 болмасын).
   teacherDayBalance?: 0 | 1 | 2 | 3;
+  // Сынып сағаты (homeroom): апталық 1 рет, таңдалған күні, әр сыныптың
+  // сол күнгі СОҢҒЫ сабағынан кейін автоматты қосылатын резервтелген слот.
+  // Мұғалім/кабинет талап етілмейді, күндік балл лимитіне кірмейді.
+  homeroom?: { enabled: boolean; day: number };
 }
 export interface AlgoInput {
   school: School; subjects: Subject[]; classes: Klass[];
@@ -93,6 +101,10 @@ export interface AlgoResult {
   stats: { timeMs: number; iters: number; total: number; comfort: number; balance: number; avgClass: number };
 }
 export type ProgressFn = (pct: number, stage: number) => void;
+// Сынып сағаты слоттарын белгілейтін тұрақты sentinel ID (нақты Subject емес —
+// экспорт/кесте беттері осы ID-ды көрсе "Сынып сағаты" деп арнайы көрсетеді).
+export const HOMEROOM_SUBJECT_ID = "__homeroom__";
+export const HOMEROOM_LABEL = "Сынып сағаты";
 
 /* ── уақыт ── */
 const DAY_KZ = ["", "Дс", "Сс", "Ср", "Бс", "Жм"];
@@ -194,7 +206,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   });
 
   const eff = (cls: Klass, s: Subject) =>
-    cls.grade <= 4 && s.primaryScore != null ? s.primaryScore : s.score;
+    s.elective ? 0 : cls.grade <= 4 && s.primaryScore != null ? s.primaryScore : s.score;
 
   /* ЭТАП 0 — precheck */
   prog(3, 0);
@@ -1394,7 +1406,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   }
 
-  /* Апта балансын түзету: Жұманың жеңіл сабағын Сәрсенбіге жылжыту */
+  /* Апта балансын түзету: Жұманың жеңіл сабағын Сәрсенбіге жылжыту.
+     Жеңіл сабақ (әсіресе eff()=0 электив) күн ІШІНДЕ тұрса, оны алып тастау
+     Жұмада тесік қалдыруы мүмкін — сондықтан жылжытқаннан кейін Жұманы
+     тексереміз, тесік қалса — бас тартып, орнына қайтарамыз. */
+  const dayHasGapNow = (cid: string, day: number): boolean => {
+    const occ: boolean[] = new Array(9).fill(false);
+    for (const o of slots) if (o.classId === cid && o.day === day && (!o.groupId || o.groupId === "Г1")) occ[o.slot] = true;
+    let last = 0;
+    for (let sl = 1; sl <= 8; sl++) if (occ[sl]) last = sl;
+    for (let sl = 1; sl <= last; sl++) if (!occ[sl]) return true;
+    return false;
+  };
   for (const c of targetClasses) {
     let guard = 0;
     while (dScore[c.id][3] < dScore[c.id][5] && guard++ < 4) {
@@ -1407,6 +1430,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         if (ds[c.id][3].has(o.subjectId)) continue;
         removeSlot(o);
         let ok = false;
+        let placed: Slot | null = null;
         for (const d2 of [3, 2, 4, 1]) {
           if (ok) break;
           if (ds[c.id][d2].has(o.subjectId)) continue;
@@ -1414,9 +1438,16 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
             if (hardCheck(c, o.teacherId, subj, d2, slot)) continue;
             const roomId = findRoom(c, subj, d2, slot);
             if (!roomId) continue;
-            place({ classId: o.classId, subjectId: o.subjectId, teacherId: o.teacherId, roomId, day: d2, slot, shift: o.shift, score: pScore(subj, slot, settings) });
+            placed = place({ classId: o.classId, subjectId: o.subjectId, teacherId: o.teacherId, roomId, day: d2, slot, shift: o.shift, score: pScore(subj, slot, settings) });
             ok = true; moved = true;
           }
+        }
+        if (ok && dayHasGapNow(c.id, 5)) {
+          // Жұмада тесік қалдырды — бас тартамыз, бастапқы орнына қайтарамыз
+          if (placed) removeSlot(placed);
+          place(o);
+          ok = false; moved = false;
+          continue;
         }
         if (!ok) place(o); else break;
       }
@@ -1651,12 +1682,34 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     const h = slots.filter((o) => o.teacherId === t.id).length;
     if (h > t.norm) warnings.push(`${t.name}: жүктеме ${h} сағ > норма ${t.norm}`);
   }
+
+  /* СЫНЫП САҒАТЫ: барлық тесік/сапа есебі аяқталғаннан КЕЙІН қосамыз —
+     нағыз пән емес, ешбір қатаң ереже/тесік тексерісіне қатыспайды.
+     Әр сыныптың сол күнгі соңғы сабағынан кейінгі слотқа қойылады, сондықтан
+     құрылымы бойынша ешқашан тесік тудырмайды (сыныптар арасында саны әр
+     түрлі болуы мүмкін — бұл қалыпты, әркімге өз кестесінен кейінгі орын). */
+  if (settings.homeroom?.enabled) {
+    const hd = settings.homeroom.day;
+    for (const c of targetClasses) {
+      const dayItems = slots.filter((o) => o.classId === c.id && o.day === hd && (!o.groupId || o.groupId === "Г1"));
+      if (!dayItems.length) continue;
+      const last = Math.max(...dayItems.map((o) => o.slot));
+      const cap = maxSlots(c.grade, settings);
+      if (last >= cap) continue;
+      slots.push({
+        key: `hr-${c.id}-${hd}`, classId: c.id, subjectId: HOMEROOM_SUBJECT_ID,
+        teacherId: "", roomId: c.homeRoomId || "", day: hd, slot: last + 1,
+        shift: c.shift, score: 0,
+      });
+    }
+  }
+
   prog(100, 6);
   return {
     success: true, slots, quality, classScores, tests, unplaced, warnings, gaps,
     stats: {
       timeMs: Date.now() - t0, iters,
-      total: slots.filter((o) => (!o.groupId || o.groupId === "Г1")).length,
+      total: slots.filter((o) => (!o.groupId || o.groupId === "Г1") && o.subjectId !== HOMEROOM_SUBJECT_ID).length,
       comfort: Math.round(comfort), balance: Math.round(balance), avgClass: Math.round(avgC),
     },
   };

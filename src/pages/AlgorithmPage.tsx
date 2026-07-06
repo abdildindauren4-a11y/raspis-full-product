@@ -1,10 +1,11 @@
 // filepath: src/pages/AlgorithmPage.tsx
+import { useState } from "react";
 import GlassCard from "@/components/shared/GlassCard";
 import { Field, inputCls, btnG, btnP } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { DEFAULT_MAX_LESSONS } from "@/algorithm/engine";
-import { School, Settings2, BarChart3, Battery, Target, RotateCcw, Lightbulb } from "lucide-react";
+import { School, Settings2, BarChart3, Battery, Target, RotateCcw, Lightbulb, ChevronDown, PlusCircle } from "lucide-react";
 import { seedSettings } from "@/lib/seed";
 
 function Slider({ label, value, min, max, step, onChange, suffix }: {
@@ -26,8 +27,14 @@ function Slider({ label, value, min, max, step, onChange, suffix }: {
 
 export default function AlgorithmPage() {
   const { t } = useLang();
-  const { school, setSchool, settings, setSettings, resetSeed, resetBigSeed } = useData();
+  const { school, setSchool, settings, setSettings, subjects, setSubjects, resetSeed, resetBigSeed } = useData();
+  const [extraOpen, setExtraOpen] = useState(false);
   const dl = settings.dayLimits, ft = settings.fatigue, cf = settings.coeffs;
+  const hr = settings.homeroom || { enabled: false, day: 1 };
+  const setHR = (patch: Partial<typeof hr>) => setSettings({ homeroom: { ...hr, ...patch } });
+  const toggleElective = (id: string) =>
+    setSubjects(subjects.map((s) => (s.id === id ? { ...s, elective: !s.elective } : s)));
+  const DAY_NAMES = [t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
   // Күндік сабақ саны лимиті (СанПиН) — settings.maxLessons немесе әдепкі
   const ml = settings.maxLessons || DEFAULT_MAX_LESSONS;
   const setML = (patch: Partial<typeof ml>) => setSettings({ maxLessons: { ...ml, ...patch } });
@@ -154,6 +161,60 @@ export default function AlgorithmPage() {
           </div>
         </GlassCard>
       </div>
+
+      {/* ҚОСЫМША РЕТТЕУЛЕР — Сынып сағаты + электив пәндер (жиналмалы бөлім) */}
+      <GlassCard hover={false}>
+        <button
+          className="w-full flex items-center justify-between"
+          onClick={() => setExtraOpen((v) => !v)}
+        >
+          <h3 className="font-semibold text-strong-c flex items-center gap-2">
+            <PlusCircle className="w-4 h-4 accent-c" /> {t("algo.extraTitle")}
+          </h3>
+          <ChevronDown className={`w-4 h-4 text-muted-c transition-transform ${extraOpen ? "rotate-180" : ""}`} />
+        </button>
+        {extraOpen && (
+          <div className="mt-4 space-y-5">
+            <p className="text-xs text-muted-c">{t("algo.extraDesc")}</p>
+
+            {/* Сынып сағаты */}
+            <div className="p-3 rounded-xl bg-input-c">
+              <label className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm text-strong-c font-medium">{t("algo.homeroomTitle")}</p>
+                  <p className="text-xs text-muted-c">{t("algo.homeroomDesc")}</p>
+                </div>
+                <input type="checkbox" className="scale-125" checked={hr.enabled} onChange={(e) => setHR({ enabled: e.target.checked })} />
+              </label>
+              {hr.enabled && (
+                <Field label={t("algo.homeroomDay")}>
+                  <select className={inputCls} value={hr.day} onChange={(e) => setHR({ day: Number(e.target.value) })}>
+                    {DAY_NAMES.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}
+                  </select>
+                </Field>
+              )}
+            </div>
+
+            {/* Электив пәндер */}
+            <div className="p-3 rounded-xl bg-input-c">
+              <p className="text-sm text-strong-c font-medium mb-1">{t("algo.electiveTitle")}</p>
+              <p className="text-xs text-muted-c mb-3">{t("algo.electiveDesc")}</p>
+              {subjects.length === 0 ? (
+                <p className="text-xs text-faint-c">{t("algo.electiveEmpty")}</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
+                  {subjects.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-xs text-muted-c px-2 py-1.5 rounded-lg hover:bg-[rgba(127,127,127,0.08)]">
+                      <input type="checkbox" checked={!!s.elective} onChange={() => toggleElective(s.id)} />
+                      <span className={s.elective ? "text-strong-c" : ""}>{s.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </GlassCard>
 
       <div className="rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-4">
         <p className="text-sm accent-c flex items-center gap-2"><Lightbulb className="w-4 h-4 shrink-0" /> Баптауды өзгерткен соң <b>Генерация</b> {t("algo.tipRebuild")}</p>

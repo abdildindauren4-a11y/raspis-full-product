@@ -10,6 +10,7 @@ import { canUse } from "@/lib/roles";
 import { useNavigate } from "react-router-dom";
 import { btnP } from "@/components/shared/Form";
 import { askGemini, hasGeminiKey, type ChatMessage } from "@/lib/gemini";
+import { HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import Markdown from "@/components/shared/Markdown";
 
 interface Issue { level: "red" | "yellow" | "green"; title: string; desc: string; advice: string }
@@ -102,7 +103,10 @@ export default function AIAdvisorPage() {
     }
     // 3. Қиын орналасқан пәндер
     const bySubj: Record<string, { sum: number; n: number }> = {};
-    slots.forEach((o) => { const k = o.subjectId; (bySubj[k] = bySubj[k] || { sum: 0, n: 0 }); bySubj[k].sum += o.score; bySubj[k].n++; });
+    slots.forEach((o) => {
+      if (o.subjectId === HOMEROOM_SUBJECT_ID) return;
+      const k = o.subjectId; (bySubj[k] = bySubj[k] || { sum: 0, n: 0 }); bySubj[k].sum += o.score; bySubj[k].n++;
+    });
     for (const [sid, v] of Object.entries(bySubj)) {
       if (v.n >= 3 && (v.sum / v.n) * 10 < 30)
         issues.push({ level: "yellow", title: `«${sid}» нашар орналасқан`, desc: `Орташа орналасу ұпайы ${Math.round((v.sum / v.n) * 10)}%`, advice: "Идеал орындарын немесе мұғалім шектеулерін қайта қараңыз" });

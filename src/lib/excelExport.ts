@@ -2,7 +2,7 @@
 // Кәсіби Excel экспорты (exceljs) — топтап сыныптар + толық мұғалім/кабинет кестелері
 import ExcelJS from "exceljs";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
-import { maxSlots, buildTimeline } from "@/algorithm/engine";
+import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 
 const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
 
@@ -122,7 +122,12 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
           const os = result.slots.filter((o) => o.classId === c.id && o.day === day && o.slot === slot);
           const main = os.find((o) => !o.groupId || o.groupId === "Г1");
           const g2 = os.find((o) => o.groupId === "Г2");
-          if (main) {
+          if (main && main.subjectId === HOMEROOM_SUBJECT_ID) {
+            cell.value = HOMEROOM_LABEL;
+            cell.font = { name: "Arial", size: 9, italic: true, color: { argb: "FF64748B" } };
+            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };
+          } else if (main) {
             const subj = S[main.subjectId], tch = T[main.teacherId], room = R[main.roomId];
             const lines = [sShort(subj?.name || "") + (main.dpart ? " (қос)" : "")];
             lines.push(`${shortName(tch?.name || "")} · ${room?.number || ""}`);

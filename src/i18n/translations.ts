@@ -587,6 +587,14 @@ export const translations = {
   "algo.placeCoef": { kk: "Орналасу коэффициенттері", ru: "Коэффициенты размещения", en: "Placement coefficients" },
   "algo.placeCoefDesc": { kk: "Пәнді идеал орнынан алыс қойғандағы айыппұл. Жоғары мән — идеал орынды қатаң талап етеді.", ru: "Штраф за размещение далеко от идеала. Выше — строже к идеалу.", en: "Penalty for placing far from ideal. Higher means stricter ideal." },
   "algo.tipRebuild": { kk: "бетіне өтіп қайта құрыңыз — жаңа параметрлер сонда қолданылады.", ru: "и пересоберите — новые параметры применятся там.", en: "and rebuild — new params apply there." },
+  "algo.extraTitle": { kk: "Қосымша реттеулер", ru: "Дополнительные настройки", en: "Additional settings" },
+  "algo.extraDesc": { kk: "Сынып сағаты мен электив (факультатив) пәндер — негізгі оқу жоспарынан тыс, ерекше режимде орналасатын сабақтар.", ru: "Классный час и элективные (факультативные) предметы — уроки вне основного плана, размещаются в особом режиме.", en: "Homeroom period and elective subjects — lessons outside the core curriculum, placed under special rules." },
+  "algo.homeroomTitle": { kk: "Сынып сағаты", ru: "Классный час", en: "Homeroom period" },
+  "algo.homeroomDesc": { kk: "Апталық 1 рет, таңдалған күні, әр сыныптың сол күнгі соңғы сабағынан кейін автоматты қосылады. Мұғалім/кабинет қажет емес, күндік балл лимитіне кірмейді, тесік тудырмайды.", ru: "Раз в неделю, в выбранный день, автоматически добавляется после последнего урока каждого класса в этот день. Учитель/кабинет не нужны, в дневной лимит баллов не входит, окон не создаёт.", en: "Once a week, on the chosen day, added automatically right after each class's last lesson that day. No teacher/room needed, exempt from the daily score cap, never creates a gap." },
+  "algo.homeroomDay": { kk: "Қай күні", ru: "В какой день", en: "Which day" },
+  "algo.electiveTitle": { kk: "Электив (факультатив) пәндер", ru: "Элективные (факультативные) предметы", en: "Elective subjects" },
+  "algo.electiveDesc": { kk: "Белгіленген пәндер күндік балл лимиті мен шаршау есебіне кірмейді, сондықтан негізгі пәндер орналасқаннан кейінгі бос слоттарға ғана орналасады — нақ факультатив сияқты.", ru: "Отмеченные предметы не учитываются в дневном лимите баллов и усталости, поэтому размещаются только в свободные слоты после основных предметов — как настоящий факультатив.", en: "Marked subjects are exempt from the daily score cap and fatigue tracking, so they only fill slots left over after core subjects — just like a real elective." },
+  "algo.electiveEmpty": { kk: "Алдымен «Пәндер» бетінде пән қосыңыз.", ru: "Сначала добавьте предметы на странице «Предметы».", en: "Add subjects on the Subjects page first." },
 
   // ── Certificate (QR сапа сертификаты) ──
   "cert.title": { kk: "Сапа сертификаты (QR)", ru: "Сертификат качества (QR)", en: "Quality certificate (QR)" },
