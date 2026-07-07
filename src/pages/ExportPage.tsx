@@ -1,8 +1,10 @@
 // filepath: src/pages/ExportPage.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ExcelIcon, PrintIcon } from "@/components/shared/BrandIcons";
-import { Download, Printer, FileSpreadsheet, Sparkles, QrCode, ExternalLink, Award, FileText } from "lucide-react";
+import excelIconUrl from "@/assets/icons/excel-icon.png";
+import pdfIconUrl from "@/assets/icons/pdf-icon.png";
+import printerIconUrl from "@/assets/icons/printer-icon.png";
+import { Download, Printer, FileSpreadsheet, Sparkles, QrCode, ExternalLink, Award } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
@@ -171,7 +173,7 @@ export default function ExportPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         <GlassCard hover={false}>
           <div className="flex items-center gap-3 mb-3">
-            <ExcelIcon size={44} />
+            <img src={excelIconUrl} alt="Excel" className="w-11 h-11 object-contain shrink-0" />
             <div>
               <h3 className="font-semibold text-strong-c">{t("exp.excelTitle")}</h3>
               <p className="text-xs text-muted-c">.xlsx · Microsoft Excel</p>
@@ -184,9 +186,7 @@ export default function ExportPage() {
         </GlassCard>
         <GlassCard hover={false}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
-              <FileText className="w-6 h-6" style={{ color: "#dc2626" }} />
-            </div>
+            <img src={pdfIconUrl} alt="PDF" className="w-11 h-11 object-contain shrink-0" />
             <div>
               <h3 className="font-semibold text-strong-c">{t("exp.pdfTitle")}</h3>
               <p className="text-xs text-muted-c">.pdf · {t("exp.pdfSub")}</p>
@@ -199,7 +199,7 @@ export default function ExportPage() {
         </GlassCard>
         <GlassCard hover={false}>
           <div className="flex items-center gap-3 mb-3">
-            <PrintIcon size={44} />
+            <img src={printerIconUrl} alt="Принтер" className="w-11 h-11 object-contain shrink-0" />
             <div>
               <h3 className="font-semibold text-strong-c">{t("exp.printTitle")}</h3>
               <p className="text-xs text-muted-c">{t("exp.a4color")}</p>
