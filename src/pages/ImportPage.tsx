@@ -7,9 +7,6 @@ import excelIconUrl from "@/assets/icons/excel-icon.png";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { canUse } from "@/lib/roles";
-import { Lock } from "lucide-react";
 import { downloadTemplate, parseWorkbook, type ParsedData } from "@/lib/excelTemplate";
 import { teacherBudgets, classBudget, teacherSpread, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
@@ -36,22 +33,7 @@ function budgetWarnings(p: ParsedData): string[] {
 export default function ImportPage() {
   const { t } = useLang();
   const data = useData();
-  const { role } = useAuth();
   const navigate = useNavigate();
-
-  // Excel импорт — ақылы функция (free пайдаланушыға жабық)
-  if (!canUse(role, "excelImport")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
-        <div className="w-14 h-14 rounded-2xl bg-input-c border border-soft-c flex items-center justify-center mb-4">
-          <Lock className="w-6 h-6 status-warn" />
-        </div>
-        <h2 className="text-xl font-bold text-strong-c mb-2">{t("imp.lockedTitle")}</h2>
-        <p className="text-muted-c text-sm mb-5">{t("imp.lockedDesc")}</p>
-        <button className={btnP} onClick={() => navigate("/profile")}>{t("imp.openProfile")}</button>
-      </div>
-    );
-  }
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [fileName, setFileName] = useState("");

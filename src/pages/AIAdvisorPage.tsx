@@ -1,15 +1,11 @@
 // filepath: src/pages/AIAdvisorPage.tsx
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, AlertCircle, Info, CheckCircle2, Lightbulb, Send, Loader2, Sparkles, Settings as SettingsIcon, Lock } from "lucide-react";
+import { AlertTriangle, AlertCircle, Info, CheckCircle2, Lightbulb, Send, Loader2, Sparkles, Settings as SettingsIcon } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import AIRobot from "@/components/shared/AIRobot";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { canUse } from "@/lib/roles";
-import { useNavigate } from "react-router-dom";
-import { btnP } from "@/components/shared/Form";
 import { askGemini, hasGeminiKey, type ChatMessage } from "@/lib/gemini";
 import { HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import Markdown from "@/components/shared/Markdown";
@@ -20,22 +16,6 @@ export default function AIAdvisorPage() {
   const { classes, teachers, rooms, subjects } = useData();
   const active = useActiveVersion();
   const { lang, t } = useLang();
-  const { role } = useAuth();
-  const navigate = useNavigate();
-
-  // РАСПИС AI — ақылы функция (free пайдаланушыға жабық)
-  if (!canUse(role, "aiAdvisor")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
-        <div className="w-14 h-14 rounded-2xl bg-input-c border border-soft-c flex items-center justify-center mb-4">
-          <Lock className="w-6 h-6 status-warn" />
-        </div>
-        <h2 className="text-xl font-bold text-strong-c mb-2">{t("ai.lockedTitle")}</h2>
-        <p className="text-muted-c text-sm mb-5">{t("ai.lockedDesc")}</p>
-        <button className={btnP} onClick={() => navigate("/profile")}>{t("ai.openProfile")}</button>
-      </div>
-    );
-  }
 
   // ── Gemini чат ──
   const [messages, setMessages] = useState<ChatMessage[]>([]);

@@ -1,30 +1,20 @@
 // filepath: src/pages/ProfilePage.tsx
-import { Crown, CreditCard, User as UserIcon, Check, X, Mail, LogOut, Cloud, Sparkles } from "lucide-react";
+import { Crown, CreditCard, User as UserIcon, Mail, LogOut, Cloud, Sparkles, Zap, Telescope } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import GlassCard from "@/components/shared/GlassCard";
-import { btnG } from "@/components/shared/Form";
+import { btnG, btnP } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
-import { canUse, DEFAULT_PERMISSIONS, claimRole, loadSelfRoleEnabled, type Role, type Feature } from "@/lib/roles";
+import { claimRole, loadSelfRoleEnabled, type Role } from "@/lib/roles";
+import { PLANS } from "@/lib/plans";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string; desc: string }> = {
   admin: { label: "prof.adminLabel", icon: Crown, cls: "status-warn", desc: "prof.adminDesc" },
   paid: { label: "prof.paidLabel", icon: CreditCard, cls: "status-good", desc: "prof.paidDesc" },
   free: { label: "prof.freeLabel", icon: UserIcon, cls: "text-muted-c", desc: "prof.freeDesc" },
-};
-
-const FEATURE_LABELS: Record<Feature, TransKey> = {
-  generate: "adm.featGenerate",
-  excelExport: "adm.featExport",
-  cloudSync: "adm.featCloud",
-  excelImport: "adm.featImport",
-  deepSearch: "prof.featDeep",
-  softMode: "adm.featSoft",
-  aiAdvisor: "prof.featAI",
-  unlimitedClasses: "prof.featUnlimited",
 };
 
 export default function ProfilePage() {
@@ -100,29 +90,23 @@ export default function ProfilePage() {
         </GlassCard>
       )}
 
-      {/* Қолжетімді функциялар */}
+      {/* Тарифім мен квота */}
       <GlassCard hover={false}>
-        <h3 className="font-semibold text-strong-c mb-3">{t("prof.featuresTitle")}</h3>
-        <div className="space-y-2">
-          {(Object.keys(FEATURE_LABELS) as Feature[]).map((f) => {
-            const allowed = canUse(role, f, DEFAULT_PERMISSIONS);
-            return (
-              <div key={f} className="flex items-center justify-between gap-3 py-1.5">
-                <span className={`text-sm ${allowed ? "text-soft-c" : "text-faint-c"}`}>{t(FEATURE_LABELS[f] as TransKey)}</span>
-                {allowed ? (
-                  <span className="flex items-center gap-1 text-xs status-good"><Check className="w-4 h-4" /> {t("prof.open")}</span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs text-faint-c"><X className="w-4 h-4" /> {t("prof.closed")}</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-strong-c">{t("plan.myPlanTitle")}</h3>
+          <span className="text-sm font-bold gradient-text">{record ? PLANS[record.plan].name : PLANS.free.name}</span>
         </div>
-        {role === "free" && (
-          <div className="mt-4 p-3 rounded-lg bg-[rgba(74,144,217,0.08)] border border-soft-c">
-            <p className="text-xs text-muted-c">{t("prof.upgradeHint")}</p>
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-sm text-soft-c flex items-center gap-2"><Zap className="w-4 h-4 accent-c" /> {t("plan.quickRemaining")}</span>
+            <span className="text-sm font-semibold text-strong-c">{role === "admin" ? t("plan.unlimited") : record?.quickRemaining ?? 0}</span>
           </div>
-        )}
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-sm text-soft-c flex items-center gap-2"><Telescope className="w-4 h-4 accent-c" /> {t("plan.deepRemaining")}</span>
+            <span className="text-sm font-semibold text-strong-c">{role === "admin" ? t("plan.unlimited") : record?.deepRemaining ?? 0}</span>
+          </div>
+        </div>
+        <Link to="/pricing" className={btnP + " w-full text-center block"}>{t("plan.changePlan")}</Link>
       </GlassCard>
 
       {/* "Өзіне рөл алу" — тек функция қосулы болса (бастапқы орнату үшін) */}

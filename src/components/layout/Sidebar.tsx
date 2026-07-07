@@ -23,6 +23,7 @@ import {
   FileUp,
   Settings,
   User,
+  CreditCard,
   Shield,
   ChevronLeft,
   ChevronRight,
@@ -66,6 +67,7 @@ const menuItems: NavItem[] = [
   { icon: FileDown, key: "nav.export", path: "/export" },
   { icon: Settings, key: "nav.settings", path: "/settings" },
   { icon: User, key: "nav.profile", path: "/profile" },
+  { icon: CreditCard, key: "nav.pricing", path: "/pricing" },
 ];
 
 // Тек әкімшіге көрінетін мәзір

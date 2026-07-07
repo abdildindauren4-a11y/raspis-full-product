@@ -1,44 +1,16 @@
 // filepath: src/lib/roles.ts
-// Рөлдер мен рұқсаттар жүйесі — бұлтта (Firestore) сақталады.
-// users/{userId} құжатында рөл сақталады. Әр функцияға деңгей бойынша рұқсат.
-import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+// Пайдаланушы рөлдері (панель қолжетімділігі) мен тарифтік квоталар — бұлтта (Firestore) сақталады.
+// users/{userId} құжатында: рөл (admin/paid/free — тек әкімші панелі үшін) және
+// тариф (free/pro/premium/super — генерация квотасы үшін) бірге сақталады.
+import { doc, getDoc, setDoc, collection, getDocs, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { PLANS, type PlanId } from "@/lib/plans";
 
-// ── Рөлдер ──
+// ── Рөлдер (тек әкімші панелі қолжетімділігі үшін) ──
 export type Role = "admin" | "paid" | "free";
 
 // Әкімші email-дері — бұлар әрқашан admin (бірінші кіргенде автоматты).
 export const ADMIN_EMAILS = ["abdildindauren4@gmail.com"];
-
-// ── Функцияларға рұқсат деңгейлері ──
-// Әр функция қай рөлден бастап қолжетімді.
-export type Feature =
-  | "generate"        // кесте генерациясы
-  | "deepSearch"      // терең іздеу (көп нұсқа)
-  | "softMode"        // жұмсақ режим
-  | "excelExport"     // Excel экспорт
-  | "excelImport"     // Excel импорт
-  | "aiAdvisor"       // РАСПИС AI
-  | "cloudSync"       // бұлттық сақтау
-  | "unlimitedClasses"; // шектеусіз сынып саны
-
-// Рұқсат матрицасы — әдепкі (админ кейін өзгерте алады)
-export const DEFAULT_PERMISSIONS: Record<Feature, Role> = {
-  generate: "free",          // тегін: негізгі генерация
-  excelExport: "free",       // тегін: Excel жүктеу
-  cloudSync: "free",         // тегін: бұлттық сақтау
-  excelImport: "paid",       // ақылы: Excel импорт
-  deepSearch: "paid",        // ақылы: терең іздеу
-  softMode: "paid",          // ақылы: жұмсақ режим
-  aiAdvisor: "paid",         // ақылы: AI кеңесші
-  unlimitedClasses: "paid",  // ақылы: шектеусіз сынып
-};
-
-// Пайдаланушы рөлі функцияға жете ме
-// Барлық функция барлық пайдаланушыға бірдей ашық (рөл шектеуі алынып тасталды).
-export function canUse(_role: Role, _feature: Feature, _perms: Record<Feature, Role> = DEFAULT_PERMISSIONS): boolean {
-  return true;
-}
 
 // ── Пайдаланушы жазбасы (бұлтта) ──
 export interface UserRecord {
@@ -46,8 +18,21 @@ export interface UserRecord {
   email: string;
   name: string;
   role: Role;
+  plan: PlanId;
+  quickRemaining: number;
+  deepRemaining: number;
   createdAt: number;
   lastSeen: number;
+}
+
+// Тариф өрістері жоқ ескі жазбаларды free тарифпен толықтырады (миграция)
+function withPlanDefaults(rec: UserRecord): UserRecord {
+  return {
+    ...rec,
+    plan: rec.plan ?? "free",
+    quickRemaining: rec.quickRemaining ?? 0,
+    deepRemaining: rec.deepRemaining ?? 0,
+  };
 }
 
 // Пайдаланушыны тіркеу/жаңарту (кірген сайын шақырылады)
@@ -60,17 +45,19 @@ export async function registerUser(uid: string, email: string, name: string): Pr
     const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
 
     if (snap.exists()) {
-      // бар пайдаланушы — lastSeen жаңартамыз (рөлді сақтаймыз)
-      const existing = snap.data() as UserRecord;
+      // бар пайдаланушы — lastSeen жаңартамыз (рөл мен тарифті сақтаймыз)
+      const existing = withPlanDefaults(snap.data() as UserRecord);
       const role = isAdmin ? "admin" : existing.role; // админ email әрқашан admin
       const updated: UserRecord = { ...existing, name, role, lastSeen: Date.now() };
       await setDoc(ref, updated);
       return updated;
     } else {
-      // жаңа пайдаланушы
+      // жаңа пайдаланушы — free тарифпен басталады
+      const plan = PLANS.free;
       const rec: UserRecord = {
         uid, email, name,
         role: isAdmin ? "admin" : "free",
+        plan: plan.id, quickRemaining: plan.quickGenerations, deepRemaining: plan.deepSearches,
         createdAt: Date.now(), lastSeen: Date.now(),
       };
       await setDoc(ref, rec);
@@ -88,9 +75,37 @@ export async function getUserRecord(uid: string): Promise<UserRecord | null> {
   if (!db) return null;
   try {
     const snap = await getDoc(doc(db, "users", uid));
-    return snap.exists() ? (snap.data() as UserRecord) : null;
+    return snap.exists() ? withPlanDefaults(snap.data() as UserRecord) : null;
   } catch {
     return null;
+  }
+}
+
+// ── Генерация квотасы ──
+export type GenerationKind = "quick" | "deep";
+
+// Генерация квотасын атомды тексеру+тұтыну (жарыс жағдайын болдырмау үшін транзакция).
+// Admin — әрқашан шексіз. Firestore қосылмаса — бұғаттамаймыз (локал/офлайн режим).
+export async function consumeGeneration(uid: string, kind: GenerationKind): Promise<{ ok: boolean; remaining: number }> {
+  const db = getDb();
+  if (!db) return { ok: true, remaining: Infinity };
+  const field = kind === "quick" ? "quickRemaining" : "deepRemaining";
+  try {
+    return await runTransaction(db, async (tx) => {
+      const ref = doc(db, "users", uid);
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return { ok: true, remaining: Infinity };
+      const data = withPlanDefaults(snap.data() as UserRecord);
+      if (data.role === "admin") return { ok: true, remaining: Infinity };
+      const current = data[field];
+      if (current <= 0) return { ok: false, remaining: 0 };
+      const next = current - 1;
+      tx.update(ref, { [field]: next });
+      return { ok: true, remaining: next };
+    });
+  } catch (e) {
+    console.error("Квота тұтыну қатесі:", e);
+    return { ok: true, remaining: Infinity }; // қате кезінде пайдаланушыны бұғаттамаймыз
   }
 }
 
@@ -101,7 +116,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
   if (!db) return [];
   try {
     const snap = await getDocs(collection(db, "users"));
-    return snap.docs.map((d) => d.data() as UserRecord).sort((a, b) => b.createdAt - a.createdAt);
+    return snap.docs.map((d) => withPlanDefaults(d.data() as UserRecord)).sort((a, b) => b.createdAt - a.createdAt);
   } catch (e) {
     console.error("Пайдаланушыларды оқу қатесі:", e);
     return [];
@@ -123,27 +138,22 @@ export async function setUserRole(uid: string, role: Role): Promise<boolean> {
   }
 }
 
-// Рұқсат матрицасын бұлтқа сақтау (админ функциялар деңгейін өзгерткенде)
-export async function savePermissions(perms: Record<Feature, Role>): Promise<boolean> {
+// Пайдаланушы тарифін өзгерту — квотаны сол тарифтің толық мөлшеріне қалпына келтіреді (тек админ)
+export async function setUserPlan(uid: string, plan: PlanId): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
   try {
-    await setDoc(doc(db, "config", "permissions"), perms);
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const limits = PLANS[plan];
+    await setDoc(ref, {
+      ...snap.data(), plan,
+      quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches,
+    });
     return true;
   } catch {
     return false;
-  }
-}
-
-// Рұқсат матрицасын оқу (болмаса әдепкі)
-export async function loadPermissions(): Promise<Record<Feature, Role>> {
-  const db = getDb();
-  if (!db) return DEFAULT_PERMISSIONS;
-  try {
-    const snap = await getDoc(doc(db, "config", "permissions"));
-    return snap.exists() ? (snap.data() as Record<Feature, Role>) : DEFAULT_PERMISSIONS;
-  } catch {
-    return DEFAULT_PERMISSIONS;
   }
 }
 
@@ -190,8 +200,13 @@ export async function claimRole(uid: string, role: Role, email = "", name = ""):
     if (snap.exists()) {
       await setDoc(ref, { ...snap.data(), role });
     } else {
-      // жазба жоқ — жаңасын жасаймыз
-      const rec: UserRecord = { uid, email, name: name || "Пайдаланушы", role, createdAt: Date.now(), lastSeen: Date.now() };
+      // жазба жоқ — жаңасын жасаймыз (free тарифпен)
+      const plan = PLANS.free;
+      const rec: UserRecord = {
+        uid, email, name: name || "Пайдаланушы", role,
+        plan: plan.id, quickRemaining: plan.quickGenerations, deepRemaining: plan.deepSearches,
+        createdAt: Date.now(), lastSeen: Date.now(),
+      };
       await setDoc(ref, rec);
     }
     return true;

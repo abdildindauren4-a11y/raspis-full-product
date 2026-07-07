@@ -1,16 +1,17 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Check, Loader2, Settings2, AlertTriangle } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
-import { btnP, inputCls } from "@/components/shared/Form";
+import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
 import {
-  getAllUsers, setUserRole, loadPermissions, savePermissions,
+  getAllUsers, setUserRole, setUserPlan,
   loadSelfRoleEnabled, setSelfRoleEnabled,
-  DEFAULT_PERMISSIONS, type UserRecord, type Role, type Feature,
+  type UserRecord, type Role,
 } from "@/lib/roles";
+import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
   admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
@@ -18,33 +19,19 @@ const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }
   free: { label: "role.free", icon: UserIcon, cls: "text-muted-c" },
 };
 
-const FEATURE_LABELS: Record<Feature, TransKey> = {
-  generate: "adm.featGenerate",
-  excelExport: "adm.featExport",
-  cloudSync: "adm.featCloud",
-  excelImport: "adm.featImport",
-  deepSearch: "adm.featDeep",
-  softMode: "adm.featSoft",
-  aiAdvisor: "adm.featAI",
-  unlimitedClasses: "adm.featUnlimited",
-};
-
 export default function AdminPage() {
   const { role, configured } = useAuth();
   const { t } = useLang();
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [perms, setPerms] = useState<Record<Feature, Role>>(DEFAULT_PERMISSIONS);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [savedMsg, setSavedMsg] = useState("");
-  const [tab, setTab] = useState<"users" | "permissions">("users");
   const [selfRoleOn, setSelfRoleOn] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [u, p, sr] = await Promise.all([getAllUsers(), loadPermissions(), loadSelfRoleEnabled()]);
-      setUsers(u); setPerms(p); setSelfRoleOn(sr);
+      const [u, sr] = await Promise.all([getAllUsers(), loadSelfRoleEnabled()]);
+      setUsers(u); setSelfRoleOn(sr);
       setLoading(false);
     })();
   }, []);
@@ -78,14 +65,12 @@ export default function AdminPage() {
     if (ok) setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u)));
   };
 
-  const changePerm = (feature: Feature, newRole: Role) => {
-    setPerms((prev) => ({ ...prev, [feature]: newRole }));
-  };
-
-  const savePerms = async () => {
-    const ok = await savePermissions(perms);
-    setSavedMsg(ok ? t("adm.saved") : t("adm.error"));
-    setTimeout(() => setSavedMsg(""), 2000);
+  const changePlan = async (uid: string, plan: PlanId) => {
+    const ok = await setUserPlan(uid, plan);
+    if (ok) {
+      const limits = PLANS[plan];
+      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, plan, quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches } : u)));
+    }
   };
 
   const filtered = users.filter((u) =>
@@ -153,19 +138,9 @@ export default function AdminPage() {
         {toggleMsg && <p className="text-xs status-bad mt-2">{toggleMsg}</p>}
       </div>
 
-      {/* Қойындылар */}
-      <div className="flex gap-2">
-        <button onClick={() => setTab("users")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === "users" ? "gradient-primary text-white" : "bg-input-c text-muted-c border border-soft-c"}`}>
-          <Users className="w-4 h-4 inline mr-1.5" />{t("adm.tabUsers")}
-        </button>
-        <button onClick={() => setTab("permissions")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === "permissions" ? "gradient-primary text-white" : "bg-input-c text-muted-c border border-soft-c"}`}>
-          <Settings2 className="w-4 h-4 inline mr-1.5" />{t("adm.tabPerms")}
-        </button>
-      </div>
-
       {loading ? (
         <div className="flex items-center gap-2 text-muted-c py-10 justify-center"><Loader2 className="w-5 h-5 animate-spin accent-c" /> {t("adm.loading")}</div>
-      ) : tab === "users" ? (
+      ) : (
         <GlassCard hover={false}>
           {/* Іздеу */}
           <div className="relative mb-4">
@@ -194,23 +169,40 @@ export default function AdminPage() {
               {filtered.map((u) => {
                 const info = ROLE_INFO[u.role];
                 return (
-                  <div key={u.uid} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-input-c border border-soft-c">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <info.icon className={`w-4 h-4 shrink-0 ${info.cls}`} />
-                        <span className="font-medium text-strong-c truncate">{u.name}</span>
+                  <div key={u.uid} className="flex flex-col gap-3 p-3 rounded-lg bg-input-c border border-soft-c">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <info.icon className={`w-4 h-4 shrink-0 ${info.cls}`} />
+                          <span className="font-medium text-strong-c truncate">{u.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-c truncate mt-0.5">{u.email}</p>
+                        <p className="text-xs text-faint-c mt-0.5">
+                          {t("plan.quickRemaining")}: {u.quickRemaining} · {t("plan.deepRemaining")}: {u.deepRemaining}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-c truncate mt-0.5">{u.email}</p>
+                      {/* Рөл таңдау */}
+                      <div className="flex gap-1.5 shrink-0">
+                        {(["free", "paid", "admin"] as Role[]).map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => changeRole(u.uid, r)}
+                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${u.role === r ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
+                          >
+                            {t(ROLE_INFO[r].label as TransKey)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {/* Рөл таңдау */}
-                    <div className="flex gap-1.5 shrink-0">
-                      {(["free", "paid", "admin"] as Role[]).map((r) => (
+                    {/* Тариф таңдау */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {PLAN_ORDER.map((p) => (
                         <button
-                          key={r}
-                          onClick={() => changeRole(u.uid, r)}
-                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${u.role === r ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
+                          key={p}
+                          onClick={() => changePlan(u.uid, p)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${u.plan === p ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
                         >
-                          {t(ROLE_INFO[r].label as TransKey)}
+                          {PLANS[p].name}
                         </button>
                       ))}
                     </div>
@@ -219,34 +211,6 @@ export default function AdminPage() {
               })}
             </div>
           )}
-        </GlassCard>
-      ) : (
-        <GlassCard hover={false}>
-          <p className="text-sm text-muted-c mb-4">{t("adm.permsHint")}</p>
-          <div className="space-y-2">
-            {(Object.keys(FEATURE_LABELS) as Feature[]).map((f) => (
-              <div key={f} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-input-c border border-soft-c">
-                <span className="text-sm text-strong-c">{t(FEATURE_LABELS[f] as TransKey)}</span>
-                <div className="flex gap-1.5">
-                  {(["free", "paid", "admin"] as Role[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => changePerm(f, r)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${perms[f] === r ? "gradient-primary text-white" : "bg-surface-c text-muted-c border border-soft-c hover:bg-[rgba(127,127,127,0.08)]"}`}
-                    >
-                      {t(ROLE_INFO[r].label as TransKey)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-3 mt-4">
-            <button className={btnP + " flex items-center gap-2"} onClick={savePerms}>
-              <Check className="w-4 h-4" /> {t("adm.save")}
-            </button>
-            {savedMsg && <span className="text-sm status-good">{savedMsg}</span>}
-          </div>
         </GlassCard>
       )}
     </div>

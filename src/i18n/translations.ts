@@ -24,7 +24,26 @@ export const translations = {
   "nav.collapse": { kk: "Жабу", ru: "Свернуть", en: "Collapse" },
   "nav.settings": { kk: "Баптаулар", ru: "Настройки", en: "Settings" },
   "nav.profile": { kk: "Профиль", ru: "Профиль", en: "Profile" },
+  "nav.pricing": { kk: "Тарифтер", ru: "Тарифы", en: "Pricing" },
   "nav.admin": { kk: "Әкімші панелі", ru: "Панель админа", en: "Admin panel" },
+
+  // ── Тарифтер / квота ──
+  "plan.title": { kk: "Тарифтер", ru: "Тарифы", en: "Pricing" },
+  "plan.subtitle": { kk: "Барлық функция әр тарифте ашық — айырмашылық тек генерация лимитінде", ru: "Все функции открыты на любом тарифе — разница только в лимите генераций", en: "Every feature is open on every plan — the only difference is the generation limit" },
+  "plan.quickUnit": { kk: "жылдам генерация / ай", ru: "быстрых генераций / мес", en: "quick generations / mo" },
+  "plan.deepUnit": { kk: "терең талдау / ай", ru: "глубоких анализов / мес", en: "deep searches / mo" },
+  "plan.allFeatures": { kk: "Барлық функция ашық", ru: "Все функции открыты", en: "All features unlocked" },
+  "plan.current": { kk: "Ағымдағы тариф", ru: "Текущий тариф", en: "Current plan" },
+  "plan.select": { kk: "Таңдау", ru: "Выбрать", en: "Select" },
+  "plan.upgradeTitle": { kk: "Лимит таусылды", ru: "Лимит исчерпан", en: "Limit reached" },
+  "plan.upgradeQuickDesc": { kk: "Бұл айға жылдам генерация лимитіңіз таусылды. Көбірек генерация алу үшін тарифті жаңартыңыз.", ru: "Лимит быстрых генераций на этот месяц исчерпан. Обновите тариф, чтобы получить больше.", en: "You've used all your quick generations for this month. Upgrade your plan for more." },
+  "plan.upgradeDeepDesc": { kk: "Бұл айға терең талдау лимитіңіз таусылды. Көбірек алу үшін тарифті жаңартыңыз.", ru: "Лимит глубокого анализа на этот месяц исчерпан. Обновите тариф, чтобы получить больше.", en: "You've used all your deep searches for this month. Upgrade your plan for more." },
+  "plan.viewPlans": { kk: "Тарифтерді көру", ru: "Смотреть тарифы", en: "View plans" },
+  "plan.quickRemaining": { kk: "Жылдам генерация қалды", ru: "Осталось быстрых генераций", en: "Quick generations left" },
+  "plan.deepRemaining": { kk: "Терең талдау қалды", ru: "Осталось глубоких анализов", en: "Deep searches left" },
+  "plan.unlimited": { kk: "Шексіз", ru: "Без лимита", en: "Unlimited" },
+  "plan.myPlanTitle": { kk: "Менің тарифім", ru: "Мой тариф", en: "My plan" },
+  "plan.changePlan": { kk: "Тарифті өзгерту", ru: "Изменить тариф", en: "Change plan" },
 
   // ── Жалпы әрекеттер ──
   "action.add": { kk: "Қосу", ru: "Добавить", en: "Add" },

@@ -24,6 +24,7 @@ import ExportPage from "@/pages/ExportPage";
 import ImportPage from "@/pages/ImportPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ProfilePage from "@/pages/ProfilePage";
+import PricingPage from "@/pages/PricingPage";
 import AdminPage from "@/pages/AdminPage";
 import CertificatePage from "@/pages/CertificatePage";
 import { useData } from "@/store/dataStore";
@@ -112,7 +113,7 @@ const pages: [string, ReactNode][] = [
   ["/algorithm", <AlgorithmPage />], ["/generate", <GeneratePage />], ["/schedule", <SchedulePage />],
   ["/versions", <VersionsPage />], ["/quality", <QualityPage />], ["/ai-advisor", <AIAdvisorPage />],
   ["/import", <ImportPage />], ["/export", <ExportPage />], ["/settings", <SettingsPage />],
-  ["/profile", <ProfilePage />], ["/admin", <AdminPage />],
+  ["/profile", <ProfilePage />], ["/pricing", <PricingPage />], ["/admin", <AdminPage />],
 ];
 
 export default function App() {

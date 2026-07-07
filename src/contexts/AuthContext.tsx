@@ -3,14 +3,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import { registerUser, ADMIN_EMAILS, type Role, type UserRecord } from "@/lib/roles";
+import { registerUser, getUserRecord, ADMIN_EMAILS, type Role, type UserRecord } from "@/lib/roles";
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   configured: boolean; // Firebase кілттері қосылған ба
   role: Role;          // пайдаланушы рөлі (admin/paid/free)
-  record: UserRecord | null; // толық жазба (бұлттан)
+  record: UserRecord | null; // толық жазба (бұлттан) — тариф пен квота осында
+  refreshRecord: () => Promise<void>; // генерациядан кейін квотаны жаңарту үшін
   signInGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   error: string;
@@ -42,8 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const rec = await registerUser(u.uid, u.email || "", u.displayName || u.email?.split("@")[0] || "Пайдаланушы");
         if (rec) { setRole(rec.role); setRecord(rec); }
         else if (ADMIN_EMAILS.includes(email)) {
-          // Firestore сәтсіз, бірақ админ email — жергілікті админ жазба
-          setRecord({ uid: u.uid, email: u.email || "", name: u.displayName || "Әкімші", role: "admin", createdAt: Date.now(), lastSeen: Date.now() });
+          // Firestore сәтсіз, бірақ админ email — жергілікті админ жазба (шексіз квота)
+          setRecord({
+            uid: u.uid, email: u.email || "", name: u.displayName || "Әкімші", role: "admin",
+            plan: "super", quickRemaining: Infinity, deepRemaining: Infinity,
+            createdAt: Date.now(), lastSeen: Date.now(),
+          });
         }
       } else {
         setRole("free"); setRecord(null);
@@ -77,8 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null); setRole("free"); setRecord(null);
   };
 
+  // Квота тұтынған соң (генерациядан кейін) жазбаны бұлттан қайта оқу
+  const refreshRecord = async () => {
+    if (!user) return;
+    const rec = await getUserRecord(user.uid);
+    if (rec) { setRecord(rec); setRole(rec.role); }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, configured, role, record, signInGoogle, logout, error }}>
+    <AuthContext.Provider value={{ user, loading, configured, role, record, refreshRecord, signInGoogle, logout, error }}>
       {children}
     </AuthContext.Provider>
   );

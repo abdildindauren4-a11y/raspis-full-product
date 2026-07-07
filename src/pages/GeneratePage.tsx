@@ -1,9 +1,10 @@
 // filepath: src/pages/GeneratePage.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock, Users, CalendarRange } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import AIRobot, { type RobotStageGroup } from "@/components/shared/AIRobot";
+import UpgradeModal from "@/components/shared/UpgradeModal";
 import { btnP, btnG, inputCls } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useScheduler, STAGES } from "@/hooks/useScheduler";
@@ -11,7 +12,7 @@ import { useMultiScheduler } from "@/hooks/useMultiScheduler";
 import { explainSchedule, hasGeminiKey } from "@/lib/gemini";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { canUse } from "@/lib/roles";
+import { consumeGeneration, type GenerationKind } from "@/lib/roles";
 import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 import Markdown from "@/components/shared/Markdown";
 import { useSchedulerStore } from "@/store/schedulerStore";
@@ -22,9 +23,10 @@ export default function GeneratePage() {
   const active = useActiveVersion();
   const navigate = useNavigate();
   const { lang, t } = useLang();
-  const { role } = useAuth();
-  const canDeep = canUse(role, "deepSearch");
-  const canSoft = canUse(role, "softMode");
+  const { user, role, record, refreshRecord } = useAuth();
+  const isAdmin = role === "admin";
+  const [upgradeKind, setUpgradeKind] = useState<GenerationKind>("quick");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const { running, pct, stage, result, error, start, cancel, reset } = useScheduler();
   const multi = useMultiScheduler();
   // mode жаһандық дүкенде: пайдаланушы «Генерация» бетінен шығып, терең іздеу
@@ -116,15 +118,20 @@ export default function GeneratePage() {
   const multiRatio = multi.total ? multi.done / multi.total : 0;
   const multiStageGroup: RobotStageGroup = multiRatio < 0.34 ? "scan" : multiRatio < 0.67 ? "build" : multiRatio < 0.92 ? "balance" : "done";
 
-  const run = () => {
+  const run = async () => {
+    const kind: GenerationKind = mode === "deep" ? "deep" : "quick";
+    if (user && !isAdmin) {
+      const { ok } = await consumeGeneration(user.uid, kind);
+      if (!ok) { setUpgradeKind(kind); setUpgradeOpen(true); return; }
+      refreshRecord();
+    }
     setSaved(false);
     const input: AlgoInput = {
       school: data.school, subjects: data.subjects, classes: data.classes,
       teachers: data.teachers, rooms: data.rooms, settings: data.settings,
-      softFill: canSoft && softFill,
+      softFill,
     };
     if (mode === "deep") {
-      if (!canDeep) return; // рұқсат жоқ — терең іздеу істелмейді
       multi.start(input, deepCount);
     } else {
       if (mode === "partial" && scopeClass && active) {
@@ -182,12 +189,11 @@ export default function GeneratePage() {
                 <p className="font-semibold">{t("gen.mode.fast")}</p>
                 <p className="text-xs mt-1 opacity-80">{t("gen.mode.fastDesc")}</p>
               </button>
-              <button onClick={() => canDeep ? setMode("deep") : navigate("/profile")}
-                className={`py-4 rounded-xl text-center transition-all relative ${mode === "deep" ? "gradient-primary text-white glow-blue" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"} ${!canDeep ? "opacity-70" : ""}`}>
-                {!canDeep && <Lock className="w-3.5 h-3.5 status-warn absolute top-2 right-2" />}
+              <button onClick={() => setMode("deep")}
+                className={`py-4 rounded-xl text-center transition-all relative ${mode === "deep" ? "gradient-primary text-white glow-blue" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
                 <Telescope className="w-6 h-6 mx-auto mb-2" />
                 <p className="font-semibold">{t("gen.mode.deep")}</p>
-                <p className="text-xs mt-1 opacity-80">{canDeep ? t("gen.mode.deepDesc") : "Толық нұсқада"}</p>
+                <p className="text-xs mt-1 opacity-80">{t("gen.mode.deepDesc")}</p>
               </button>
               <button onClick={() => setMode("partial")} disabled={!active}
                 className={`py-4 rounded-xl text-center transition-all disabled:opacity-40 ${mode === "partial" ? "gradient-primary text-white glow-blue" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
@@ -238,16 +244,12 @@ export default function GeneratePage() {
             </div>
             {/* Жұмсақ режим қосқышы */}
             <button
-              onClick={() => canSoft ? setSoftFill(!softFill) : navigate("/profile")}
-              disabled={!canSoft}
-              className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border mb-3 transition-all ${!canSoft ? "border-soft-c bg-input-c opacity-60 cursor-not-allowed" : softFill ? "border-[var(--accent)] bg-[rgba(74,144,217,0.08)]" : "border-soft-c bg-input-c"}`}
+              onClick={() => setSoftFill(!softFill)}
+              className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border mb-3 transition-all ${softFill ? "border-[var(--accent)] bg-[rgba(74,144,217,0.08)]" : "border-soft-c bg-input-c"}`}
             >
               <div className="text-left">
-                <p className="text-sm font-medium text-strong-c flex items-center gap-1.5">
-                  {t("gen.softMode")}
-                  {!canSoft && <Lock className="w-3.5 h-3.5 status-warn" />}
-                </p>
-                <p className="text-xs text-muted-c mt-0.5">{canSoft ? t("gen.softModeDesc") : "Толық нұсқада қолжетімді"}</p>
+                <p className="text-sm font-medium text-strong-c flex items-center gap-1.5">{t("gen.softMode")}</p>
+                <p className="text-xs text-muted-c mt-0.5">{t("gen.softModeDesc")}</p>
               </div>
               <div className={`w-11 h-6 rounded-full shrink-0 transition-all relative ${softFill ? "bg-[var(--accent)]" : "bg-[rgba(127,127,127,0.3)]"}`}>
                 <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${softFill ? "left-[22px]" : "left-0.5"}`} />
@@ -344,6 +346,13 @@ export default function GeneratePage() {
               </div>
             </div>
 
+            {record && !isAdmin && (
+              <p className="text-xs text-center text-muted-c mb-2">
+                {mode === "deep"
+                  ? `${t("plan.deepRemaining")}: ${record.deepRemaining}`
+                  : `${t("plan.quickRemaining")}: ${record.quickRemaining}`}
+              </p>
+            )}
             <button className={btnP + " w-full py-3"} disabled={blocked || (mode === "partial" && !scopeClass)} onClick={run}>
               {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} {t("gen.tryVariants")}</> : <><Sparkles className="w-4 h-4 inline mr-1.5" /> {t("gen.generate")}</>}
             </button>
@@ -506,6 +515,7 @@ export default function GeneratePage() {
           {saved && <p className="text-center status-good text-sm flex items-center justify-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Сақталды және белсендірілді</p>}
         </>
       )}
+      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} kind={upgradeKind} />
     </div>
   );
 }
