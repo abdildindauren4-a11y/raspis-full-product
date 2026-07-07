@@ -1,8 +1,9 @@
 // filepath: src/pages/AIAdvisorPage.tsx
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Bot, AlertTriangle, AlertCircle, Info, CheckCircle2, Lightbulb, Send, Loader2, Sparkles, Settings as SettingsIcon, Lock } from "lucide-react";
+import { AlertTriangle, AlertCircle, Info, CheckCircle2, Lightbulb, Send, Loader2, Sparkles, Settings as SettingsIcon, Lock } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
+import AIRobot from "@/components/shared/AIRobot";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -142,7 +143,7 @@ export default function AIAdvisorPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center"><Bot className="w-5 h-5 text-white" /></div>
+        <AIRobot stageGroup="idle" size={48} />
         <div>
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("ai.title")}</h1>
           <p className="text-muted-c text-sm">{keyPresent ? "Gemini AI" : t("ai.localDiag")}</p>
@@ -154,7 +155,7 @@ export default function AIAdvisorPage() {
         <h3 className="font-semibold text-strong-c mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4 accent-c" /> Gemini AI</h3>
         {!keyPresent ? (
           <div className="text-center py-6">
-            <Bot className="w-10 h-10 mx-auto text-faint-c mb-3" />
+            <AIRobot stageGroup="idle" size={72} className="mb-3" />
             <p className="text-sm text-muted-c mb-3">{t("ai.noKey")}</p>
             <Link to="/settings" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white text-sm">
               <SettingsIcon className="w-4 h-4" /> {t("settings.title")}

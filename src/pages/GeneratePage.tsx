@@ -472,7 +472,7 @@ export default function GeneratePage() {
           {(explaining || explanation || explainErr) && (
             <GlassCard hover={false}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center"><Bot className="w-4 h-4 text-white" /></div>
+                <AIRobot stageGroup="idle" size={32} />
                 <h3 className="font-semibold text-strong-c">РАСПИС AI талдауы</h3>
               </div>
               {explaining && (

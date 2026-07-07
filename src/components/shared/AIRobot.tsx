@@ -1,17 +1,18 @@
 import robotUrl from "@/assets/icons/ai-robot.png";
 
-export type RobotStageGroup = "scan" | "build" | "balance" | "done";
+export type RobotStageGroup = "idle" | "scan" | "build" | "balance" | "done";
 
 interface AIRobotProps {
   stageGroup: RobotStageGroup;
   size?: number;
+  className?: string;
 }
 
 // Генерация кезінде РАСПИС AI роботының "жұмыс істеп жатыр" анимациясы —
 // нақты кезеңге қарай айналасында әр түрлі жеңіл эффект көрсетеді.
-export default function AIRobot({ stageGroup, size = 96 }: AIRobotProps) {
+export default function AIRobot({ stageGroup, size = 96, className = "" }: AIRobotProps) {
   return (
-    <div className="relative mx-auto" style={{ width: size, height: size }}>
+    <div className={`relative mx-auto ${className}`} style={{ width: size, height: size }}>
       <div className="absolute inset-[10%] rounded-full bg-[var(--accent)] opacity-25 blur-xl animate-glow-pulse" />
       <div className="absolute inset-0 animate-robot-bob">
         <img src={robotUrl} alt="РАСПИС AI" className="w-full h-full object-contain" draggable={false} />
