@@ -45,6 +45,19 @@ export const translations = {
   "plan.myPlanTitle": { kk: "Менің тарифім", ru: "Мой тариф", en: "My plan" },
   "plan.changePlan": { kk: "Тарифті өзгерту", ru: "Изменить тариф", en: "Change plan" },
 
+  // ── Төлем (Kaspi қолмен) ──
+  "pay.title": { kk: "Тарифті қосу", ru: "Подключение тарифа", en: "Activate plan" },
+  "pay.step1": { kk: "Kaspi арқылы аударыңыз", ru: "Переведите через Kaspi", en: "Transfer via Kaspi" },
+  "pay.step1desc": { kk: "Kaspi қосымшасында «Аударымдар» арқылы төмендегі нөмірге аударыңыз:", ru: "В приложении Kaspi через «Переводы» отправьте на номер ниже:", en: "In the Kaspi app, use “Transfers” to send to the number below:" },
+  "pay.step2": { kk: "Чекті WhatsApp-қа жіберіңіз", ru: "Отправьте чек в WhatsApp", en: "Send the receipt via WhatsApp" },
+  "pay.step2desc": { kk: "Төлем чегінің скриншотын жіберіңіз — хабарламада тариф пен email автоматты тұрады.", ru: "Отправьте скриншот чека — тариф и email уже будут в сообщении.", en: "Send a screenshot of the receipt — the plan and your email are pre-filled in the message." },
+  "pay.step3": { kk: "Тариф қосылады", ru: "Тариф активируется", en: "Plan gets activated" },
+  "pay.step3desc": { kk: "Чек расталған соң тарифіңіз бен генерация лимиттеріңіз бірден қосылады (әдетте 1 сағат ішінде).", ru: "После проверки чека тариф и лимиты активируются сразу (обычно в течение часа).", en: "Once the receipt is confirmed, your plan and limits are activated right away (usually within an hour)." },
+  "pay.copy": { kk: "Көшіру", ru: "Копировать", en: "Copy" },
+  "pay.copied": { kk: "Көшірілді ✓", ru: "Скопировано ✓", en: "Copied ✓" },
+  "pay.whatsapp": { kk: "WhatsApp-қа жазу", ru: "Написать в WhatsApp", en: "Message on WhatsApp" },
+  "pay.waMessage": { kk: "Сәлеметсіз бе! РАСПИС тарифін төледім", ru: "Здравствуйте! Я оплатил(а) тариф РАСПИС", en: "Hello! I have paid for the RASPIS plan" },
+
   // ── Жалпы әрекеттер ──
   "action.add": { kk: "Қосу", ru: "Добавить", en: "Add" },
   "action.edit": { kk: "Өзгерту", ru: "Изменить", en: "Edit" },

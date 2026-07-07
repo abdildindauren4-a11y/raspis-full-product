@@ -1,16 +1,18 @@
 // filepath: src/pages/PricingPage.tsx
+import { useState } from "react";
 import { CreditCard, Sparkles, Telescope, CheckCircle2 } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
+import PaymentModal from "@/components/shared/PaymentModal";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
-import { ADMIN_EMAILS } from "@/lib/roles";
-import { PLAN_ORDER, PLANS } from "@/lib/plans";
+import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
 
 export default function PricingPage() {
-  const { record } = useAuth();
+  const { record, user } = useAuth();
   const { t } = useLang();
   const currentPlan = record?.plan ?? "free";
+  const [payPlan, setPayPlan] = useState<PlanId | null>(null);
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -57,17 +59,23 @@ export default function PricingPage() {
               {isCurrent ? (
                 <button className={btnG + " w-full cursor-default"} disabled>{t("plan.current")}</button>
               ) : (
-                <a
-                  href={`mailto:${ADMIN_EMAILS[0]}?subject=${encodeURIComponent(`РАСПИС тариф: ${p.name}`)}`}
-                  className={btnP + " w-full text-center block"}
-                >
+                <button className={btnP + " w-full"} onClick={() => setPayPlan(id)}>
                   {t("plan.select")}
-                </a>
+                </button>
               )}
             </GlassCard>
           );
         })}
       </div>
+
+      {payPlan && (
+        <PaymentModal
+          open={!!payPlan}
+          onClose={() => setPayPlan(null)}
+          planId={payPlan}
+          userEmail={user?.email || record?.email || undefined}
+        />
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ export const PLAN_ORDER: PlanId[] = ["free", "pro", "premium", "super"];
 
 export const PLANS: Record<PlanId, PlanDef> = {
   free: { id: "free", name: "Free", priceLabel: "0 ₸", quickGenerations: 0, deepSearches: 0 },
-  pro: { id: "pro", name: "Pro", priceLabel: "9 900 ₸/ай", quickGenerations: 10, deepSearches: 5 },
-  premium: { id: "premium", name: "Premium", priceLabel: "19 900 ₸/ай", quickGenerations: 30, deepSearches: 10 },
-  super: { id: "super", name: "Super", priceLabel: "39 900 ₸/ай", quickGenerations: 100, deepSearches: 40 },
+  pro: { id: "pro", name: "Pro", priceLabel: "49 900 ₸/ай", quickGenerations: 10, deepSearches: 5 },
+  premium: { id: "premium", name: "Premium", priceLabel: "99 900 ₸/ай", quickGenerations: 30, deepSearches: 10 },
+  super: { id: "super", name: "Super", priceLabel: "249 900 ₸/ай", quickGenerations: 100, deepSearches: 40 },
 };
