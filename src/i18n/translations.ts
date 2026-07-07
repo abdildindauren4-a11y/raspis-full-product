@@ -64,9 +64,7 @@ export const translations = {
   "lock.dataTitle": { kk: "Деректер енгізу панелі жабық", ru: "Панель ввода данных закрыта", en: "Data entry panel is locked" },
   "lock.dataDesc": { kk: "Деректерді енгізу терезесі аяқталды. Кестені генерациялау ашық. Панельді ашу үшін WhatsApp-қа жазыңыз — жедел ашамыз.", ru: "Окно ввода данных истекло. Генерация расписания доступна. Напишите в WhatsApp, чтобы открыть панель — откроем оперативно.", en: "The data entry window has expired. Generation still works. Message us on WhatsApp to reopen the panel." },
   "lock.demoTitle": { kk: "Демо режим", ru: "Демо-режим", en: "Demo mode" },
-  "lock.demoDesc": { kk: "Демо режимде деректерді өзгерту мүмкін емес — тек көру және генерация.", ru: "В демо-режиме изменение данных недоступно — только просмотр и генерация.", en: "In demo mode data cannot be changed — view and generate only." },
-  "lock.exportTitle": { kk: "Экспорт демо режимде жабық", ru: "Экспорт закрыт в демо-режиме", en: "Export is locked in demo mode" },
-  "lock.exportDesc": { kk: "Файл жүктеу тек толық тарифте қолжетімді. Нәтижені экранда көрсете аласыз.", ru: "Скачивание файлов доступно только на полном тарифе. Результат можно показать на экране.", en: "File downloads are available on paid plans only. You can still show the result on screen." },
+  "lock.demoDesc": { kk: "Демо режимде деректерді өзгерту мүмкін емес — тек көру, генерация және экспорт.", ru: "В демо-режиме изменение данных недоступно — только просмотр, генерация и экспорт.", en: "In demo mode data cannot be changed — view, generate and export only." },
   "lock.waText": { kk: "Сәлеметсіз бе! РАСПИС деректер енгізу панелін ашуды сұраймын", ru: "Здравствуйте! Прошу открыть панель ввода данных РАСПИС", en: "Hello! Please reopen the RASPIS data entry panel" },
 
   // ── Жалпы әрекеттер ──
@@ -449,7 +447,7 @@ export const translations = {
   "prof.freeLabel": { kk: "Тегін қолданушы", ru: "Бесплатный", en: "Free user" },
   "prof.freeDesc": { kk: "Негізгі функциялар қолжетімді", ru: "Доступны основные функции", en: "Core features available" },
   "prof.demoLabel": { kk: "Демо аккаунт", ru: "Демо-аккаунт", en: "Demo account" },
-  "prof.demoDesc": { kk: "Көрсетілім режимі — генерация шексіз, деректер енгізу мен экспорт жабық", ru: "Режим презентации — генерация без лимита, ввод данных и экспорт закрыты", en: "Presentation mode — unlimited generation, data entry and export locked" },
+  "prof.demoDesc": { kk: "Көрсетілім режимі — генерация мен экспорт шексіз, деректер енгізу жабық", ru: "Режим презентации — генерация и экспорт без лимита, ввод данных закрыт", en: "Presentation mode — unlimited generation and export, data entry locked" },
   "prof.featDeep": { kk: "Терең іздеу (көп нұсқа)", ru: "Глубокий поиск (много вариантов)", en: "Deep search (many variants)" },
   "prof.featAI": { kk: "РАСПИС AI кеңесші", ru: "РАСПИС AI советник", en: "RASPIS AI advisor" },
   "prof.featUnlimited": { kk: "Шектеусіз сынып саны", ru: "Без лимита классов", en: "Unlimited classes" },

@@ -7,23 +7,21 @@ import { PAYMENT } from "@/lib/payment";
 
 interface DataGuardProps {
   children: ReactNode;
-  // data — деректер енгізу беттері (7 күндік терезе + демо-құлып)
-  // export — экспорт беті (тек демо режимде жабық)
-  kind?: "data" | "export";
 }
 
+// Деректер енгізу беттерінің қорғанышы (7 күндік терезе + демо-құлып).
 // Бет мазмұнын көрсетеді, бірақ құлыпталған жағдайда өзгертуге тыйым салады:
 // үстіне ескерту-баннер шығып, мазмұн басылмайтын болады (көру мүмкін).
-export default function DataGuard({ children, kind = "data" }: DataGuardProps) {
+export default function DataGuard({ children }: DataGuardProps) {
   const { role, record } = useAuth();
   const { t } = useLang();
 
   const isDemo = role === "demo";
-  const locked = kind === "export" ? isDemo : !canEditData(role, record);
+  const locked = !canEditData(role, record);
   if (!locked) return <>{children}</>;
 
-  const title = kind === "export" ? t("lock.exportTitle") : isDemo ? t("lock.demoTitle") : t("lock.dataTitle");
-  const desc = kind === "export" ? t("lock.exportDesc") : isDemo ? t("lock.demoDesc") : t("lock.dataDesc");
+  const title = isDemo ? t("lock.demoTitle") : t("lock.dataTitle");
+  const desc = isDemo ? t("lock.demoDesc") : t("lock.dataDesc");
   const waLink = `https://wa.me/${PAYMENT.whatsappPhone}?text=${encodeURIComponent(t("lock.waText"))}`;
 
   return (
@@ -34,7 +32,7 @@ export default function DataGuard({ children, kind = "data" }: DataGuardProps) {
           <p className="text-sm font-medium text-strong-c">{title}</p>
           <p className="text-xs text-muted-c mt-0.5">{desc}</p>
         </div>
-        {kind === "data" && !isDemo && (
+        {!isDemo && (
           <a
             href={waLink}
             target="_blank"

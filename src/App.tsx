@@ -117,8 +117,9 @@ const pages: [string, ReactNode][] = [
   ["/subjects", <DataGuard><SubjectsPage /></DataGuard>],
   ["/groups", <DataGuard><GroupsPage /></DataGuard>],
   ["/import", <DataGuard><ImportPage /></DataGuard>],
-  // Экспорт — демо режимде жабық
-  ["/export", <DataGuard kind="export"><ExportPage /></DataGuard>],
+  // Экспорт бәріне ашық — демо кезінде алушы дайын өнімді өз көзімен көріп,
+  // қолына алып көргені сатылымға тиімді
+  ["/export", <ExportPage />],
   ["/algorithm", <AlgorithmPage />], ["/generate", <GeneratePage />], ["/schedule", <SchedulePage />],
   ["/versions", <VersionsPage />], ["/quality", <QualityPage />], ["/ai-advisor", <AIAdvisorPage />],
   ["/settings", <SettingsPage />],
