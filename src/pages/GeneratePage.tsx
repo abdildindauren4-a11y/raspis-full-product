@@ -41,6 +41,32 @@ export default function GeneratePage() {
   const [explaining, setExplaining] = useState(false);
   const [explainErr, setExplainErr] = useState("");
 
+  // "AI жұмыс істеп жатыр" әсері — генерация кезінде нақты деректер (сынып/мұғалім/пән)
+  // атауларымен циклденетін жол, алгоритмнің нақты не істеп жатқанын сезіндіру үшін
+  const [flavor, setFlavor] = useState("");
+  const isBusy = running || multi.running;
+  useEffect(() => {
+    if (!isBusy) return;
+    const pick = <T,>(arr: T[]): T | null => (arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
+    const tick = () => {
+      const cls = pick(data.classes)?.name;
+      const teacher = pick(data.teachers)?.name;
+      const subject = pick(data.subjects)?.name;
+      const room = pick(data.rooms)?.number;
+      const templates: (() => string | null)[] = [
+        () => cls ? (lang === "kk" ? `«${cls}» сыныбының кестесін құрастыруда...` : lang === "ru" ? `Формирование расписания «${cls}»...` : `Building the schedule for "${cls}"...`) : null,
+        () => teacher ? (lang === "kk" ? `${teacher} жүктемесін тексеруде...` : lang === "ru" ? `Проверка нагрузки: ${teacher}...` : `Checking workload: ${teacher}...`) : null,
+        () => subject ? (lang === "kk" ? `«${subject}» пәнін орналастыруда...` : lang === "ru" ? `Размещение предмета «${subject}»...` : `Placing subject "${subject}"...`) : null,
+        () => room ? (lang === "kk" ? `№${room} кабинетінің қолжетімділігін тексеруде...` : lang === "ru" ? `Проверка кабинета №${room}...` : `Checking room #${room} availability...`) : null,
+      ];
+      const opts = templates.map((f) => f()).filter((x): x is string => !!x);
+      if (opts.length) setFlavor(opts[Math.floor(Math.random() * opts.length)]);
+    };
+    tick();
+    const id = setInterval(tick, 1100);
+    return () => clearInterval(id);
+  }, [isBusy, data.classes, data.teachers, data.subjects, data.rooms, lang]);
+
   // Қай нәтиже белсенді — жалғыз генерация ма, multi ме
   const activeResult: AlgoResult | null = mode === "deep" ? (multi.result?.best ?? null) : result;
   const isRunning = mode === "deep" ? multi.running : running;
@@ -324,12 +350,21 @@ export default function GeneratePage() {
       {running && (
         <GlassCard hover={false}>
           <div className="text-center mb-4">
+            <div className="relative w-16 h-16 mx-auto mb-3">
+              <div className="absolute inset-0 rounded-2xl gradient-primary animate-glow-pulse" />
+              <div className="absolute inset-0 rounded-2xl gradient-primary flex items-center justify-center animate-float">
+                <Bot className="w-8 h-8 text-white" />
+              </div>
+            </div>
             <p className="text-3xl font-bold gradient-text">{pct}%</p>
             <p className="text-muted-c text-sm mt-1">{t("gen.running")}</p>
           </div>
-          <div className="h-3 bg-input-c rounded-full overflow-hidden mb-5">
-            <div className="h-full gradient-primary rounded-full transition-all duration-200" style={{ width: pct + "%" }} />
+          <div className="h-3 bg-input-c rounded-full overflow-hidden mb-2 relative">
+            <div className="h-full gradient-primary rounded-full transition-all duration-200 relative overflow-hidden" style={{ width: pct + "%" }}>
+              <div className="absolute inset-0 animate-shimmer opacity-40" />
+            </div>
           </div>
+          <p className="text-xs accent-c text-center mb-5 h-4 transition-opacity">{flavor}</p>
           <div className="space-y-2">
             {STAGES.map((s, i) => (
               <div key={s} className="flex items-center gap-2 text-sm">
@@ -348,13 +383,21 @@ export default function GeneratePage() {
       {multi.running && (
         <GlassCard hover={false}>
           <div className="text-center mb-4">
-            <Telescope className="w-8 h-8 mx-auto accent-c mb-2" />
+            <div className="relative w-16 h-16 mx-auto mb-3">
+              <div className="absolute inset-0 rounded-2xl gradient-primary animate-glow-pulse" />
+              <div className="absolute inset-0 rounded-2xl gradient-primary flex items-center justify-center animate-float">
+                <Telescope className="w-8 h-8 text-white" />
+              </div>
+            </div>
             <p className="text-3xl font-bold gradient-text">{multi.done} / {multi.total}</p>
             <p className="text-muted-c text-sm mt-1">{t("gen.searching")}</p>
           </div>
-          <div className="h-3 bg-input-c rounded-full overflow-hidden mb-3">
-            <div className="h-full gradient-primary rounded-full transition-all duration-200" style={{ width: (multi.total ? (multi.done / multi.total) * 100 : 0) + "%" }} />
+          <div className="h-3 bg-input-c rounded-full overflow-hidden mb-2 relative">
+            <div className="h-full gradient-primary rounded-full transition-all duration-200 relative overflow-hidden" style={{ width: (multi.total ? (multi.done / multi.total) * 100 : 0) + "%" }}>
+              <div className="absolute inset-0 animate-shimmer opacity-40" />
+            </div>
           </div>
+          <p className="text-xs accent-c text-center mb-4 h-4 transition-opacity">{flavor}</p>
           <div className="flex items-center justify-center gap-2 text-sm mb-4">
             <span className="text-muted-c">{t("gen.bestQuality")}:</span>
             <span className="font-bold status-good text-lg">{multi.bestQuality}</span>
