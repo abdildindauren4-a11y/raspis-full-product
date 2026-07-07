@@ -2,9 +2,10 @@
 import { useLang } from "@/contexts/LangContext";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Check, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
+import logoUrl from "@/assets/logo.png";
 
 export default function LoginPage() {
   const login = useData((s) => s.login);
@@ -32,7 +33,7 @@ export default function LoginPage() {
       {/* Сол жақ — брендинг */}
       <div className="hidden lg:flex flex-col justify-center w-1/2 p-16 glass-strong border-r border-soft-c">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center"><CalendarDays className="w-6 h-6 text-white" /></div>
+          <img src={logoUrl} alt="РАСПИС" className="w-14 h-14 object-contain shrink-0" />
           <span className="font-['IBM_Plex_Sans'] text-3xl font-bold gradient-text">РАСПИС</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-strong-c mb-4">{t("log.tagline")}</h1>
@@ -47,7 +48,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="glass-strong border border-soft-c rounded-2xl p-8 w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-2 mb-6 justify-center">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center"><CalendarDays className="w-5 h-5 text-white" /></div>
+            <img src={logoUrl} alt="РАСПИС" className="w-11 h-11 object-contain shrink-0" />
             <span className="font-['IBM_Plex_Sans'] text-2xl font-bold gradient-text">РАСПИС</span>
           </div>
           <h2 className="text-xl font-bold text-strong-c mb-1">Қош келдіңіз!</h2>

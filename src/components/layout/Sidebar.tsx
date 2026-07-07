@@ -4,6 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
+import logoUrl from "@/assets/logo.png";
 import {
   LayoutDashboard,
   Database,
@@ -105,9 +106,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
               transition={{ duration: 0.2 }}
               className="flex items-center gap-3"
             >
-              <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
-                <CalendarDays className="w-5 h-5 text-white" />
-              </div>
+              <img src={logoUrl} alt="РАСПИС" className="w-10 h-10 object-contain shrink-0" />
               <span className="font-['IBM_Plex_Sans'] text-xl font-bold gradient-text">
                 РАСПИС
               </span>
@@ -123,9 +122,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
           <X className="w-5 h-5" />
         </button>
         {isCollapsed && (
-          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center mx-auto">
-            <CalendarDays className="w-5 h-5 text-white" />
-          </div>
+          <img src={logoUrl} alt="РАСПИС" className="w-10 h-10 object-contain mx-auto" />
         )}
       </div>
 

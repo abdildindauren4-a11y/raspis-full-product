@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
+import logoUrl from "@/assets/logo.png";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import NotificationBell from "@/components/layout/NotificationBell";
@@ -74,6 +75,7 @@ function AppLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="w-6 h-6" />
           </button>
+          <img src={logoUrl} alt="РАСПИС" className="w-8 h-8 object-contain shrink-0" />
           <span className="font-['IBM_Plex_Sans'] text-lg font-bold gradient-text">РАСПИС</span>
           <div className="ml-auto">
             <NotificationBell />
