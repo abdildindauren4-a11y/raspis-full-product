@@ -34,14 +34,10 @@ export const DEFAULT_PERMISSIONS: Record<Feature, Role> = {
   unlimitedClasses: "paid",  // ақылы: шектеусіз сынып
 };
 
-// Рөл иерархиясы: admin > paid > free
-const ROLE_LEVEL: Record<Role, number> = { admin: 3, paid: 2, free: 1 };
-
 // Пайдаланушы рөлі функцияға жете ме
-export function canUse(role: Role, feature: Feature, perms: Record<Feature, Role> = DEFAULT_PERMISSIONS): boolean {
-  if (role === "admin") return true; // админ — бәріне рұқсат
-  const required = perms[feature] || "free";
-  return ROLE_LEVEL[role] >= ROLE_LEVEL[required];
+// Барлық функция барлық пайдаланушыға бірдей ашық (рөл шектеуі алынып тасталды).
+export function canUse(_role: Role, _feature: Feature, _perms: Record<Feature, Role> = DEFAULT_PERMISSIONS): boolean {
+  return true;
 }
 
 // ── Пайдаланушы жазбасы (бұлтта) ──
