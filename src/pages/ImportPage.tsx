@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Download, Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, RotateCcw } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
-import { ExcelIcon } from "@/components/shared/BrandIcons";
+import excelIconUrl from "@/assets/icons/excel-icon.png";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
@@ -111,7 +111,7 @@ export default function ImportPage() {
       {/* 1-қадам: үлгі жүктеу */}
       <GlassCard hover={false}>
         <div className="flex items-start gap-4 flex-wrap">
-          <ExcelIcon size={44} />
+          <img src={excelIconUrl} alt="Excel" className="w-11 h-11 object-contain shrink-0" />
           <div className="flex-1 min-w-[200px]">
             <h3 className="font-semibold text-strong-c">{t("imp.step1")}</h3>
             <p className="text-xs text-muted-c mt-1">{t("imp.step1desc")}</p>
