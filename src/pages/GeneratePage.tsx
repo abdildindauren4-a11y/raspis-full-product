@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Lock, Users, CalendarRange } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
+import AIRobot, { type RobotStageGroup } from "@/components/shared/AIRobot";
 import { btnP, btnG, inputCls } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useScheduler, STAGES } from "@/hooks/useScheduler";
@@ -109,6 +110,11 @@ export default function GeneratePage() {
   }
   const dedup = [...new Map(issues.map((i) => [i.text, i])).values()];
   const blocked = dedup.some((i) => i.level === "error");
+
+  // STAGES индексін (0-6) роботтың 4 анимация тобының біріне сәйкестендіру
+  const robotStageGroup: RobotStageGroup = stage <= 1 ? "scan" : stage <= 3 ? "build" : stage <= 5 ? "balance" : "done";
+  const multiRatio = multi.total ? multi.done / multi.total : 0;
+  const multiStageGroup: RobotStageGroup = multiRatio < 0.34 ? "scan" : multiRatio < 0.67 ? "build" : multiRatio < 0.92 ? "balance" : "done";
 
   const run = () => {
     setSaved(false);
@@ -350,13 +356,8 @@ export default function GeneratePage() {
       {running && (
         <GlassCard hover={false}>
           <div className="text-center mb-4">
-            <div className="relative w-16 h-16 mx-auto mb-3">
-              <div className="absolute inset-0 rounded-2xl gradient-primary animate-glow-pulse" />
-              <div className="absolute inset-0 rounded-2xl gradient-primary flex items-center justify-center animate-float">
-                <Bot className="w-8 h-8 text-white" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold gradient-text">{pct}%</p>
+            <AIRobot stageGroup={robotStageGroup} size={104} />
+            <p className="text-3xl font-bold gradient-text mt-2">{pct}%</p>
             <p className="text-muted-c text-sm mt-1">{t("gen.running")}</p>
           </div>
           <div className="h-3 bg-input-c rounded-full overflow-hidden mb-2 relative">
@@ -383,13 +384,8 @@ export default function GeneratePage() {
       {multi.running && (
         <GlassCard hover={false}>
           <div className="text-center mb-4">
-            <div className="relative w-16 h-16 mx-auto mb-3">
-              <div className="absolute inset-0 rounded-2xl gradient-primary animate-glow-pulse" />
-              <div className="absolute inset-0 rounded-2xl gradient-primary flex items-center justify-center animate-float">
-                <Telescope className="w-8 h-8 text-white" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold gradient-text">{multi.done} / {multi.total}</p>
+            <AIRobot stageGroup={multiStageGroup} size={104} />
+            <p className="text-3xl font-bold gradient-text mt-2">{multi.done} / {multi.total}</p>
             <p className="text-muted-c text-sm mt-1">{t("gen.searching")}</p>
           </div>
           <div className="h-3 bg-input-c rounded-full overflow-hidden mb-2 relative">

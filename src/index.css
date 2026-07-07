@@ -272,6 +272,73 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes robot-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(-1.5deg); }
+}
+
+@keyframes scan-sweep {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(280%); opacity: 0; }
+}
+
+@keyframes grid-pop {
+  0%, 100% { transform: scale(0); opacity: 0; }
+  30%, 70% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes seesaw-a {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes seesaw-b {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
+@keyframes badge-pop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes sparkle-rise {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-24px) scale(1); opacity: 0; }
+}
+
+.animate-robot-bob {
+  animation: robot-bob 3.2s ease-in-out infinite;
+}
+
+.animate-scan-sweep {
+  animation: scan-sweep 2s ease-in-out infinite;
+}
+
+.animate-grid-pop {
+  animation: grid-pop 2.2s ease-in-out infinite;
+}
+
+.animate-seesaw-a {
+  animation: seesaw-a 2.4s ease-in-out infinite;
+}
+
+.animate-seesaw-b {
+  animation: seesaw-b 2.4s ease-in-out infinite;
+}
+
+.animate-badge-pop {
+  animation: badge-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-sparkle-rise {
+  animation: sparkle-rise 1.8s ease-out infinite;
+}
+
 .animate-shimmer {
   background: linear-gradient(90deg, rgba(31,40,51,0.6) 25%, rgba(42,52,65,0.8) 50%, rgba(31,40,51,0.6) 75%);
   background-size: 200% 100%;
