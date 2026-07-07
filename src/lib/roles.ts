@@ -4,10 +4,12 @@
 // тариф (free/pro/premium/super — генерация квотасы үшін) бірге сақталады.
 import { doc, getDoc, setDoc, collection, getDocs, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, PLAN_DURATION_MS, DATA_ENTRY_WINDOW_MS, type PlanId } from "@/lib/plans";
 
-// ── Рөлдер (тек әкімші панелі қолжетімділігі үшін) ──
-export type Role = "admin" | "paid" | "free";
+// ── Рөлдер ──
+// admin — бәріне шексіз рұқсат; demo — сатушының көрсетілім аккаунты
+// (генерация шексіз, бірақ деректер енгізу мен экспорт жабық); paid/free — қарапайым.
+export type Role = "admin" | "paid" | "free" | "demo";
 
 // Әкімші email-дері — бұлар әрқашан admin (бірінші кіргенде автоматты).
 export const ADMIN_EMAILS = ["abdildindauren4@gmail.com"];
@@ -21,18 +23,37 @@ export interface UserRecord {
   plan: PlanId;
   quickRemaining: number;
   deepRemaining: number;
+  planExpiresAt?: number;   // тариф мерзімінің соңы (6 ай); өткенде free-ге қайтады
+  dataEntryUntil?: number;  // деректер енгізу панелі ашық тұратын мерзім (7 күн терезе)
   createdAt: number;
   lastSeen: number;
 }
 
 // Тариф өрістері жоқ ескі жазбаларды free тарифпен толықтырады (миграция)
+// және мерзімі өткен тарифті free-ге түсіреді.
 function withPlanDefaults(rec: UserRecord): UserRecord {
-  return {
+  const r: UserRecord = {
     ...rec,
     plan: rec.plan ?? "free",
     quickRemaining: rec.quickRemaining ?? 0,
     deepRemaining: rec.deepRemaining ?? 0,
   };
+  if (r.plan !== "free" && r.planExpiresAt && Date.now() > r.planExpiresAt) {
+    return { ...r, plan: "free", quickRemaining: 0, deepRemaining: 0 };
+  }
+  return r;
+}
+
+// Деректер енгізу панелі ашық па (сыныптар/мұғалімдер/кабинеттер/пәндер/импорт).
+// Тариф иесі бір мектептің кестесін өз бетімен қайта-қайта жасай береді,
+// бірақ ЖАҢА мектеп деректерін енгізу 7 күндік терезеден кейін жабылады —
+// ашуды WhatsApp арқылы сұрайды (қымбат тарифпен басқаларға кесте сатып
+// жүрмеуін бақылау тетігі).
+export function canEditData(role: Role, record: UserRecord | null): boolean {
+  if (role === "admin") return true;
+  if (role === "demo") return false;
+  if (!record || record.plan === "free") return true; // тегін/офлайн — енгізу ашық (генерация квотамен шектеулі)
+  return !record.dataEntryUntil || Date.now() <= record.dataEntryUntil;
 }
 
 // Пайдаланушыны тіркеу/жаңарту (кірген сайын шақырылады)
@@ -96,7 +117,7 @@ export async function consumeGeneration(uid: string, kind: GenerationKind): Prom
       const snap = await tx.get(ref);
       if (!snap.exists()) return { ok: true, remaining: Infinity };
       const data = withPlanDefaults(snap.data() as UserRecord);
-      if (data.role === "admin") return { ok: true, remaining: Infinity };
+      if (data.role === "admin" || data.role === "demo") return { ok: true, remaining: Infinity };
       const current = data[field];
       if (current <= 0) return { ok: false, remaining: 0 };
       const next = current - 1;
@@ -138,7 +159,8 @@ export async function setUserRole(uid: string, role: Role): Promise<boolean> {
   }
 }
 
-// Пайдаланушы тарифін өзгерту — квотаны сол тарифтің толық мөлшеріне қалпына келтіреді (тек админ)
+// Пайдаланушы тарифін өзгерту (тек админ) — квота толады, 6 айлық мерзім және
+// деректер енгізудің 7 күндік терезесі басталады.
 export async function setUserPlan(uid: string, plan: PlanId): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
@@ -147,10 +169,28 @@ export async function setUserPlan(uid: string, plan: PlanId): Promise<boolean> {
     const snap = await getDoc(ref);
     if (!snap.exists()) return false;
     const limits = PLANS[plan];
+    const paid = plan !== "free";
     await setDoc(ref, {
       ...snap.data(), plan,
       quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches,
+      planExpiresAt: paid ? Date.now() + PLAN_DURATION_MS : 0,
+      dataEntryUntil: paid ? Date.now() + DATA_ENTRY_WINDOW_MS : 0,
     });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Деректер енгізу панелін қосымша мерзімге ашу (тек админ, WhatsApp сұранысынан кейін)
+export async function extendDataEntry(uid: string, days = 7): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    await setDoc(ref, { ...snap.data(), dataEntryUntil: Date.now() + days * 24 * 60 * 60 * 1000 });
     return true;
   } catch {
     return false;

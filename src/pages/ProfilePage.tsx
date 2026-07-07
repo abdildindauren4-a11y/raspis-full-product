@@ -1,5 +1,5 @@
 // filepath: src/pages/ProfilePage.tsx
-import { Crown, CreditCard, User as UserIcon, Mail, LogOut, Cloud, Sparkles, Zap, Telescope } from "lucide-react";
+import { Crown, CreditCard, User as UserIcon, Mail, LogOut, Cloud, Sparkles, Zap, Telescope, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import GlassCard from "@/components/shared/GlassCard";
@@ -15,6 +15,7 @@ const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string; 
   admin: { label: "prof.adminLabel", icon: Crown, cls: "status-warn", desc: "prof.adminDesc" },
   paid: { label: "prof.paidLabel", icon: CreditCard, cls: "status-good", desc: "prof.paidDesc" },
   free: { label: "prof.freeLabel", icon: UserIcon, cls: "text-muted-c", desc: "prof.freeDesc" },
+  demo: { label: "prof.demoLabel", icon: Eye, cls: "accent-c", desc: "prof.demoDesc" },
 };
 
 export default function ProfilePage() {
@@ -99,12 +100,18 @@ export default function ProfilePage() {
         <div className="space-y-2 mb-4">
           <div className="flex items-center justify-between gap-3 py-1.5">
             <span className="text-sm text-soft-c flex items-center gap-2"><Zap className="w-4 h-4 accent-c" /> {t("plan.quickRemaining")}</span>
-            <span className="text-sm font-semibold text-strong-c">{role === "admin" ? t("plan.unlimited") : record?.quickRemaining ?? 0}</span>
+            <span className="text-sm font-semibold text-strong-c">{role === "admin" || role === "demo" ? t("plan.unlimited") : record?.quickRemaining ?? 0}</span>
           </div>
           <div className="flex items-center justify-between gap-3 py-1.5">
             <span className="text-sm text-soft-c flex items-center gap-2"><Telescope className="w-4 h-4 accent-c" /> {t("plan.deepRemaining")}</span>
-            <span className="text-sm font-semibold text-strong-c">{role === "admin" ? t("plan.unlimited") : record?.deepRemaining ?? 0}</span>
+            <span className="text-sm font-semibold text-strong-c">{role === "admin" || role === "demo" ? t("plan.unlimited") : record?.deepRemaining ?? 0}</span>
           </div>
+          {record && record.plan !== "free" && !!record.planExpiresAt && (
+            <div className="flex items-center justify-between gap-3 py-1.5">
+              <span className="text-sm text-soft-c">{t("plan.expires")}</span>
+              <span className="text-sm font-semibold text-strong-c">{new Date(record.planExpiresAt).toLocaleDateString()}</span>
+            </div>
+          )}
         </div>
         <Link to="/pricing" className={btnP + " w-full text-center block"}>{t("plan.changePlan")}</Link>
       </GlassCard>

@@ -1,13 +1,13 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, AlertTriangle, Eye, CalendarPlus } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
 import {
-  getAllUsers, setUserRole, setUserPlan,
+  getAllUsers, setUserRole, setUserPlan, extendDataEntry,
   loadSelfRoleEnabled, setSelfRoleEnabled,
   type UserRecord, type Role,
 } from "@/lib/roles";
@@ -17,6 +17,7 @@ const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }
   admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
   paid: { label: "role.paid", icon: CreditCard, cls: "status-good" },
   free: { label: "role.free", icon: UserIcon, cls: "text-muted-c" },
+  demo: { label: "role.demo", icon: Eye, cls: "accent-c" },
 };
 
 export default function AdminPage() {
@@ -68,9 +69,22 @@ export default function AdminPage() {
   const changePlan = async (uid: string, plan: PlanId) => {
     const ok = await setUserPlan(uid, plan);
     if (ok) {
+      // Жаңартылған мерзімдерді бұлттан қайта оқымай-ақ жергілікті есептейміз
       const limits = PLANS[plan];
-      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, plan, quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches } : u)));
+      const paid = plan !== "free";
+      const now = Date.now();
+      setUsers((prev) => prev.map((u) => (u.uid === uid ? {
+        ...u, plan,
+        quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches,
+        planExpiresAt: paid ? now + 183 * 86400000 : 0,
+        dataEntryUntil: paid ? now + 7 * 86400000 : 0,
+      } : u)));
     }
+  };
+
+  const extendData = async (uid: string) => {
+    const ok = await extendDataEntry(uid, 7);
+    if (ok) setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, dataEntryUntil: Date.now() + 7 * 86400000 } : u)));
   };
 
   const filtered = users.filter((u) =>
@@ -180,10 +194,18 @@ export default function AdminPage() {
                         <p className="text-xs text-faint-c mt-0.5">
                           {t("plan.quickRemaining")}: {u.quickRemaining} · {t("plan.deepRemaining")}: {u.deepRemaining}
                         </p>
+                        {u.plan !== "free" && !!u.planExpiresAt && (
+                          <p className="text-xs text-faint-c mt-0.5">
+                            {t("plan.expires")}: {new Date(u.planExpiresAt).toLocaleDateString()} ·{" "}
+                            {u.dataEntryUntil && Date.now() <= u.dataEntryUntil
+                              ? `${t("adm.dataUntil")}: ${new Date(u.dataEntryUntil).toLocaleDateString()}`
+                              : t("adm.dataClosed")}
+                          </p>
+                        )}
                       </div>
                       {/* Рөл таңдау */}
                       <div className="flex gap-1.5 shrink-0">
-                        {(["free", "paid", "admin"] as Role[]).map((r) => (
+                        {(["free", "paid", "demo", "admin"] as Role[]).map((r) => (
                           <button
                             key={r}
                             onClick={() => changeRole(u.uid, r)}
@@ -194,7 +216,7 @@ export default function AdminPage() {
                         ))}
                       </div>
                     </div>
-                    {/* Тариф таңдау */}
+                    {/* Тариф таңдау + деректер терезесін ашу */}
                     <div className="flex flex-wrap gap-1.5">
                       {PLAN_ORDER.map((p) => (
                         <button
@@ -205,6 +227,14 @@ export default function AdminPage() {
                           {PLANS[p].name}
                         </button>
                       ))}
+                      {u.plan !== "free" && (
+                        <button
+                          onClick={() => extendData(u.uid)}
+                          className="px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-surface-c status-good border border-emerald-400/30 hover:bg-emerald-500/10 flex items-center gap-1"
+                        >
+                          <CalendarPlus className="w-3.5 h-3.5" /> {t("adm.extendData")}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

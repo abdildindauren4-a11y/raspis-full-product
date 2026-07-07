@@ -7,6 +7,7 @@ import logoUrl from "@/assets/logo.png";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import NotificationBell from "@/components/layout/NotificationBell";
+import DataGuard from "@/components/shared/DataGuard";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ClassesPage from "@/pages/ClassesPage";
@@ -108,11 +109,19 @@ function Protected({ children }: { children: ReactNode }) {
 }
 
 const pages: [string, ReactNode][] = [
-  ["/", <DashboardPage />], ["/classes", <ClassesPage />], ["/teachers", <TeachersPage />],
-  ["/rooms", <RoomsPage />], ["/subjects", <SubjectsPage />], ["/groups", <GroupsPage />],
+  ["/", <DashboardPage />],
+  // Деректер енгізу беттері — DataGuard арқылы (7 күндік терезе + демо-құлып)
+  ["/classes", <DataGuard><ClassesPage /></DataGuard>],
+  ["/teachers", <DataGuard><TeachersPage /></DataGuard>],
+  ["/rooms", <DataGuard><RoomsPage /></DataGuard>],
+  ["/subjects", <DataGuard><SubjectsPage /></DataGuard>],
+  ["/groups", <DataGuard><GroupsPage /></DataGuard>],
+  ["/import", <DataGuard><ImportPage /></DataGuard>],
+  // Экспорт — демо режимде жабық
+  ["/export", <DataGuard kind="export"><ExportPage /></DataGuard>],
   ["/algorithm", <AlgorithmPage />], ["/generate", <GeneratePage />], ["/schedule", <SchedulePage />],
   ["/versions", <VersionsPage />], ["/quality", <QualityPage />], ["/ai-advisor", <AIAdvisorPage />],
-  ["/import", <ImportPage />], ["/export", <ExportPage />], ["/settings", <SettingsPage />],
+  ["/settings", <SettingsPage />],
   ["/profile", <ProfilePage />], ["/pricing", <PricingPage />], ["/admin", <AdminPage />],
 ];
 

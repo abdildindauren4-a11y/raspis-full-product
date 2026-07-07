@@ -30,14 +30,16 @@ export const translations = {
   // ── Тарифтер / квота ──
   "plan.title": { kk: "Тарифтер", ru: "Тарифы", en: "Pricing" },
   "plan.subtitle": { kk: "Барлық функция әр тарифте ашық — айырмашылық тек генерация лимитінде", ru: "Все функции открыты на любом тарифе — разница только в лимите генераций", en: "Every feature is open on every plan — the only difference is the generation limit" },
-  "plan.quickUnit": { kk: "жылдам генерация / ай", ru: "быстрых генераций / мес", en: "quick generations / mo" },
-  "plan.deepUnit": { kk: "терең талдау / ай", ru: "глубоких анализов / мес", en: "deep searches / mo" },
+  "plan.quickUnit": { kk: "жылдам генерация", ru: "быстрых генераций", en: "quick generations" },
+  "plan.deepUnit": { kk: "терең талдау", ru: "глубоких анализов", en: "deep searches" },
+  "plan.duration": { kk: "Мерзімі: 6 ай", ru: "Срок: 6 месяцев", en: "Valid: 6 months" },
+  "plan.expires": { kk: "Тариф мерзімі", ru: "Тариф действует до", en: "Plan valid until" },
   "plan.allFeatures": { kk: "Барлық функция ашық", ru: "Все функции открыты", en: "All features unlocked" },
   "plan.current": { kk: "Ағымдағы тариф", ru: "Текущий тариф", en: "Current plan" },
   "plan.select": { kk: "Таңдау", ru: "Выбрать", en: "Select" },
   "plan.upgradeTitle": { kk: "Лимит таусылды", ru: "Лимит исчерпан", en: "Limit reached" },
-  "plan.upgradeQuickDesc": { kk: "Бұл айға жылдам генерация лимитіңіз таусылды. Көбірек генерация алу үшін тарифті жаңартыңыз.", ru: "Лимит быстрых генераций на этот месяц исчерпан. Обновите тариф, чтобы получить больше.", en: "You've used all your quick generations for this month. Upgrade your plan for more." },
-  "plan.upgradeDeepDesc": { kk: "Бұл айға терең талдау лимитіңіз таусылды. Көбірек алу үшін тарифті жаңартыңыз.", ru: "Лимит глубокого анализа на этот месяц исчерпан. Обновите тариф, чтобы получить больше.", en: "You've used all your deep searches for this month. Upgrade your plan for more." },
+  "plan.upgradeQuickDesc": { kk: "Жылдам генерация лимитіңіз таусылды. Жалғастыру үшін тарифті қосыңыз немесе жаңартыңыз.", ru: "Лимит быстрых генераций исчерпан. Подключите или обновите тариф, чтобы продолжить.", en: "You've used all your quick generations. Activate or upgrade a plan to continue." },
+  "plan.upgradeDeepDesc": { kk: "Терең талдау лимитіңіз таусылды. Жалғастыру үшін тарифті қосыңыз немесе жаңартыңыз.", ru: "Лимит глубокого анализа исчерпан. Подключите или обновите тариф, чтобы продолжить.", en: "You've used all your deep searches. Activate or upgrade a plan to continue." },
   "plan.viewPlans": { kk: "Тарифтерді көру", ru: "Смотреть тарифы", en: "View plans" },
   "plan.quickRemaining": { kk: "Жылдам генерация қалды", ru: "Осталось быстрых генераций", en: "Quick generations left" },
   "plan.deepRemaining": { kk: "Терең талдау қалды", ru: "Осталось глубоких анализов", en: "Deep searches left" },
@@ -57,6 +59,15 @@ export const translations = {
   "pay.copied": { kk: "Көшірілді ✓", ru: "Скопировано ✓", en: "Copied ✓" },
   "pay.whatsapp": { kk: "WhatsApp-қа жазу", ru: "Написать в WhatsApp", en: "Message on WhatsApp" },
   "pay.waMessage": { kk: "Сәлеметсіз бе! РАСПИС тарифін төледім", ru: "Здравствуйте! Я оплатил(а) тариф РАСПИС", en: "Hello! I have paid for the RASPIS plan" },
+
+  // ── Құлыптар (деректер терезесі / демо режим) ──
+  "lock.dataTitle": { kk: "Деректер енгізу панелі жабық", ru: "Панель ввода данных закрыта", en: "Data entry panel is locked" },
+  "lock.dataDesc": { kk: "Деректерді енгізу терезесі аяқталды. Кестені генерациялау ашық. Панельді ашу үшін WhatsApp-қа жазыңыз — жедел ашамыз.", ru: "Окно ввода данных истекло. Генерация расписания доступна. Напишите в WhatsApp, чтобы открыть панель — откроем оперативно.", en: "The data entry window has expired. Generation still works. Message us on WhatsApp to reopen the panel." },
+  "lock.demoTitle": { kk: "Демо режим", ru: "Демо-режим", en: "Demo mode" },
+  "lock.demoDesc": { kk: "Демо режимде деректерді өзгерту мүмкін емес — тек көру және генерация.", ru: "В демо-режиме изменение данных недоступно — только просмотр и генерация.", en: "In demo mode data cannot be changed — view and generate only." },
+  "lock.exportTitle": { kk: "Экспорт демо режимде жабық", ru: "Экспорт закрыт в демо-режиме", en: "Export is locked in demo mode" },
+  "lock.exportDesc": { kk: "Файл жүктеу тек толық тарифте қолжетімді. Нәтижені экранда көрсете аласыз.", ru: "Скачивание файлов доступно только на полном тарифе. Результат можно показать на экране.", en: "File downloads are available on paid plans only. You can still show the result on screen." },
+  "lock.waText": { kk: "Сәлеметсіз бе! РАСПИС деректер енгізу панелін ашуды сұраймын", ru: "Здравствуйте! Прошу открыть панель ввода данных РАСПИС", en: "Hello! Please reopen the RASPIS data entry panel" },
 
   // ── Жалпы әрекеттер ──
   "action.add": { kk: "Қосу", ru: "Добавить", en: "Add" },
@@ -392,6 +403,10 @@ export const translations = {
   "role.admin": { kk: "Әкімші", ru: "Администратор", en: "Admin" },
   "role.paid": { kk: "Толық", ru: "Полный", en: "Full" },
   "role.free": { kk: "Тегін", ru: "Бесплатный", en: "Free" },
+  "role.demo": { kk: "Демо", ru: "Демо", en: "Demo" },
+  "adm.extendData": { kk: "Деректерді +7 күн ашу", ru: "Открыть данные +7 дней", en: "Open data +7 days" },
+  "adm.dataUntil": { kk: "Деректер ашық", ru: "Данные открыты до", en: "Data open until" },
+  "adm.dataClosed": { kk: "Деректер жабық", ru: "Данные закрыты", en: "Data closed" },
 
   // ── Admin ──
   "adm.featGenerate": { kk: "Кесте генерациясы", ru: "Генерация расписания", en: "Schedule generation" },
@@ -433,6 +448,8 @@ export const translations = {
   "prof.paidDesc": { kk: "Барлық негізгі функциялар ашық", ru: "Все основные функции открыты", en: "All core features unlocked" },
   "prof.freeLabel": { kk: "Тегін қолданушы", ru: "Бесплатный", en: "Free user" },
   "prof.freeDesc": { kk: "Негізгі функциялар қолжетімді", ru: "Доступны основные функции", en: "Core features available" },
+  "prof.demoLabel": { kk: "Демо аккаунт", ru: "Демо-аккаунт", en: "Demo account" },
+  "prof.demoDesc": { kk: "Көрсетілім режимі — генерация шексіз, деректер енгізу мен экспорт жабық", ru: "Режим презентации — генерация без лимита, ввод данных и экспорт закрыты", en: "Presentation mode — unlimited generation, data entry and export locked" },
   "prof.featDeep": { kk: "Терең іздеу (көп нұсқа)", ru: "Глубокий поиск (много вариантов)", en: "Deep search (many variants)" },
   "prof.featAI": { kk: "РАСПИС AI кеңесші", ru: "РАСПИС AI советник", en: "RASPIS AI advisor" },
   "prof.featUnlimited": { kk: "Шектеусіз сынып саны", ru: "Без лимита классов", en: "Unlimited classes" },

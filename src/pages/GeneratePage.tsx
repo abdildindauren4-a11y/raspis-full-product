@@ -346,7 +346,7 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {record && !isAdmin && (
+            {record && !isAdmin && role !== "demo" && (
               <p className="text-xs text-center text-muted-c mb-2">
                 {mode === "deep"
                   ? `${t("plan.deepRemaining")}: ${record.deepRemaining}`

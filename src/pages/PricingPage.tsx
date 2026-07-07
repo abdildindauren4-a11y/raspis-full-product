@@ -44,7 +44,8 @@ export default function PricingPage() {
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-bold gradient-text mb-5">{p.priceLabel}</p>
+              <p className="text-2xl font-bold gradient-text mb-1">{p.priceLabel}</p>
+              <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : t("plan.duration")}</p>
               <div className="space-y-2.5 mb-6 text-sm">
                 <div className="flex items-center gap-2 text-soft-c">
                   <Sparkles className="w-4 h-4 accent-c shrink-0" /> {p.quickGenerations} {t("plan.quickUnit")}
