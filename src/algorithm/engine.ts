@@ -1469,6 +1469,52 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   }
 
+  /* Тесік құтқару: rebuildDay бір күннің ІШІНДЕ сабақтарды қайта таратып
+     жаба алмаған тесіктер қалуы мүмкін — себебі кейде тесікті тек СОЛ
+     күннің сабақтарын араластырып жабу мүмкін емес (қажетті мұғалім/
+     кабинет сол сәтте бос емес). Мұндайда сол сыныптың БАСҚА күнінен бір
+     сабақты осы тесікке "импорттап", содан кейін донор күнді rebuildDay-мен
+     қайта тығыздап көреміз. Екі күн де тесіксіз шықпаса — дәл бастапқы
+     қалпына (snapshot) қайтарамыз, ешбір жанама әсер қалмайды. */
+  const dayGapSlot = (cid: string, day: number): number | null => {
+    const occ: boolean[] = new Array(9).fill(false);
+    for (const o of slots) if (o.classId === cid && o.day === day && (!o.groupId || o.groupId === "Г1")) occ[o.slot] = true;
+    let last = 0;
+    for (let sl = 1; sl <= 8; sl++) if (occ[sl]) last = sl;
+    for (let sl = 1; sl <= last; sl++) if (!occ[sl]) return sl;
+    return null;
+  };
+  for (const c of targetClasses) {
+    for (let day = 1; day <= 5; day++) {
+      const gapSlot = dayGapSlot(c.id, day);
+      if (gapSlot === null) continue;
+      let rescued = false;
+      for (let donorDay = 1; donorDay <= 5 && !rescued; donorDay++) {
+        if (donorDay === day) continue;
+        const donorLessons = slots.filter((o) => o.classId === c.id && o.day === donorDay && !o.groupId && !o.dpart && !o.locked);
+        for (const o of donorLessons) {
+          const subj = S[o.subjectId];
+          if (ds[c.id][day].has(o.subjectId)) continue;
+          if (hardCheck(c, o.teacherId, subj, day, gapSlot)) continue;
+          const roomId = findRoom(c, subj, day, gapSlot);
+          if (!roomId) continue;
+          const snapA = slots.filter((x) => x.classId === c.id && x.day === day).map((x) => ({ ...x }));
+          const snapB = slots.filter((x) => x.classId === c.id && x.day === donorDay).map((x) => ({ ...x }));
+          removeSlot(o);
+          place({ classId: o.classId, subjectId: o.subjectId, teacherId: o.teacherId, roomId, day, slot: gapSlot, shift: o.shift, score: pScore(subj, gapSlot, settings) });
+          rebuildDay(c, donorDay, false);
+          if (dayGapSlot(c.id, day) === null && dayGapSlot(c.id, donorDay) === null) {
+            rescued = true;
+            break;
+          }
+          // сәтсіз — екі күнді де дәл бастапқы қалпына қайтарамыз
+          for (const x of slots.filter((y) => y.classId === c.id && (y.day === day || y.day === donorDay))) removeSlot(x);
+          for (const snap of [...snapA, ...snapB]) place(snap, { skipDaySet: snap.groupId === "Г2" || snap.dpart === 2 });
+        }
+      }
+    }
+  }
+
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
   const tests: StressTest[] = [];
