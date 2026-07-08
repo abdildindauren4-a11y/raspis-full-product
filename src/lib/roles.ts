@@ -108,7 +108,9 @@ export async function getUserRecord(uid: string): Promise<UserRecord | null> {
 export type GenerationKind = "quick" | "deep";
 
 // Генерация квотасын атомды тексеру+тұтыну (жарыс жағдайын болдырмау үшін транзакция).
-// Admin — әрқашан шексіз. Firestore қосылмаса — бұғаттамаймыз (локал/офлайн режим).
+// Admin/demo — шексіз. Firestore мүлдем қосылмаса ғана (локал әзірлеу) ашық;
+// қалған барлық сәтсіздік (жазба жоқ, ережелер тыйым салды, желі қатесі) —
+// ЖАБЫҚ, әйтпесе тарифсіз шексіз генерацияға тесік ашылады.
 export async function consumeGeneration(uid: string, kind: GenerationKind): Promise<{ ok: boolean; remaining: number }> {
   const db = getDb();
   if (!db) return { ok: true, remaining: Infinity };
@@ -117,7 +119,7 @@ export async function consumeGeneration(uid: string, kind: GenerationKind): Prom
     return await runTransaction(db, async (tx) => {
       const ref = doc(db, "users", uid);
       const snap = await tx.get(ref);
-      if (!snap.exists()) return { ok: true, remaining: Infinity };
+      if (!snap.exists()) return { ok: false, remaining: 0 }; // жазба жоқ — қайта кіру қажет
       const data = withPlanDefaults(snap.data() as UserRecord);
       if (data.role === "admin" || data.role === "demo") return { ok: true, remaining: Infinity };
       const current = data[field];
@@ -128,7 +130,7 @@ export async function consumeGeneration(uid: string, kind: GenerationKind): Prom
     });
   } catch (e) {
     console.error("Квота тұтыну қатесі:", e);
-    return { ok: true, remaining: Infinity }; // қате кезінде пайдаланушыны бұғаттамаймыз
+    return { ok: false, remaining: 0 };
   }
 }
 

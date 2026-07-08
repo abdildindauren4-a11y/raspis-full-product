@@ -23,7 +23,7 @@ export default function GeneratePage() {
   const active = useActiveVersion();
   const navigate = useNavigate();
   const { lang, t } = useLang();
-  const { user, role, record, refreshRecord } = useAuth();
+  const { user, role, record, refreshRecord, configured } = useAuth();
   const isAdmin = role === "admin";
   const [upgradeKind, setUpgradeKind] = useState<GenerationKind>("quick");
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -120,7 +120,10 @@ export default function GeneratePage() {
 
   const run = async () => {
     const kind: GenerationKind = mode === "deep" ? "deep" : "quick";
-    if (user && !isAdmin) {
+    if (configured && !isAdmin) {
+      // Firebase қосулы: квота тек нақты кірген пайдаланушыдан есептеледі.
+      // Кірмеген (ескі жергілікті сессия) — алдымен қайта кіру керек.
+      if (!user) { navigate("/login"); return; }
       const { ok } = await consumeGeneration(user.uid, kind);
       if (!ok) { setUpgradeKind(kind); setUpgradeOpen(true); return; }
       refreshRecord();

@@ -29,6 +29,7 @@ import PricingPage from "@/pages/PricingPage";
 import AdminPage from "@/pages/AdminPage";
 import CertificatePage from "@/pages/CertificatePage";
 import { useData } from "@/store/dataStore";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCloudSync } from "@/hooks/useCloudSync";
 import { useLocation } from "react-router-dom";
 
@@ -104,7 +105,11 @@ function AppLayout({ children }: { children: ReactNode }) {
 
 function Protected({ children }: { children: ReactNode }) {
   const loggedIn = useData((s) => s.loggedIn);
+  const { user, loading, configured } = useAuth();
   if (!loggedIn) return <Navigate to="/login" replace />;
+  // Ескі жергілікті сессия: Firebase қосулы, бірақ онда кірмеген (мыс. жоба
+  // ауысқанда) — қайта кіруге жібереміз, әйтпесе квота/рөл тексерусіз қалады.
+  if (configured && !loading && !user) return <Navigate to="/login" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
