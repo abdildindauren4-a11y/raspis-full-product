@@ -9,12 +9,12 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 
 // Тікелей кілттер (fallback) — .env болмаса осылар қолданылады.
 const FALLBACK = {
-  apiKey: "AIzaSyADPiGZ3LgDXrVrNzioB5smQulMJxZjY-8",
-  authDomain: "gen-lang-client-0603462845.firebaseapp.com",
-  projectId: "gen-lang-client-0603462845",
-  storageBucket: "gen-lang-client-0603462845.firebasestorage.app",
-  messagingSenderId: "351331881464",
-  appId: "1:351331881464:web:ed7b4ab707d72cfbcf060d",
+  apiKey: "AIzaSyDQWKuR0t_TjIubkVg6M9xkgvloxCE54ac",
+  authDomain: "petya-4cb94.firebaseapp.com",
+  projectId: "petya-4cb94",
+  storageBucket: "petya-4cb94.firebasestorage.app",
+  messagingSenderId: "857856091046",
+  appId: "1:857856091046:web:57e206beae4fd04e276567",
 };
 
 // .env болса оны, болмаса fallback-ті қолданамыз
