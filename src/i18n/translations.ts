@@ -422,17 +422,10 @@ export const translations = {
   "adm.saved": { kk: "Сақталды ✓", ru: "Сохранено ✓", en: "Saved ✓" },
   "adm.error": { kk: "Қате", ru: "Ошибка", en: "Error" },
   "adm.statAll": { kk: "Барлығы", ru: "Всего", en: "Total" },
-  "adm.selfRoleTitle": { kk: "«Өзіне рөл алу» функциясы", ru: "Функция «получить роль»", en: "«Claim role» feature" },
-  "adm.selfRoleOn": { kk: "ҚОСУЛЫ — кез келген кірген адам өзіне әкімші бола алады. Орнатуды бітірген соң ДЕРЕУ жабыңыз!", ru: "ВКЛ — любой вошедший может стать админом. Закройте сразу после настройки!", en: "ON — anyone signed in can become admin. Close it right after setup!" },
-  "adm.selfRoleOff": { kk: "Жабық — рөлдерді тек осы панельден бересіз (қауіпсіз).", ru: "Закрыто — роли назначаются только здесь (безопасно).", en: "Closed — roles are assigned only here (safe)." },
   "adm.usersTab": { kk: "Пайдаланушылар", ru: "Пользователи", en: "Users" },
   "adm.permTab": { kk: "Рұқсаттар", ru: "Права доступа", en: "Permissions" },
 
   // ── Profile ──
-  "prof.selfRoleTitle": { kk: "Өзіңе рөл алу", ru: "Получить роль", en: "Claim a role" },
-  "prof.selfRoleDesc": { kk: "Бұл уақытша функция (бастапқы орнату үшін). Әкімші оны жабады. Өзіңе рөл таңдаңыз:", ru: "Временная функция (для первой настройки). Админ её закроет. Выберите роль:", en: "Temporary feature (for initial setup). Admin will close it. Pick a role:" },
-  "prof.claimed": { kk: "рөлі алынды! Парақты жаңартыңыз.", ru: "роль получена! Обновите страницу.", en: "role claimed! Refresh the page." },
-  "prof.claimErr": { kk: "Қате — функция жабық болуы мүмкін.", ru: "Ошибка — функция может быть закрыта.", en: "Error — feature may be closed." },
   "prof.logout": { kk: "Аккаунттан шығу", ru: "Выйти из аккаунта", en: "Sign out" },
 
   // ── AI Advisor (qosymsha) ──
@@ -572,14 +565,11 @@ export const translations = {
   "prof.open": { kk: "Ашық", ru: "Открыто", en: "Open" },
   "prof.closed": { kk: "Жабық", ru: "Закрыто", en: "Closed" },
   "prof.upgradeHint": { kk: "Барлық функцияны ашу үшін толық нұсқаға өтіңіз. Байланыс: әкімшіге хабарласыңыз.", ru: "Для всех функций перейдите на полную версию. Свяжитесь с админом.", en: "For all features upgrade to full. Contact the admin." },
-  "prof.claimTitle": { kk: "Өзіңе рөл алу", ru: "Выбрать роль себе", en: "Claim a role" },
-  "prof.claimDesc": { kk: "Бұл уақытша функция (бастапқы орнату үшін). Әкімші оны жабады. Өзіңе рөл таңдаңыз:", ru: "Временная функция (для настройки). Админ её закроет. Выберите роль:", en: "Temporary feature (for setup). Admin will close it. Pick a role:" },
 
   // ── Admin ──
   "adm.onlyAdmin": { kk: "Бұл бөлім тек әкімшіге қолжетімді.", ru: "Раздел доступен только админу.", en: "This section is admin-only." },
   "adm.title": { kk: "Әкімші панелі", ru: "Панель админа", en: "Admin panel" },
   "adm.subtitle": { kk: "Пайдаланушылар мен рұқсаттарды басқару", ru: "Управление пользователями и правами", en: "Manage users and permissions" },
-  "adm.selfRoleName": { kk: "«Өзіне рөл алу» функциясы", ru: "Функция «выбрать роль себе»", en: "‘Claim a role’ feature" },
   "adm.tabUsers": { kk: "Пайдаланушылар", ru: "Пользователи", en: "Users" },
   "adm.tabPerms": { kk: "Рұқсат деңгейлері", ru: "Уровни доступа", en: "Access levels" },
   "adm.loading": { kk: "Жүктелуде…", ru: "Загрузка…", en: "Loading…" },

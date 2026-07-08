@@ -1,6 +1,6 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, AlertTriangle, Eye, CalendarPlus } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +8,6 @@ import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
 import {
   getAllUsers, setUserRole, setUserPlan, extendDataEntry,
-  loadSelfRoleEnabled, setSelfRoleEnabled,
   type UserRecord, type Role,
 } from "@/lib/roles";
 import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
@@ -26,30 +25,14 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [selfRoleOn, setSelfRoleOn] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [u, sr] = await Promise.all([getAllUsers(), loadSelfRoleEnabled()]);
-      setUsers(u); setSelfRoleOn(sr);
+      setUsers(await getAllUsers());
       setLoading(false);
     })();
   }, []);
-
-  const [toggleMsg, setToggleMsg] = useState("");
-  const toggleSelfRole = async () => {
-    const next = !selfRoleOn;
-    setSelfRoleOn(next); // UI бірден жаңарады (күтпейміз)
-    setToggleMsg("");
-    const ok = await setSelfRoleEnabled(next);
-    if (!ok) {
-      // Firestore жаза алмады — кері қайтарамыз әрі хабарлаймыз
-      setSelfRoleOn(!next);
-      setToggleMsg(t("adm.saveErr"));
-      setTimeout(() => setToggleMsg(""), 4000);
-    }
-  };
 
   // Тек админге рұқсат
   if (role !== "admin") {
@@ -126,30 +109,6 @@ export default function AdminPage() {
             </div>
           </GlassCard>
         ))}
-      </div>
-
-      {/* "Өзіне рөл алу" қосқышы — қауіпсіздік үшін маңызды */}
-      <div className={`rounded-xl border p-4 ${selfRoleOn ? "border-red-500/40 bg-[rgba(229,115,115,0.08)]" : "border-soft-c bg-input-c"}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex gap-2.5">
-            <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${selfRoleOn ? "status-bad" : "text-faint-c"}`} />
-            <div>
-              <p className="text-sm font-medium text-strong-c">{t("adm.selfRoleName")}</p>
-              <p className="text-xs text-muted-c mt-0.5">
-                {selfRoleOn
-                  ? t("adm.selfRoleOn")
-                  : t("adm.selfRoleOff")}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={toggleSelfRole}
-            className={`w-12 h-7 rounded-full shrink-0 transition-all relative ${selfRoleOn ? "bg-red-500" : "bg-[rgba(127,127,127,0.3)]"}`}
-          >
-            <div className={`w-6 h-6 rounded-full bg-white absolute top-0.5 transition-all ${selfRoleOn ? "left-[22px]" : "left-0.5"}`} />
-          </button>
-        </div>
-        {toggleMsg && <p className="text-xs status-bad mt-2">{toggleMsg}</p>}
       </div>
 
       {loading ? (

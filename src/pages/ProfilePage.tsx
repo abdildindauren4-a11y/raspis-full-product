@@ -1,6 +1,5 @@
 // filepath: src/pages/ProfilePage.tsx
-import { Crown, CreditCard, User as UserIcon, Mail, LogOut, Cloud, Sparkles, Zap, Telescope, Eye } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Crown, CreditCard, User as UserIcon, Mail, LogOut, Cloud, Zap, Telescope, Eye } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnG, btnP } from "@/components/shared/Form";
@@ -8,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
-import { claimRole, loadSelfRoleEnabled, type Role } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 import { PLANS } from "@/lib/plans";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string; desc: string }> = {
@@ -24,28 +23,6 @@ export default function ProfilePage() {
   const storeLogout = useData((s) => s.logout);
   const userName = useData((s) => s.userName);
   const navigate = useNavigate();
-
-  // "Өзіне рөл алу" функциясы қосулы ма (бұлттан)
-  const [selfRoleOn, setSelfRoleOn] = useState(false);
-  const [claiming, setClaiming] = useState(false);
-  const [claimed, setClaimed] = useState("");
-
-  useEffect(() => {
-    loadSelfRoleEnabled().then(setSelfRoleOn);
-  }, []);
-
-  const handleClaim = async (r: Role) => {
-    if (!user) return;
-    setClaiming(true);
-    const ok = await claimRole(user.uid, r, user.email || "", user.displayName || "");
-    setClaiming(false);
-    if (ok) {
-      setClaimed(`${r} ${t("prof.claimed")}`);
-      setTimeout(() => window.location.reload(), 1500);
-    } else {
-      setClaimed(t("prof.claimErr"));
-    }
-  };
 
   const info = ROLE_INFO[role];
   const displayName = user?.displayName || record?.name || userName || t("prof.defaultName");
@@ -115,32 +92,6 @@ export default function ProfilePage() {
         </div>
         <Link to="/pricing" className={btnP + " w-full text-center block"}>{t("plan.changePlan")}</Link>
       </GlassCard>
-
-      {/* "Өзіне рөл алу" — тек функция қосулы болса (бастапқы орнату үшін) */}
-      {selfRoleOn && (
-        <GlassCard hover={false}>
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-5 h-5 status-warn" />
-            <h3 className="font-semibold text-strong-c">{t("prof.claimTitle")}</h3>
-          </div>
-          <p className="text-xs text-muted-c mb-4">
-            {t("prof.claimDesc")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(["free", "paid", "admin"] as Role[]).map((r) => (
-              <button
-                key={r}
-                disabled={claiming}
-                onClick={() => handleClaim(r)}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-input-c border border-soft-c text-soft-c hover:bg-[rgba(74,144,217,0.1)] hover:accent-c transition-all disabled:opacity-50"
-              >
-                {t(ROLE_INFO[r].label as TransKey)}
-              </button>
-            ))}
-          </div>
-          {claimed && <p className="text-sm status-good mt-3">{claimed}</p>}
-        </GlassCard>
-      )}
 
       {/* Шығу */}
       <button className={btnG + " flex items-center gap-2"} onClick={handleLogout}>
