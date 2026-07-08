@@ -64,8 +64,11 @@ export const translations = {
   "lock.dataTitle": { kk: "Деректер енгізу панелі жабық", ru: "Панель ввода данных закрыта", en: "Data entry panel is locked" },
   "lock.dataDesc": { kk: "Деректерді енгізу терезесі аяқталды. Кестені генерациялау ашық. Панельді ашу үшін WhatsApp-қа жазыңыз — жедел ашамыз.", ru: "Окно ввода данных истекло. Генерация расписания доступна. Напишите в WhatsApp, чтобы открыть панель — откроем оперативно.", en: "The data entry window has expired. Generation still works. Message us on WhatsApp to reopen the panel." },
   "lock.demoTitle": { kk: "Демо режим", ru: "Демо-режим", en: "Demo mode" },
-  "lock.demoDesc": { kk: "Демо режимде деректерді өзгерту мүмкін емес — тек көру, генерация және экспорт.", ru: "В демо-режиме изменение данных недоступно — только просмотр, генерация и экспорт.", en: "In demo mode data cannot be changed — view, generate and export only." },
+  "lock.demoDesc": { kk: "Деректерді енгізу коды арқылы уақытша ашылады.", ru: "Ввод данных временно открывается по коду доступа.", en: "Data entry unlocks temporarily with an access code." },
   "lock.waText": { kk: "Сәлеметсіз бе! РАСПИС деректер енгізу панелін ашуды сұраймын", ru: "Здравствуйте! Прошу открыть панель ввода данных РАСПИС", en: "Hello! Please reopen the RASPIS data entry panel" },
+  "lock.codePlaceholder": { kk: "Ашу коды", ru: "Код доступа", en: "Unlock code" },
+  "lock.unlock": { kk: "Ашу", ru: "Открыть", en: "Unlock" },
+  "lock.codeWrong": { kk: "Код қате", ru: "Неверный код", en: "Wrong code" },
 
   // ── Жалпы әрекеттер ──
   "action.add": { kk: "Қосу", ru: "Добавить", en: "Add" },

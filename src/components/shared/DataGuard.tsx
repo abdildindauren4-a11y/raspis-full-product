@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
-import { Lock, MessageCircle } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Lock, MessageCircle, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { canEditData } from "@/lib/roles";
 import { PAYMENT } from "@/lib/payment";
+import { unlockDemo, isDemoUnlocked } from "@/lib/demoCode";
+import { inputCls, btnP } from "@/components/shared/Form";
 
 interface DataGuardProps {
   children: ReactNode;
@@ -12,17 +14,27 @@ interface DataGuardProps {
 // Деректер енгізу беттерінің қорғанышы (7 күндік терезе + демо-құлып).
 // Бет мазмұнын көрсетеді, бірақ құлыпталған жағдайда өзгертуге тыйым салады:
 // үстіне ескерту-баннер шығып, мазмұн басылмайтын болады (көру мүмкін).
+// Демо рөлі: сатушы белгілі код енгізіп, клиент алдында сол сессияда ашады.
 export default function DataGuard({ children }: DataGuardProps) {
   const { role, record } = useAuth();
   const { t } = useLang();
+  const [code, setCode] = useState("");
+  const [codeErr, setCodeErr] = useState(false);
+  const [, forceRender] = useState(0);
 
   const isDemo = role === "demo";
-  const locked = !canEditData(role, record);
+  const demoUnlocked = isDemo && isDemoUnlocked();
+  const locked = !demoUnlocked && !canEditData(role, record);
   if (!locked) return <>{children}</>;
 
   const title = isDemo ? t("lock.demoTitle") : t("lock.dataTitle");
   const desc = isDemo ? t("lock.demoDesc") : t("lock.dataDesc");
   const waLink = `https://wa.me/${PAYMENT.whatsappPhone}?text=${encodeURIComponent(t("lock.waText"))}`;
+
+  const tryUnlock = () => {
+    if (unlockDemo(code)) { setCodeErr(false); forceRender((n) => n + 1); }
+    else setCodeErr(true);
+  };
 
   return (
     <div>
@@ -31,8 +43,22 @@ export default function DataGuard({ children }: DataGuardProps) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-strong-c">{title}</p>
           <p className="text-xs text-muted-c mt-0.5">{desc}</p>
+          {codeErr && <p className="text-xs status-bad mt-1">{t("lock.codeWrong")}</p>}
         </div>
-        {!isDemo && (
+        {isDemo ? (
+          <div className="flex gap-2 shrink-0">
+            <input
+              className={inputCls + " !w-40"}
+              placeholder={t("lock.codePlaceholder")}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && tryUnlock()}
+            />
+            <button className={btnP + " flex items-center gap-1.5 shrink-0"} onClick={tryUnlock}>
+              <KeyRound className="w-4 h-4" /> {t("lock.unlock")}
+            </button>
+          </div>
+        ) : (
           <a
             href={waLink}
             target="_blank"
