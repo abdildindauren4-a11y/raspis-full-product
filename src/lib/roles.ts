@@ -4,7 +4,7 @@
 // тариф (free/pro/premium/super — генерация квотасы үшін) бірге сақталады.
 import { doc, getDoc, setDoc, collection, getDocs, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
-import { PLANS, PLAN_DURATION_MS, DATA_ENTRY_WINDOW_MS, type PlanId } from "@/lib/plans";
+import { PLANS, DATA_ENTRY_WINDOW_MS, type PlanId } from "@/lib/plans";
 
 // ── Рөлдер ──
 // admin — бәріне шексіз рұқсат; demo — сатушының көрсетілім аккаунты
@@ -177,7 +177,7 @@ export async function setUserPlan(uid: string, plan: PlanId): Promise<boolean> {
     await setDoc(ref, {
       ...snap.data(), plan,
       quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches,
-      planExpiresAt: paid ? Date.now() + PLAN_DURATION_MS : 0,
+      planExpiresAt: paid ? Date.now() + limits.durationMs : 0,
       dataEntryUntil: paid ? Date.now() + DATA_ENTRY_WINDOW_MS : 0,
     });
     return true;

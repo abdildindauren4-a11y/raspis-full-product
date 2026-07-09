@@ -59,7 +59,7 @@ export default function AdminPage() {
       setUsers((prev) => prev.map((u) => (u.uid === uid ? {
         ...u, plan,
         quickRemaining: limits.quickGenerations, deepRemaining: limits.deepSearches,
-        planExpiresAt: paid ? now + 183 * 86400000 : 0,
+        planExpiresAt: paid ? now + limits.durationMs : 0,
         dataEntryUntil: paid ? now + 7 * 86400000 : 0,
       } : u)));
     }

@@ -1,5 +1,5 @@
 // filepath: src/lib/plans.ts
-// Тарифтік жоспарлар — генерация лимиттері осында анықталады.
+// Тарифтік жоспарлар — баға, мерзім және генерация лимиттері осында анықталады.
 // Жаңа тариф қосу үшін: PlanId-ге қос + PLANS-қа жазба қос (басқа жерге тиіспе).
 
 export type PlanId = "free" | "pro" | "premium" | "super";
@@ -7,21 +7,44 @@ export type PlanId = "free" | "pro" | "premium" | "super";
 export interface PlanDef {
   id: PlanId;
   name: string;
-  priceLabel: string; // көрсетілетін баға — нақты бағаны өзің баптап қой
+  price: number;          // теңге (0 = тегін)
+  durationLabel: string;  // көрсетілетін мерзім: "6 ай" / "3 жыл" / "7 жыл"
+  durationMs: number;     // тариф жарамдылық мерзімі (0 = мерзімсіз)
   quickGenerations: number;
   deepSearches: number;
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const YEAR = 365 * DAY;
+
 export const PLAN_ORDER: PlanId[] = ["free", "pro", "premium", "super"];
 
-// Тариф мерзімі — бір төлем 6 айға жарамды (квота осы мерзім ішінде жұмсалады)
-export const PLAN_DURATION_MS = 183 * 24 * 60 * 60 * 1000;
 // Тариф қосылғанда деректер енгізу панелі ашық болатын терезе (қайта сатудан қорғау)
-export const DATA_ENTRY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+export const DATA_ENTRY_WINDOW_MS = 7 * DAY;
 
 export const PLANS: Record<PlanId, PlanDef> = {
-  free: { id: "free", name: "Free", priceLabel: "0 ₸", quickGenerations: 0, deepSearches: 0 },
-  pro: { id: "pro", name: "Pro", priceLabel: "49 900 ₸ / 6 ай", quickGenerations: 10, deepSearches: 5 },
-  premium: { id: "premium", name: "Premium", priceLabel: "99 900 ₸ / 6 ай", quickGenerations: 30, deepSearches: 10 },
-  super: { id: "super", name: "Super", priceLabel: "249 900 ₸ / 6 ай", quickGenerations: 100, deepSearches: 40 },
+  free:    { id: "free",    name: "Free",    price: 0,      durationLabel: "",      durationMs: 0,          quickGenerations: 0,   deepSearches: 0 },
+  pro:     { id: "pro",     name: "Pro",     price: 49900,  durationLabel: "6 ай",  durationMs: 183 * DAY,  quickGenerations: 10,  deepSearches: 5 },
+  premium: { id: "premium", name: "Premium", price: 99900,  durationLabel: "3 жыл", durationMs: 3 * YEAR,   quickGenerations: 30,  deepSearches: 10 },
+  super:   { id: "super",   name: "Super",   price: 249900, durationLabel: "7 жыл", durationMs: 7 * YEAR,   quickGenerations: 100, deepSearches: 40 },
 };
+
+// ── Іске қосу науқаны (launch promo) ──
+// Алғашқы клиенттерге жеңілдік. Автоматты санауыш жоқ — 10 мектеп сатылғанда
+// `active`-ті false қой, баға автоматты қалпына келеді.
+export const LAUNCH_PROMO = {
+  active: true,
+  percent: 50,
+  seats: 10,
+};
+
+// Бағаны теңге форматында көрсету: 99900 → "99 900 ₸"
+export function formatKzt(n: number): string {
+  return n.toLocaleString("ru-RU").replace(/[ ,]/g, " ") + " ₸";
+}
+
+// Науқан қосулы болса — жеңілдікпен, әйтпесе нақты баға (тегін тарифке тимейді)
+export function effectivePrice(price: number): number {
+  if (!LAUNCH_PROMO.active || price <= 0) return price;
+  return Math.round((price * (100 - LAUNCH_PROMO.percent)) / 100);
+}

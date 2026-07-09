@@ -3,7 +3,7 @@ import { Copy, Check, MessageCircle } from "lucide-react";
 import { Modal } from "@/components/shared/Form";
 import { useLang } from "@/contexts/LangContext";
 import { PAYMENT } from "@/lib/payment";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
 
 interface PaymentModalProps {
   open: boolean;
@@ -18,6 +18,8 @@ export default function PaymentModal({ open, onClose, planId, userEmail }: Payme
   const { t } = useLang();
   const [copied, setCopied] = useState(false);
   const plan = PLANS[planId];
+  const promo = LAUNCH_PROMO.active && plan.price > 0;
+  const priceNow = formatKzt(effectivePrice(plan.price));
 
   const copyPhone = async () => {
     try {
@@ -28,13 +30,19 @@ export default function PaymentModal({ open, onClose, planId, userEmail }: Payme
   };
 
   const waText = encodeURIComponent(
-    `${t("pay.waMessage")}: ${plan.name} (${plan.priceLabel})${userEmail ? ` — ${userEmail}` : ""}`
+    `${t("pay.waMessage")}: ${plan.name} — ${priceNow} / ${plan.durationLabel}${promo ? ` (−${LAUNCH_PROMO.percent}%)` : ""}${userEmail ? ` — ${userEmail}` : ""}`
   );
   const waLink = `https://wa.me/${PAYMENT.whatsappPhone}?text=${waText}`;
 
   return (
     <Modal open={open} onClose={onClose} title={`${t("pay.title")} — ${plan.name}`}>
-      <p className="text-2xl font-bold gradient-text mb-5">{plan.priceLabel}</p>
+      <div className="flex items-baseline gap-2 mb-1">
+        {promo && <span className="text-base text-faint-c line-through">{formatKzt(plan.price)}</span>}
+        <span className="text-2xl font-bold gradient-text">{priceNow}</span>
+        <span className="text-sm text-muted-c">/ {plan.durationLabel}</span>
+      </div>
+      {promo && <p className="text-xs status-warn mb-4">{t("plan.promoBadge").replace("{p}", String(LAUNCH_PROMO.percent))}</p>}
+      {!promo && <div className="mb-4"></div>}
 
       <div className="space-y-4">
         {/* 1-қадам: Kaspi аударым */}

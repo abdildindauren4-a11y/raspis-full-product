@@ -1,12 +1,12 @@
 // filepath: src/pages/PricingPage.tsx
 import { useState } from "react";
-import { CreditCard, Sparkles, Telescope, CheckCircle2 } from "lucide-react";
+import { CreditCard, Sparkles, Telescope, CheckCircle2, Flame } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import PaymentModal from "@/components/shared/PaymentModal";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
-import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
+import { PLAN_ORDER, PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
 
 export default function PricingPage() {
   const { record, user } = useAuth();
@@ -26,10 +26,22 @@ export default function PricingPage() {
         </div>
       </div>
 
+      {LAUNCH_PROMO.active && (
+        <div className="rounded-xl border border-[rgba(217,164,65,0.4)] bg-[rgba(217,164,65,0.1)] px-4 py-3 flex items-center gap-3">
+          <Flame className="w-5 h-5 status-warn shrink-0" />
+          <p className="text-sm font-medium text-strong-c">
+            {t("plan.promoBanner")
+              .replace("{n}", String(LAUNCH_PROMO.seats))
+              .replace("{p}", String(LAUNCH_PROMO.percent))}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {PLAN_ORDER.map((id) => {
           const p = PLANS[id];
           const isCurrent = currentPlan === id;
+          const promo = LAUNCH_PROMO.active && p.price > 0;
           return (
             <GlassCard
               key={id}
@@ -38,14 +50,21 @@ export default function PricingPage() {
             >
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-lg font-bold text-strong-c">{p.name}</h3>
-                {isCurrent && (
+                {promo ? (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide status-warn bg-[rgba(217,164,65,0.15)] px-2 py-0.5 rounded-full">
+                    −{LAUNCH_PROMO.percent}%
+                  </span>
+                ) : isCurrent ? (
                   <span className="text-[10px] font-semibold uppercase tracking-wide accent-c bg-[rgba(74,144,217,0.12)] px-2 py-0.5 rounded-full">
                     {t("plan.current")}
                   </span>
-                )}
+                ) : null}
               </div>
-              <p className="text-2xl font-bold gradient-text mb-1">{p.priceLabel}</p>
-              <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : t("plan.duration")}</p>
+              {promo && <p className="text-sm text-faint-c line-through mb-0.5">{formatKzt(p.price)}</p>}
+              <p className="text-2xl font-bold gradient-text mb-1">
+                {p.price === 0 ? "0 ₸" : formatKzt(effectivePrice(p.price))}
+              </p>
+              <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : p.durationLabel}</p>
               <div className="space-y-2.5 mb-6 text-sm">
                 <div className="flex items-center gap-2 text-soft-c">
                   <Sparkles className="w-4 h-4 accent-c shrink-0" /> {p.quickGenerations} {t("plan.quickUnit")}
