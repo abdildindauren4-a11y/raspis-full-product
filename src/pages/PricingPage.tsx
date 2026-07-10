@@ -6,13 +6,16 @@ import PaymentModal from "@/components/shared/PaymentModal";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
-import { PLAN_ORDER, PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
+import { PLAN_ORDER, PLANS, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
+import { usePromo } from "@/lib/promo";
 
 export default function PricingPage() {
   const { record, user } = useAuth();
   const { t } = useLang();
   const currentPlan = record?.plan ?? "free";
   const [payPlan, setPayPlan] = useState<PlanId | null>(null);
+  // Акция күйі бұлттағы санауыштан: орындар толса — автоматты өшеді
+  const promoState = usePromo();
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -26,13 +29,13 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {LAUNCH_PROMO.active && (
+      {promoState.active && (
         <div className="rounded-xl border border-[rgba(217,164,65,0.4)] bg-[rgba(217,164,65,0.1)] px-4 py-3 flex items-center gap-3">
           <Flame className="w-5 h-5 status-warn shrink-0" />
           <p className="text-sm font-medium text-strong-c">
             {t("plan.promoBanner")
-              .replace("{n}", String(LAUNCH_PROMO.seats))
-              .replace("{p}", String(LAUNCH_PROMO.percent))}
+              .replace("{n}", String(promoState.seats))
+              .replace("{p}", String(promoState.percent))}
           </p>
         </div>
       )}
@@ -41,7 +44,7 @@ export default function PricingPage() {
         {PLAN_ORDER.map((id) => {
           const p = PLANS[id];
           const isCurrent = currentPlan === id;
-          const promo = LAUNCH_PROMO.active && p.price > 0;
+          const promo = promoState.active && p.price > 0;
           return (
             <GlassCard
               key={id}
@@ -52,7 +55,7 @@ export default function PricingPage() {
                 <h3 className="text-lg font-bold text-strong-c">{p.name}</h3>
                 {promo ? (
                   <span className="text-[10px] font-semibold uppercase tracking-wide status-warn bg-[rgba(217,164,65,0.15)] px-2 py-0.5 rounded-full">
-                    −{LAUNCH_PROMO.percent}%
+                    −{promoState.percent}%
                   </span>
                 ) : isCurrent ? (
                   <span className="text-[10px] font-semibold uppercase tracking-wide accent-c bg-[rgba(74,144,217,0.12)] px-2 py-0.5 rounded-full">
@@ -62,7 +65,7 @@ export default function PricingPage() {
               </div>
               {promo && <p className="text-sm text-faint-c line-through mb-0.5">{formatKzt(p.price)}</p>}
               <p className="text-2xl font-bold gradient-text mb-1">
-                {p.price === 0 ? "0 ₸" : formatKzt(effectivePrice(p.price))}
+                {p.price === 0 ? "0 ₸" : formatKzt(effectivePrice(p.price, promoState.active))}
               </p>
               <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : p.durationLabel}</p>
               <div className="space-y-2.5 mb-6 text-sm">

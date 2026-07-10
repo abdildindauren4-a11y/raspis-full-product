@@ -1,6 +1,6 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +10,8 @@ import {
   getAllUsers, setUserRole, setUserPlan, extendDataEntry,
   type UserRecord, type Role,
 } from "@/lib/roles";
-import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
+import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
+import { getPromoState, type PromoState } from "@/lib/promo";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
   admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
@@ -25,11 +26,13 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [promo, setPromo] = useState<PromoState | null>(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setUsers(await getAllUsers());
+      getPromoState().then(setPromo);
       setLoading(false);
     })();
   }, []);
@@ -62,6 +65,7 @@ export default function AdminPage() {
         planExpiresAt: paid ? now + limits.durationMs : 0,
         dataEntryUntil: paid ? now + 7 * 86400000 : 0,
       } : u)));
+      if (paid) getPromoState().then(setPromo); // акция санауышы жаңарды — қайта оқимыз
     }
   };
 
@@ -90,6 +94,17 @@ export default function AdminPage() {
           <p className="text-muted-c mt-0.5 text-sm">{t("adm.subtitle")}</p>
         </div>
       </div>
+
+      {/* Іске қосу акциясының санауышы: орындар толғанда сайтта автоматты өшеді */}
+      {LAUNCH_PROMO.active && promo && (
+        <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${promo.active ? "border-[rgba(217,164,65,0.4)] bg-[rgba(217,164,65,0.1)]" : "border-soft-c bg-input-c"}`}>
+          <Flame className={`w-5 h-5 shrink-0 ${promo.active ? "status-warn" : "text-faint-c"}`} />
+          <p className="text-sm text-strong-c">
+            {t("adm.promoCounter").replace("{u}", String(promo.used)).replace("{n}", String(promo.seats))}
+            {!promo.active && <span className="text-muted-c"> — {t("adm.promoOver")}</span>}
+          </p>
+        </div>
+      )}
 
       {/* Статистика */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

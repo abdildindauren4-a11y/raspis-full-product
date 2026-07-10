@@ -415,6 +415,8 @@ export const translations = {
   "role.free": { kk: "Тегін", ru: "Бесплатный", en: "Free" },
   "role.demo": { kk: "Демо", ru: "Демо", en: "Demo" },
   "adm.extendData": { kk: "Деректерді +7 күн ашу", ru: "Открыть данные +7 дней", en: "Open data +7 days" },
+  "adm.promoCounter": { kk: "Іске қосу акциясы: {u}/{n} орын қолданылды", ru: "Акция запуска: использовано {u}/{n} мест", en: "Launch promo: {u}/{n} seats used" },
+  "adm.promoOver": { kk: "акция аяқталды, сайтта толық баға көрсетіледі", ru: "акция завершена, на сайте полная цена", en: "promo ended, full price is shown" },
   "adm.dataUntil": { kk: "Деректер ашық", ru: "Данные открыты до", en: "Data open until" },
   "adm.dataClosed": { kk: "Деректер жабық", ru: "Данные закрыты", en: "Data closed" },
 

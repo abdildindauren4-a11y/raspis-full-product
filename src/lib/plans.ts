@@ -24,14 +24,15 @@ export const DATA_ENTRY_WINDOW_MS = 7 * DAY;
 
 export const PLANS: Record<PlanId, PlanDef> = {
   free:    { id: "free",    name: "Free",    price: 0,      durationLabel: "",      durationMs: 0,          quickGenerations: 0,   deepSearches: 0 },
-  pro:     { id: "pro",     name: "Pro",     price: 49900,  durationLabel: "6 ай",  durationMs: 183 * DAY,  quickGenerations: 10,  deepSearches: 5 },
-  premium: { id: "premium", name: "Premium", price: 99900,  durationLabel: "3 жыл", durationMs: 3 * YEAR,   quickGenerations: 30,  deepSearches: 10 },
-  super:   { id: "super",   name: "Super",   price: 249900, durationLabel: "7 жыл", durationMs: 7 * YEAR,   quickGenerations: 100, deepSearches: 40 },
+  pro:     { id: "pro",     name: "Pro",     price: 49900,  durationLabel: "6 ай",  durationMs: 183 * DAY,  quickGenerations: 20,  deepSearches: 10 },
+  premium: { id: "premium", name: "Premium", price: 99900,  durationLabel: "3 жыл", durationMs: 3 * YEAR,   quickGenerations: 60,  deepSearches: 20 },
+  super:   { id: "super",   name: "Super",   price: 249900, durationLabel: "7 жыл", durationMs: 7 * YEAR,   quickGenerations: 200, deepSearches: 80 },
 };
 
 // ── Іске қосу науқаны (launch promo) ──
-// Алғашқы клиенттерге жеңілдік. Автоматты санауыш жоқ — 10 мектеп сатылғанда
-// `active`-ті false қой, баға автоматты қалпына келеді.
+// Алғашқы `seats` мектепке жеңілдік. Санауыш Firestore-да (config/promo,
+// src/lib/promo.ts): админ ЖАҢА мектепке ақылы тариф қосқан сайын +1,
+// seats-ке жеткенде акция сайтта АВТОМАТТЫ өшеді. Қолмен өшіру: active = false.
 export const LAUNCH_PROMO = {
   active: true,
   percent: 50,
@@ -43,8 +44,10 @@ export function formatKzt(n: number): string {
   return n.toLocaleString("ru-RU").replace(/[ ,]/g, " ") + " ₸";
 }
 
-// Науқан қосулы болса — жеңілдікпен, әйтпесе нақты баға (тегін тарифке тимейді)
-export function effectivePrice(price: number): number {
-  if (!LAUNCH_PROMO.active || price <= 0) return price;
+// Науқан қосулы болса — жеңілдікпен, әйтпесе нақты баға (тегін тарифке тимейді).
+// promoOn — Firestore санауышын ескерген НАҚТЫ күй (usePromo().active);
+// берілмесе статикалық қосқыш қолданылады.
+export function effectivePrice(price: number, promoOn: boolean = LAUNCH_PROMO.active): number {
+  if (!promoOn || !LAUNCH_PROMO.active || price <= 0) return price;
   return Math.round((price * (100 - LAUNCH_PROMO.percent)) / 100);
 }

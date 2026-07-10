@@ -5,6 +5,7 @@
 import { doc, getDoc, setDoc, collection, getDocs, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { PLANS, DATA_ENTRY_WINDOW_MS, type PlanId } from "@/lib/plans";
+import { countPromoActivation } from "@/lib/promo";
 
 // ── Рөлдер ──
 // admin — бәріне шексіз рұқсат; demo — сатушының көрсетілім аккаунты
@@ -27,6 +28,7 @@ export interface UserRecord {
   deepRemaining: number;
   planExpiresAt?: number;   // тариф мерзімінің соңы (6 ай); өткенде free-ге қайтады
   dataEntryUntil?: number;  // деректер енгізу панелі ашық тұратын мерзім (7 күн терезе)
+  promoCounted?: boolean;   // іске қосу акциясы санауышында есептелген бе (lib/promo.ts)
   createdAt: number;
   lastSeen: number;
 }
@@ -180,6 +182,9 @@ export async function setUserPlan(uid: string, plan: PlanId): Promise<boolean> {
       planExpiresAt: paid ? Date.now() + limits.durationMs : 0,
       dataEntryUntil: paid ? Date.now() + DATA_ENTRY_WINDOW_MS : 0,
     });
+    // Іске қосу акциясы: жаңа мектеп ақылы тарифке қосылды — санауыш +1
+    // (бір uid тек 1 рет саналады; seats толғанда акция автоматты өшеді)
+    if (paid) await countPromoActivation(uid);
     return true;
   } catch {
     return false;
