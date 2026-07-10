@@ -2,8 +2,8 @@
 // Сапа сертификаты — QR арқылы ашылатын ресми құжат.
 // Кәсіби: нақты логотип (letterhead), мөр, ресми реквизиттер. Бір A4 бетке сыяды.
 
-import { useSearchParams } from "react-router-dom";
-import { useMemo } from "react";
+import { useSearchParams, Navigate, Link } from "react-router-dom";
+import { useMemo, useEffect } from "react";
 import { decodeCert, type CertData } from "@/lib/certificate";
 import logoUrl from "@/assets/logo.png";
 import stampUrl from "@/assets/stamp.png";
@@ -11,10 +11,24 @@ import signatureUrl from "@/assets/signature.png";
 
 export default function CertificatePage() {
   const [params] = useSearchParams();
+  const hasParam = !!params.get("d");
   const data = useMemo<CertData | null>(() => {
     const d = params.get("d");
     return d ? decodeCert(d) : null;
   }, [params]);
+
+  // Іздеу жүйелері жеке сертификат сілтемелерін индекстемесін
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex";
+    document.head.appendChild(meta);
+    return () => { document.head.removeChild(meta); };
+  }, []);
+
+  // ?d= параметрі мүлдем жоқ — бұл QR сілтемесі емес, кездейсоқ кірген адам
+  // (браузер тарихы, ескі сілтеме). Кіру/басты бетке қайтарамыз.
+  if (!hasParam) return <Navigate to="/" replace />;
 
   if (!data) {
     return (
@@ -22,6 +36,7 @@ export default function CertificatePage() {
         <div style={{ background: "#fff", padding: "48px 40px", maxWidth: 480, textAlign: "center", border: "1px solid #c9c4ba" }}>
           <p style={{ fontSize: 18, color: "#1a2230", marginBottom: 12, fontWeight: 700 }}>Сертификат табылмады</p>
           <p style={{ fontSize: 14, color: "#5a5650", lineHeight: 1.6 }}>QR-кодтағы дерек толық емес немесе бұзылған. Сертификатты қайта жасап көріңіз.</p>
+          <Link to="/" style={{ display: "inline-block", marginTop: 20, fontSize: 14, color: "#1e3a5f", fontWeight: 700, textDecoration: "underline" }}>РАСПИС сайтына өту →</Link>
         </div>
       </div>
     );
@@ -79,7 +94,10 @@ export default function CertificatePage() {
         .cert-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       `}</style>
 
-      <div className="cert-actions" style={{ maxWidth: "210mm", margin: "0 auto 18px", display: "flex", justifyContent: "flex-end" }}>
+      <div className="cert-actions" style={{ maxWidth: "210mm", margin: "0 auto 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <Link to="/" style={{ fontFamily: "'Times New Roman', serif", fontSize: 15, color: "#1e3a5f", fontWeight: 700, textDecoration: "underline" }}>
+          ← РАСПИС сайтына өту
+        </Link>
         <button onClick={downloadPdf} style={{ fontFamily: "'Times New Roman', serif", fontSize: 15, padding: "10px 24px", background: "#1e3a5f", color: "#fff", border: "none", cursor: "pointer", letterSpacing: "0.3px" }}>
           PDF жүктеу / Басып шығару
         </button>
