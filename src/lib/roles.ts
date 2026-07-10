@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, collection, getDocs, runTransaction } from "fireba
 import { getDb } from "@/lib/firebase";
 import { PLANS, DATA_ENTRY_WINDOW_MS, type PlanId } from "@/lib/plans";
 import { countPromoActivation } from "@/lib/promo";
+import type { DataFingerprint, SwapAlert } from "@/lib/antiResale";
 
 // ── Рөлдер ──
 // admin — бәріне шексіз рұқсат; demo — сатушының көрсетілім аккаунты
@@ -29,6 +30,8 @@ export interface UserRecord {
   planExpiresAt?: number;   // тариф мерзімінің соңы (6 ай); өткенде free-ге қайтады
   dataEntryUntil?: number;  // деректер енгізу панелі ашық тұратын мерзім (7 күн терезе)
   promoCounted?: boolean;   // іске қосу акциясы санауышында есептелген бе (lib/promo.ts)
+  fingerprint?: DataFingerprint;   // дерек «саусақ ізі» — қайта сату бақылауы (lib/antiResale.ts)
+  swapAlert?: SwapAlert | null;    // деректер түбегейлі ауысқандағы күдікті белгі
   createdAt: number;
   lastSeen: number;
 }

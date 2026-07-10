@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/store/dataStore";
 import { saveToCloud, loadFromCloud } from "@/lib/cloudStore";
+import { checkDataSwap } from "@/lib/antiResale";
 
 export function useCloudSync() {
   const { user, configured } = useAuth();
@@ -51,7 +52,12 @@ export function useCloudSync() {
           subjects: state.subjects, classes: state.classes,
           teachers: state.teachers, rooms: state.rooms,
         });
-        if (ok) setLastSync(Date.now());
+        if (ok) {
+          setLastSync(Date.now());
+          // Қайта сату бақылауы: мұғалімдер құрамы түбегейлі ауысса —
+          // әкімші панеліне күдікті белгі түседі (fail-safe, үнсіз)
+          checkDataSwap(user.uid, { school: state.school, teachers: state.teachers, classes: state.classes });
+        }
         setSyncing(false);
       }, 2000);
     });

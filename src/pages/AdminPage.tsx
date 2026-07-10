@@ -1,6 +1,6 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/roles";
 import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
 import { getPromoState, type PromoState } from "@/lib/promo";
+import { resolveSwapAlert } from "@/lib/antiResale";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
   admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
@@ -74,6 +75,14 @@ export default function AdminPage() {
     if (ok) setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, dataEntryUntil: Date.now() + 7 * 86400000 } : u)));
   };
 
+  // Күдікті белгіні жабу: жаңа дерек заңды деп қабылданады (базалық із ауысады)
+  const acceptSwap = async (uid: string) => {
+    const ok = await resolveSwapAlert(uid);
+    if (ok) setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, swapAlert: null } : u)));
+  };
+
+  const swapAlerts = users.filter((u) => u.swapAlert);
+
   const filtered = users.filter((u) =>
     u.email.toLowerCase().includes(query.toLowerCase()) || u.name.toLowerCase().includes(query.toLowerCase())
   );
@@ -94,6 +103,34 @@ export default function AdminPage() {
           <p className="text-muted-c mt-0.5 text-sm">{t("adm.subtitle")}</p>
         </div>
       </div>
+
+      {/* ҚАЙТА САТУ КҮДІГІ: тариф иесінің деректері түбегейлі ауысқан аккаунттар */}
+      {swapAlerts.length > 0 && (
+        <div className="space-y-2">
+          {swapAlerts.map((u) => (
+            <div key={u.uid} className="rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3">
+              <p className="text-sm font-semibold status-bad flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> {t("adm.swapTitle")}: {u.name} ({u.email})
+              </p>
+              <p className="text-xs text-soft-c mt-1.5">
+                {t("adm.swapDetail")
+                  .replace("{old}", u.swapAlert!.oldSchool || "—")
+                  .replace("{new}", u.swapAlert!.newSchool || "—")
+                  .replace("{p}", String(u.swapAlert!.overlap))
+                  .replace("{a}", String(u.swapAlert!.oldCount))
+                  .replace("{b}", String(u.swapAlert!.newCount))}
+                {" · "}{new Date(u.swapAlert!.at).toLocaleString()}
+              </p>
+              <button
+                onClick={() => acceptSwap(u.uid)}
+                className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-c border border-soft-c text-soft-c hover:bg-[rgba(127,127,127,0.08)] transition-all"
+              >
+                {t("adm.swapAccept")}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Іске қосу акциясының санауышы: орындар толғанда сайтта автоматты өшеді */}
       {LAUNCH_PROMO.active && promo && (
