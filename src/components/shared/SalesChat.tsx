@@ -22,6 +22,52 @@ import { seedSchool, seedSettings } from "@/lib/seed";
 // Чат хабары: қарапайым мәтін немесе қосымша әрекеті бар (файл жүктеу батырмасы)
 interface ChatMsg extends BotMessage {
   download?: "result"; // хабардың астында «Кестені Excel-ге жүктеу» батырмасы
+  anim?: boolean;      // терілу эффектісімен шығатын ЖАҢА хабар (чат жабылғанда өшеді)
+}
+
+// «Теріліп жатқан» эффект (ChatGPT стилі): бот жауабы біртіндеп жазылып шығады.
+// animate=false болса (ескі хабарлар) — бірден толық көрсетіледі.
+function useTypewriter(text: string, animate: boolean, onTick?: () => void): { shown: string; done: boolean } {
+  const [len, setLen] = useState(animate ? 0 : text.length);
+  const tickRef = useRef(onTick);
+  tickRef.current = onTick;
+  useEffect(() => {
+    if (!animate) { setLen(text.length); return; }
+    setLen(0);
+    const id = setInterval(() => {
+      setLen((l) => {
+        const next = Math.min(text.length, l + 3); // ~150 таңба/сек
+        if (next >= text.length) clearInterval(id);
+        return next;
+      });
+      tickRef.current?.();
+    }, 20);
+    return () => clearInterval(id);
+  }, [text, animate]);
+  return { shown: text.slice(0, len), done: len >= text.length };
+}
+
+// Бот көпіршігі — терілу эффектісімен; download батырмасы терілу біткенде шығады
+function BotBubble({ msg, animate, onTick, onDownload }: {
+  msg: ChatMsg; animate: boolean; onTick: () => void; onDownload: () => void;
+}) {
+  const { shown, done } = useTypewriter(msg.text, animate, onTick);
+  return (
+    <div
+      className="max-w-[88%] rounded-2xl px-4 py-2.5 text-sm text-soft-c border border-soft-c"
+      style={{ background: "var(--bg-surface)" }}
+    >
+      <Markdown text={shown} />
+      {msg.download === "result" && done && (
+        <button
+          onClick={onDownload}
+          className="mt-2.5 flex items-center gap-2 px-3.5 py-2 rounded-xl gradient-primary text-white text-xs font-medium hover:opacity-90 transition-opacity"
+        >
+          <FileSpreadsheet className="w-4 h-4" /> Кестені Excel-ге қайта жүктеу
+        </button>
+      )}
+    </div>
+  );
 }
 
 // Демо шектеуі: қанша сыныпқа дейін қабылданады
@@ -29,6 +75,7 @@ const DEMO_MAX_CLASSES = 4;
 
 const GREETING: ChatMsg = {
   role: "model",
+  anim: true,
   text: "Сәлеметсіз бе! 👋 Мен — РАСПИС кеңесшісімін.\n\nОсы чаттың ішінде-ақ **демо-кесте** жасап бере аламын: төмендегі «Үлгіні алу» батырмасымен Excel үлгісін жүктеп, 3-4 сыныптың деректерін толтырыңыз да, файлды маған қайта жүктеңіз — дайын кестені Excel күйінде бірден аласыз.\n\nНемесе кез келген сұрағыңызды жазыңыз!",
 };
 
@@ -40,6 +87,14 @@ export default function SalesChat() {
   const [demoBusy, setDemoBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const scrollDown = () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+
+  // Чат жабылғанда терілу жалаулары өшеді — қайта ашқанда ескі хабарлар
+  // қайтадан терілмей, бірден толық көрінеді
+  const close = () => {
+    setMessages((prev) => prev.map((m) => (m.anim ? { ...m, anim: false } : m)));
+    setOpen(false);
+  };
   // Соңғы сәтті демоның контексті — «қайта жүктеу» батырмасы үшін
   const demoCtx = useRef<{ classes: Klass[]; teachers: Teacher[]; rooms: Room[]; subjects: Subject[]; result: AlgoResult } | null>(null);
 
@@ -48,7 +103,7 @@ export default function SalesChat() {
   }, [messages, loading, demoBusy, open]);
 
   const pushBot = (text: string, extra?: Partial<ChatMsg>) =>
-    setMessages((prev) => [...prev, { role: "model", text, ...extra }]);
+    setMessages((prev) => [...prev, { role: "model", text, anim: true, ...extra }]);
 
   const send = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -58,15 +113,15 @@ export default function SalesChat() {
     setMessages(newHistory);
 
     if (!hasSalesKey()) {
-      setMessages([...newHistory, { role: "model", text: cannedAnswer(msg) }]);
+      setMessages([...newHistory, { role: "model", text: cannedAnswer(msg), anim: true }]);
       return;
     }
     setLoading(true);
     try {
       const reply = await askSalesBot(msg, messages.slice(1).map(({ role, text }) => ({ role, text })));
-      setMessages([...newHistory, { role: "model", text: reply }]);
+      setMessages([...newHistory, { role: "model", text: reply, anim: true }]);
     } catch {
-      setMessages([...newHistory, { role: "model", text: cannedAnswer(msg) }]);
+      setMessages([...newHistory, { role: "model", text: cannedAnswer(msg), anim: true }]);
     } finally {
       setLoading(false);
     }
@@ -188,7 +243,7 @@ export default function SalesChat() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 inline-block" /> онлайн · демо-кесте жасай алады
               </p>
             </div>
-            <button onClick={() => setOpen(false)} className="p-2 rounded-lg hover:bg-white/15 transition-colors" aria-label="Жабу">
+            <button onClick={close} className="p-2 rounded-lg hover:bg-white/15 transition-colors" aria-label="Жабу">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -196,24 +251,20 @@ export default function SalesChat() {
           {/* Хабарлар */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
             <div className="max-w-2xl mx-auto w-full p-4 space-y-3">
-              {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm ${m.role === "user" ? "gradient-primary text-white whitespace-pre-wrap" : "text-soft-c border border-soft-c"}`}
-                    style={m.role === "user" ? undefined : { background: "var(--bg-surface)" }}
-                  >
-                    {m.role === "user" ? m.text : <Markdown text={m.text} />}
-                    {m.download === "result" && (
-                      <button
-                        onClick={redownload}
-                        className="mt-2.5 flex items-center gap-2 px-3.5 py-2 rounded-xl gradient-primary text-white text-xs font-medium hover:opacity-90 transition-opacity"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" /> Кестені Excel-ге қайта жүктеу
-                      </button>
-                    )}
+              {messages.map((m, i) => {
+                if (m.role === "user") {
+                  return (
+                    <div key={i} className="flex justify-end">
+                      <div className="max-w-[88%] rounded-2xl px-4 py-2.5 text-sm gradient-primary text-white whitespace-pre-wrap">{m.text}</div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={i} className="flex justify-start">
+                    <BotBubble msg={m} animate={!!m.anim} onTick={scrollDown} onDownload={redownload} />
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {(loading || demoBusy) && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl px-4 py-2.5 border border-soft-c flex items-center gap-2" style={{ background: "var(--bg-surface)" }}>
