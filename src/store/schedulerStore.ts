@@ -14,7 +14,7 @@
 import { create } from "zustand";
 import type { AlgoInput, AlgoResult, MultiResult } from "@/algorithm/engine";
 
-export type GenMode = "full" | "partial" | "deep";
+export type GenMode = "full" | "partial" | "deep" | "update";
 
 interface SchedulerState {
   mode: GenMode;

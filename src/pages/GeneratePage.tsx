@@ -1,7 +1,7 @@
 // filepath: src/pages/GeneratePage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange, RefreshCw, Lock } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import AIRobot, { type RobotStageGroup } from "@/components/shared/AIRobot";
 import UpgradeModal from "@/components/shared/UpgradeModal";
@@ -16,6 +16,7 @@ import { consumeGeneration, type GenerationKind } from "@/lib/roles";
 import { teacherBudgets, classBudget, classScoreBudget, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 import Markdown from "@/components/shared/Markdown";
 import { useSchedulerStore } from "@/store/schedulerStore";
+import { diffSchedule } from "@/lib/scheduleDiff";
 import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
 export default function GeneratePage() {
@@ -38,6 +39,17 @@ export default function GeneratePage() {
   const [scopeClass, setScopeClass] = useState("");
   const [saved, setSaved] = useState(false);
   const [softFill, setSoftFill] = useState(false);
+
+  // Ақылды жаңарту: белсенді нұсқа мен ағымдағы деректің айырмасы —
+  // тек өзгеріске ұшыраған сыныптар қайта құрылады, қалғаны құлыпталады
+  const updateDiff = useMemo(
+    () => (active ? diffSchedule(active.result.slots, data) : null),
+    [active, data.classes, data.teachers, data.subjects, data.rooms] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const updAffectedNames = useMemo(
+    () => (updateDiff ? updateDiff.affectedClassIds.map((id) => data.classes.find((c) => c.id === id)?.name || "?") : []),
+    [updateDiff, data.classes]
+  );
 
   // Автотүсіндірме (РАСПИС AI)
   const [explanation, setExplanation] = useState("");
@@ -138,7 +150,10 @@ export default function GeneratePage() {
       multi.start(input, deepCount);
     } else {
       if (mode === "partial" && scopeClass && active) {
-        input.partial = { classId: scopeClass, baseSlots: active.result.slots };
+        input.partial = { classIds: [scopeClass], baseSlots: active.result.slots };
+      }
+      if (mode === "update" && active && updateDiff?.affectedClassIds.length) {
+        input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots };
       }
       start(input);
     }
@@ -147,7 +162,12 @@ export default function GeneratePage() {
   const save = () => {
     const res = activeResult;
     if (!res || !res.success) return;
-    data.saveVersion(res, mode === "partial", mode === "partial" ? `class:${data.classes.find((c) => c.id === scopeClass)?.name}` : mode === "deep" ? `deep:${multi.result?.triedCount}` : undefined);
+    const scope =
+      mode === "partial" ? `class:${data.classes.find((c) => c.id === scopeClass)?.name}`
+      : mode === "update" ? `update:${updAffectedNames.join(", ")}`
+      : mode === "deep" ? `deep:${multi.result?.triedCount}`
+      : undefined;
+    data.saveVersion(res, mode === "partial" || mode === "update", scope);
     setSaved(true);
   };
 
@@ -185,7 +205,7 @@ export default function GeneratePage() {
       {!isRunning && !activeResult && !runError && (
         <>
           <GlassCard hover={false}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button onClick={() => setMode("full")}
                 className={`py-4 rounded-xl text-center transition-all ${mode === "full" ? "gradient-primary text-white glow-blue" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
                 <Sparkles className="w-6 h-6 mx-auto mb-2" />
@@ -204,7 +224,43 @@ export default function GeneratePage() {
                 <p className="font-semibold">{t("gen.mode.partial")}</p>
                 <p className="text-xs mt-1 opacity-80">{active ? "Қалғаны құлыпта" : "Алдымен толық керек"}</p>
               </button>
+              <button onClick={() => setMode("update")} disabled={!active}
+                className={`py-4 rounded-xl text-center transition-all disabled:opacity-40 ${mode === "update" ? "gradient-primary text-white glow-blue" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
+                <RefreshCw className="w-6 h-6 mx-auto mb-2" />
+                <p className="font-semibold">{t("gen.mode.update")}</p>
+                <p className="text-xs mt-1 opacity-80">{active ? t("gen.mode.updateDesc") : t("gen.mode.needFull")}</p>
+              </button>
             </div>
+            {/* Ақылды жаңарту: байқалған өзгерістер тізімі */}
+            {mode === "update" && active && updateDiff && (
+              <div className="mt-4 rounded-xl bg-input-c p-3">
+                {updateDiff.affectedClassIds.length === 0 ? (
+                  <p className="text-sm status-good flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> {t("gen.upd.noChanges")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-strong-c mb-2 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 accent-c shrink-0" /> {t("gen.upd.detected")}
+                    </p>
+                    <div className="space-y-1 max-h-44 overflow-y-auto scrollbar-thin mb-3">
+                      {updateDiff.reasons.map((r, i) => (
+                        <p key={i} className="text-xs text-muted-c flex items-start gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 status-warn shrink-0 mt-0.5" /> {r.text}
+                        </p>
+                      ))}
+                    </div>
+                    <p className="text-xs text-soft-c">
+                      <span className="font-medium accent-c">{t("gen.upd.rebuilt")}:</span> {updAffectedNames.join(", ")}
+                    </p>
+                    <p className="text-xs text-faint-c mt-1 flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 shrink-0" />
+                      {t("gen.upd.kept").replace("{n}", String(updateDiff.keptCount))}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             {mode === "partial" && active && (
               <select className={inputCls + " mt-4"} value={scopeClass} onChange={(e) => setScopeClass(e.target.value)}>
                 <option value="">{t("gen.rebuildClass")}</option>
@@ -356,8 +412,14 @@ export default function GeneratePage() {
                   : `${t("plan.quickRemaining")}: ${record.quickRemaining}`}
               </p>
             )}
-            <button className={btnP + " w-full py-3"} disabled={blocked || (mode === "partial" && !scopeClass)} onClick={run}>
-              {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} {t("gen.tryVariants")}</> : <><Sparkles className="w-4 h-4 inline mr-1.5" /> {t("gen.generate")}</>}
+            <button
+              className={btnP + " w-full py-3"}
+              disabled={blocked || (mode === "partial" && !scopeClass) || (mode === "update" && !updateDiff?.affectedClassIds.length)}
+              onClick={run}
+            >
+              {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} {t("gen.tryVariants")}</>
+                : mode === "update" ? <><RefreshCw className="w-4 h-4 inline mr-1.5" /> {t("gen.upd.button")}</>
+                : <><Sparkles className="w-4 h-4 inline mr-1.5" /> {t("gen.generate")}</>}
             </button>
             {blocked && <p className="text-xs status-bad text-center mt-2">{t("gen.blocked")}</p>}
           </GlassCard>

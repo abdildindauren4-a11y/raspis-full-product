@@ -79,7 +79,9 @@ export interface Settings {
 export interface AlgoInput {
   school: School; subjects: Subject[]; classes: Klass[];
   teachers: Teacher[]; rooms: Room[]; settings: Settings;
-  partial?: { classId: string; baseSlots: Slot[] };
+  // Ішінара режим: тек classIds сыныптары қайта құрылады, baseSlots ішіндегі
+  // қалған сыныптардың сабақтары құлыпталып сол күйінде қалады.
+  partial?: { classIds: string[]; baseSlots: Slot[] };
   seed?: number; // әртүрлі нұсқа үшін кездейсоқтық тұқымы (multi-run)
   softFill?: boolean; // жұмсақ режим: сыймаған сабақтарды қалаулы ережелерді жұмсартып орналастыру
 }
@@ -210,7 +212,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
 
   /* ЭТАП 0 — precheck */
   prog(3, 0);
-  const targetClasses = input.partial ? classes.filter((c) => c.id === input.partial!.classId) : classes;
+  const targetClasses = input.partial ? classes.filter((c) => input.partial!.classIds.includes(c.id)) : classes;
   for (const c of targetClasses)
     for (const cu of c.curriculum) {
       const s = S[cu.subjectId];
@@ -442,10 +444,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     scoreCache[o.classId] = null;
   };
 
-  /* Partial: басқа сыныптардың слоттарын құлыптап орналастыру */
+  /* Partial: басқа сыныптардың слоттарын құлыптап орналастыру.
+     Ескі нұсқадағы слот қазіргі деректе жоқ нәрсеге сілтесе (сынып/мұғалім/
+     пән/кабинет өшірілген) — оны құлыптамай тастаймыз, әйтпесе place()
+     жоқ кілтке жазып құлайды. Сынып сағаты (homeroom, teacherId="") да
+     осында сүзіледі — оны ЭТАП 9 өзі қайта қосады. */
   if (input.partial) {
+    const targetSet = new Set(input.partial.classIds);
     for (const b of input.partial.baseSlots) {
-      if (b.classId === input.partial.classId) continue;
+      if (targetSet.has(b.classId)) continue;
+      if (b.subjectId === HOMEROOM_SUBJECT_ID) continue;
+      if (!C[b.classId] || !T[b.teacherId] || !S[b.subjectId]) continue;
+      if (!(gym && b.roomId === gym.id) && !R[b.roomId]) continue;
       place({ ...b, locked: true }, { skipDaySet: b.dpart === 2 });
     }
   }
@@ -1736,7 +1746,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
      түрлі болуы мүмкін — бұл қалыпты, әркімге өз кестесінен кейінгі орын). */
   if (settings.homeroom?.enabled) {
     const hd = settings.homeroom.day;
-    for (const c of targetClasses) {
+    // Барлық сынып бойынша (partial режимде құлыпталған сыныптардың да сынып
+    // сағаты қайта қосылады — олардың базалық homeroom слоттары құлыптауда сүзілген)
+    for (const c of classes) {
       const dayItems = slots.filter((o) => o.classId === c.id && o.day === hd && (!o.groupId || o.groupId === "Г1"));
       if (!dayItems.length) continue;
       const last = Math.max(...dayItems.map((o) => o.slot));
