@@ -18,18 +18,34 @@ export interface BotMessage {
   text: string;
 }
 
-const SALES_KEY_FALLBACK = ""; // ← сату-боттың Gemini кілтін осында қоюға болады
+// «Батарея» кілттер: лимит бітсе (429) не кілт/модель жарамсыз болса,
+// автоматты КЕЛЕСІ кілтке ауысады.
+// Кілттер КОДТА САҚТАЛМАЙДЫ (GitHub secret-scanning push-ты бөгейді) —
+// Vercel-де орта айнымалысы арқылы беріледі:
+//   VITE_GEMINI_SALES_KEYS = кілт1,кілт2,кілт3,кілт4   (үтірмен бөлінген)
+// Тегін лимит әр кілтке жеке: ~10 сұраныс/мин, 250/күн → 4 кілт = 1000/күн.
+const SALES_KEYS: string[] = (
+  (import.meta.env.VITE_GEMINI_SALES_KEYS as string | undefined) || ""
+)
+  .split(",")
+  .map((k) => k.trim())
+  .filter(Boolean);
 
-export function getSalesKey(): string | null {
-  return (
-    (import.meta.env.VITE_GEMINI_SALES_KEY as string | undefined) ||
-    SALES_KEY_FALLBACK ||
-    getGeminiKey() ||
-    null
-  );
+// Модель нұсқалары: кейбір (жаңа) аккаунттарға 2.5-flash жабық — 404 берсе
+// келесі атауды қолданамыз. flash-lite — ең соңғы қор (жеңіл, бірақ жылдам).
+const MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+
+const KI_STORAGE = "raspis-salesbot-ki"; // соңғы сәтті (кілт|модель) индексі
+
+function allKeys(): string[] {
+  const env = import.meta.env.VITE_GEMINI_SALES_KEY as string | undefined;
+  const list = [...(env ? [env] : []), ...SALES_KEYS];
+  const own = getGeminiKey(); // админнің жеке кілті — қосымша қор
+  if (own && !list.includes(own)) list.push(own);
+  return list;
 }
 export function hasSalesKey(): boolean {
-  return !!getSalesKey();
+  return allKeys().length > 0;
 }
 
 // Тарифтер мәтіні — plans.ts-тен ЖАНДЫ түрде құрылады (баға өзгерсе бот та біледі)
@@ -105,13 +121,39 @@ WhatsApp: ${PAYMENT.kaspiPhone} — көрсетілім сұрау, төлем,
 11. Сыпайы, жылы, кәсіби бол. Смайлды сирек қолдан (ең көбі 1 хабарда 1).`;
 }
 
-// Gemini-ге сұраныс (сату-кеңесші рөлінде)
-export async function askSalesBot(userMessage: string, history: BotMessage[]): Promise<string> {
-  const key = getSalesKey();
-  if (!key) throw new Error("NO_KEY");
+// Бір (кілт, модель) жұбымен нақты сұраныс
+async function callGemini(key: string, model: string, contents: unknown): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!resp.ok) throw new Error(`HTTP_${resp.status}`);
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("EMPTY_RESPONSE");
+  return text;
+}
 
-  // Акция күйін нақты санауыштан аламыз (орын толса бот та жеңілдік айтпайды)
-  const promo = await getPromoState();
+// Gemini-ге сұраныс (сату-кеңесші рөлінде) — батарея-ротациямен:
+// соңғы сәтті жұптан бастап, сәтсіздікте келесі (кілт, модель) жұбына көшеді.
+export async function askSalesBot(userMessage: string, history: BotMessage[]): Promise<string> {
+  const keys = allKeys();
+  if (!keys.length) throw new Error("NO_KEY");
+
+  // Акция күйін нақты санауыштан аламыз (орын толса бот та жеңілдік айтпайды).
+  // Firestore баяу болса — 2 секундтан кейін статикалық күймен жалғасамыз,
+  // клиентті күттірмейміз.
+  const promo = await Promise.race([
+    getPromoState(),
+    new Promise<{ active: boolean; used: number; seats: number; percent: number }>((res) =>
+      setTimeout(() => res({ active: LAUNCH_PROMO.active, used: 0, seats: LAUNCH_PROMO.seats, percent: LAUNCH_PROMO.percent }), 2000)
+    ),
+  ]);
   const prompt = buildSalesPrompt(promo.active, promo.seats - promo.used);
 
   const contents = [
@@ -121,23 +163,29 @@ export async function askSalesBot(userMessage: string, history: BotMessage[]): P
     { role: "user", parts: [{ text: userMessage }] },
   ];
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents,
-      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
-    }),
-  });
-  if (!resp.ok) {
-    if (resp.status === 429) throw new Error("RATE_LIMIT");
-    throw new Error("API_ERROR");
+  // (кілт × модель) жұптарының тізімі: кілт бойымен, әр кілтке модельдер ретімен
+  const pairs: { k: number; m: number }[] = [];
+  for (let k = 0; k < keys.length; k++)
+    for (let m = 0; m < MODELS.length; m++) pairs.push({ k, m });
+
+  // соңғы сәтті жұптан бастаймыз (лимиті біткен кілтке қайта-қайта ұрынбау үшін)
+  let start = Number(localStorage.getItem(KI_STORAGE)) || 0;
+  if (start >= pairs.length || start < 0) start = 0;
+
+  let lastErr: Error = new Error("API_ERROR");
+  for (let a = 0; a < pairs.length; a++) {
+    const i = (start + a) % pairs.length;
+    const { k, m } = pairs[i];
+    try {
+      const text = await callGemini(keys[k], MODELS[m], contents);
+      localStorage.setItem(KI_STORAGE, String(i));
+      return text;
+    } catch (e) {
+      // 429 (лимит) / 404 (модель жабық) / 403 (кілт) / 503 — келесі батареяға
+      lastErr = e instanceof Error ? e : new Error("API_ERROR");
+    }
   }
-  const data = await resp.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("EMPTY_RESPONSE");
-  return text;
+  throw lastErr;
 }
 
 // ── Кілтсіз режим: жиі сұрақтарға дайын жауаптар ──
