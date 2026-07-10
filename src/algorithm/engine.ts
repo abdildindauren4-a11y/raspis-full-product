@@ -81,7 +81,10 @@ export interface AlgoInput {
   teachers: Teacher[]; rooms: Room[]; settings: Settings;
   // Ішінара режим: тек classIds сыныптары қайта құрылады, baseSlots ішіндегі
   // қалған сыныптардың сабақтары құлыпталып сол күйінде қалады.
-  partial?: { classIds: string[]; baseSlots: Slot[] };
+  // anchor=true (ақылды жаңарту): қайта құрылатын сыныптардың өзінде де ескі
+  // сабақтар жаңа деректе жарамды болса дәл сол күн/слотында қалдырылады —
+  // тек жарамсыздары (кеткен мұғалім, өзгерген сағат) жаңадан орналасады.
+  partial?: { classIds: string[]; baseSlots: Slot[]; anchor?: boolean };
   seed?: number; // әртүрлі нұсқа үшін кездейсоқтық тұқымы (multi-run)
   softFill?: boolean; // жұмсақ режим: сыймаған сабақтарды қалаулы ережелерді жұмсартып орналастыру
 }
@@ -534,6 +537,71 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     } else if (rm[r1][cls.shift][day][slot + 1] !== null) return null;
     return r1;
   };
+
+  /* ЯКОРЬ (ақылды жаңарту): қайта құрылатын сыныптардың ескі сабақтары
+     жаңа деректе әлі жарамды болса, дәл сол күн/слотына алдын ала қойылады —
+     кесте бұрынғы нұсқаға барынша ұқсас қалады. Жарамсыздары (кеткен мұғалім,
+     азайған сағат, бос емес уақыт) тасталады, орнын төмендегі greedy толтырады.
+     Мұғалім ауысқан пәнде де ОРНЫ сақталуы мүмкін — жаңа мұғалім сол уақытта
+     бос болса. Слоттар құлыпталмайды: тесік жамау/жайлылық кезеңдері қажет
+     болса ғана жылжыта алады. */
+  if (input.partial?.anchor) {
+    const targetSet = new Set(input.partial.classIds);
+    const oldByKey = new Map<string, Slot[]>();
+    for (const b of input.partial.baseSlots) {
+      if (!targetSet.has(b.classId) || b.subjectId === HOMEROOM_SUBJECT_ID) continue;
+      const k = `${b.classId}|${b.subjectId}`;
+      const arr = oldByKey.get(k);
+      if (arr) arr.push(b); else oldByKey.set(k, [b]);
+    }
+    for (const tk of tasks) {
+      const oldSlots = (oldByKey.get(`${tk.cls.id}|${tk.s.id}`) || [])
+        .slice().sort((a, b) => a.day - b.day || a.slot - b.slot);
+      if (!oldSlots.length) continue;
+
+      if (tk.cu.isSplit) {
+        // Топ бөлінген пән: Г1 слоты — күн/слот маркері; топтарды (қазіргі
+        // мұғалім/кабинетпен) checkSplit өзі құрады
+        for (const o of oldSlots) {
+          if (tk.singles <= 0) break;
+          if (o.groupId !== "Г1") continue;
+          const gs = checkSplit(tk, o.day, o.slot);
+          if (!gs) continue;
+          gs.forEach((g, i) =>
+            place({ classId: tk.cls.id, subjectId: tk.s.id, teacherId: g.teacherId, roomId: g.roomId, groupId: "Г" + (i + 1), day: o.day, slot: o.slot, shift: tk.cls.shift, score: pScore(tk.s, o.slot, settings) }));
+          tk.singles--;
+        }
+        continue;
+      }
+
+      // Қос сабақ жұптары (dpart 1+2) — жұп күйінде сақтауға тырысамыз
+      for (const o of oldSlots) {
+        if (tk.doubles <= 0) break;
+        if (o.dpart !== 1) continue;
+        const r = checkDouble(tk, o.day, o.slot);
+        if (!r) continue;
+        place({ classId: tk.cls.id, subjectId: tk.s.id, teacherId: tk.cu.teacherId!, roomId: r, day: o.day, slot: o.slot, shift: tk.cls.shift, score: pScore(tk.s, o.slot, settings), dpart: 1 });
+        place({ classId: tk.cls.id, subjectId: tk.s.id, teacherId: tk.cu.teacherId!, roomId: r, day: o.day, slot: o.slot + 1, shift: tk.cls.shift, score: pScore(tk.s, o.slot + 1, settings), dpart: 2 }, { skipDaySet: true });
+        tk.doubles--;
+      }
+
+      // Жеке сағаттар — ескі кабинеті бос болса сонда, әйтпесе жаңа кабинет
+      for (const o of oldSlots) {
+        if (tk.singles <= 0) break;
+        if (o.dpart === 2) continue; // жұптың екінші жартысы жеке есептелмейді
+        if (hardCheck(tk.cls, tk.cu.teacherId!, tk.s, o.day, o.slot)) continue;
+        const oldRoom = R[o.roomId];
+        let roomId: string | null = null;
+        if (oldRoom && oldRoom.type !== "gym"
+          && (tk.s.room ? oldRoom.type === tk.s.room : true)
+          && rm[oldRoom.id][tk.cls.shift][o.day][o.slot] === null) roomId = oldRoom.id;
+        if (!roomId) roomId = findRoom(tk.cls, tk.s, o.day, o.slot);
+        if (!roomId) continue;
+        place({ classId: tk.cls.id, subjectId: tk.s.id, teacherId: tk.cu.teacherId!, roomId, day: o.day, slot: o.slot, shift: tk.cls.shift, score: pScore(tk.s, o.slot, settings) });
+        tk.singles--;
+      }
+    }
+  }
 
   /* ЭТАП 3-4 — greedy */
   prog(25, 3);

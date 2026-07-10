@@ -153,7 +153,8 @@ export default function GeneratePage() {
         input.partial = { classIds: [scopeClass], baseSlots: active.result.slots };
       }
       if (mode === "update" && active && updateDiff?.affectedClassIds.length) {
-        input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots };
+        // anchor: қайта құрылатын сыныптарда да жарамды сабақтар ескі орнында қалады
+        input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots, anchor: true };
       }
       start(input);
     }
@@ -257,6 +258,7 @@ export default function GeneratePage() {
                       <Lock className="w-3 h-3 shrink-0" />
                       {t("gen.upd.kept").replace("{n}", String(updateDiff.keptCount))}
                     </p>
+                    <p className="text-xs text-faint-c mt-0.5">{t("gen.upd.anchorNote")}</p>
                   </>
                 )}
               </div>

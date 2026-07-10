@@ -238,6 +238,7 @@ export const translations = {
   "gen.upd.rebuilt": { kk: "Қайта құрылады", ru: "Будут пересобраны", en: "Will be rebuilt" },
   "gen.upd.kept": { kk: "Қалған {n} сыныптың кестесі өзгеріссіз сақталады", ru: "Расписание остальных {n} классов сохранится без изменений", en: "The other {n} classes keep their schedule unchanged" },
   "gen.upd.button": { kk: "Өзгергенін жаңарту", ru: "Обновить изменённое", en: "Update changed" },
+  "gen.upd.anchorNote": { kk: "Қайта құрылатын сыныптардың өзінде де жарамды сабақтар бұрынғы орнында қалдырылады", ru: "Даже в пересобираемых классах уроки, оставшиеся валидными, сохраняют свои места", en: "Even in rebuilt classes, still-valid lessons keep their old positions" },
   "gen.button": { kk: "Генерациялау", ru: "Генерировать", en: "Generate" },
   "gen.deepButton": { kk: "нұсқа сынау", ru: "вариантов проверить", en: "variants to test" },
   "gen.blocked": { kk: "Қызыл қателерді түзетпей генерация мүмкін емес", ru: "Генерация невозможна без исправления ошибок", en: "Cannot generate without fixing errors" },
