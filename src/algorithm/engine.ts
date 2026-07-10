@@ -792,7 +792,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   prog(58, 4);
   const classScore = (cid: string): number => {
     if (scoreCache[cid] != null) return scoreCache[cid]!;
-    const arr = slots.filter((o) => o.classId === cid && (!o.groupId || o.groupId === "Г1") && !o.locked);
+    // locked слоттар да есептеледі: partial режимде қозғалмаған сыныптардың
+    // кестесі толығымен locked — оларсыз сапа есебінде 0% көрініп қалады.
+    // (Maximin тек targetClasses-пен жұмыс істейді, оларда locked слот жоқ —
+    // сондықтан оптимизацияға әсер етпейді.)
+    const arr = slots.filter((o) => o.classId === cid && (!o.groupId || o.groupId === "Г1"));
     if (!arr.length) { scoreCache[cid] = 0; return 0; }
     const avg = arr.reduce((s, o) => s + o.score, 0) / arr.length;
     const dsc = [1, 2, 3, 4, 5].map((d) => dScore[cid][d]);
