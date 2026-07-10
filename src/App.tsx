@@ -8,6 +8,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import NotificationBell from "@/components/layout/NotificationBell";
 import DataGuard from "@/components/shared/DataGuard";
+import SalesChat from "@/components/shared/SalesChat";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ClassesPage from "@/pages/ClassesPage";
@@ -132,14 +133,21 @@ const pages: [string, ReactNode][] = [
 ];
 
 export default function App() {
+  const location = useLocation();
+  // Сату-чат тек әлеуетті клиент жүретін беттерде: кіру беті (кірмегендер
+  // осында түседі) және тарифтер (сатып алу шешімі қабылданатын жер)
+  const showSalesChat = location.pathname === "/login" || location.pathname === "/pricing";
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/certificate" element={<CertificatePage />} />
-      {pages.map(([path, el]) => (
-        <Route key={path} path={path} element={<Protected>{el}</Protected>} />
-      ))}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/certificate" element={<CertificatePage />} />
+        {pages.map(([path, el]) => (
+          <Route key={path} path={path} element={<Protected>{el}</Protected>} />
+        ))}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+      {showSalesChat && <SalesChat />}
+    </>
   );
 }
