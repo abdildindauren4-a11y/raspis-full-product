@@ -16,7 +16,9 @@ const STORAGE_KEY = "raspis-theme";
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved === "light" || saved === "dark" ? saved : "dark";
+    // Әдепкі — жарық тақырып: негізгі аудитория (завуч/директор) ақ фонға
+    // үйренген. Қараңғыны таңдағандардың таңдауы сақталады.
+    return saved === "light" || saved === "dark" ? saved : "light";
   });
 
   useEffect(() => {

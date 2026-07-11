@@ -1,10 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="kk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>РАСПИС</title>
+    <title>РАСПИС — Мектеп кестесін автоматты құру</title>
+    <meta name="description" content="РАСПИС — мектеп сабақ кестесін секундтар ішінде автоматты құратын жүйе. СанПиН талаптары, Excel/PDF экспорт, толық қазақ тілінде." />
+    <script>
+      // React жүктелгенше дұрыс тақырыпты қою (қараңғы жарқ етпес үшін)
+      (function () {
+        try {
+          var t = localStorage.getItem("raspis-theme");
+          document.documentElement.classList.add(t === "dark" ? "dark" : "light");
+        } catch (e) { document.documentElement.classList.add("light"); }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
