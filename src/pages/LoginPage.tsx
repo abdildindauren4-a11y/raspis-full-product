@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, CalendarCheck2, ShieldCheck, FileSpreadsheet, Bot } from "lucide-react";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import logoUrl from "@/assets/logo.png";
 import illuUrl from "@/assets/login-illustration.png";
+import bgMobileUrl from "@/assets/login-bg-mobile.jpg";
 
 // Төрт жұлдызды декоративті ұшқын (sparkle) — SVG
 function Sparkle({ className, size = 16, color = "#4A90D9" }: { className?: string; size?: number; color?: string }) {
@@ -36,6 +38,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { user, signInGoogle, error, loading, configured } = useAuth();
   const { t } = useLang();
+  const { theme } = useTheme();
 
   // Google арқылы кіргенде — басты бетке өту
   useEffect(() => {
@@ -97,11 +100,22 @@ export default function LoginPage() {
 
       {/* ── Оң жақ: кіру карточкасы ── */}
       <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden">
-        {/* декор: нүктелер, ұшқындар, жұмсақ дөңгелектер */}
-        <DotGrid className="absolute top-16 left-10 w-24 h-16 opacity-50" aria-hidden />
-        <DotGrid className="absolute bottom-16 right-10 w-24 h-16 opacity-40" aria-hidden />
-        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.10) 0%, transparent 70%)" }} aria-hidden />
-        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.08) 0%, transparent 70%)" }} aria-hidden />
+        {/* Телефонда: толық артқы фон иллюстрациясы (жарық тақырыпта ғана —
+            сурет ақ фонды, қараңғыда жарқ етпес үшін жасырылады) */}
+        {theme === "light" && (
+          <img
+            src={bgMobileUrl}
+            alt=""
+            aria-hidden
+            className="lg:hidden absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        )}
+        {/* декор: нүктелер, ұшқындар, жұмсақ дөңгелектер (телефонда фон суреттің
+            өз декоры бар — CSS декор тек десктопта) */}
+        <DotGrid className="hidden lg:block absolute top-16 left-10 w-24 h-16 opacity-50" aria-hidden />
+        <DotGrid className="hidden lg:block absolute bottom-16 right-10 w-24 h-16 opacity-40" aria-hidden />
+        <div className="hidden lg:block absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.10) 0%, transparent 70%)" }} aria-hidden />
+        <div className="hidden lg:block absolute -bottom-24 -left-16 w-80 h-80 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.08) 0%, transparent 70%)" }} aria-hidden />
 
         <div className="glass-strong border border-soft-c rounded-2xl p-8 w-full max-w-sm relative shadow-xl">
           {/* Елтаңба-логотип + ұшқындар */}
