@@ -231,6 +231,7 @@ export const translations = {
   "gen.mode.partial": { kk: "Бір сынып", ru: "Один класс", en: "One class" },
   "gen.mode.partialDesc": { kk: "Қалғаны құлыпта", ru: "Остальное заблокировано", en: "Rest is locked" },
   "gen.mode.needFull": { kk: "Алдымен толық керек", ru: "Сначала нужно полное", en: "Full needed first" },
+  "log.sub": { kk: "Технологиямен жеңілдетілген жоспарлау", ru: "Планирование, упрощённое технологией", en: "Planning made easy with technology" },
   "gen.mode.update": { kk: "Ақылды жаңарту", ru: "Умное обновление", en: "Smart update" },
   "gen.mode.updateDesc": { kk: "Тек өзгергені қайта құрылады", ru: "Пересборка только изменённого", en: "Rebuild only what changed" },
   "gen.upd.detected": { kk: "Байқалған өзгерістер", ru: "Обнаруженные изменения", en: "Detected changes" },

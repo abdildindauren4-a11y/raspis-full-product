@@ -2,10 +2,34 @@
 import { useLang } from "@/contexts/LangContext";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2, CalendarCheck2, ShieldCheck, FileSpreadsheet, Bot } from "lucide-react";
 import { useData } from "@/store/dataStore";
 import { useAuth } from "@/contexts/AuthContext";
 import logoUrl from "@/assets/logo.png";
+import illuUrl from "@/assets/login-illustration.png";
+
+// Төрт жұлдызды декоративті ұшқын (sparkle) — SVG
+function Sparkle({ className, size = 16, color = "#4A90D9" }: { className?: string; size?: number; color?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
+      <path d="M12 0c.7 6.5 5.5 11.3 12 12-6.5.7-11.3 5.5-12 12-.7-6.5-5.5-11.3-12-12C6.5 11.3 11.3 6.5 12 0z" />
+    </svg>
+  );
+}
+
+// Нүктелі тор — декор (CSS radial-gradient өрнегі)
+function DotGrid({ className }: { className?: string }) {
+  return (
+    <div
+      className={className}
+      aria-hidden
+      style={{
+        backgroundImage: "radial-gradient(rgba(74,144,217,0.35) 1.5px, transparent 1.5px)",
+        backgroundSize: "14px 14px",
+      }}
+    />
+  );
+}
 
 export default function LoginPage() {
   const login = useData((s) => s.login);
@@ -22,37 +46,78 @@ export default function LoginPage() {
   }, [user, login, navigate]);
 
   const features = [
-    t("log.feat1"),
-    t("log.feat2"),
-    t("log.feat3"),
-    t("log.feat4"),
+    { icon: CalendarCheck2, text: t("log.feat1") },
+    { icon: ShieldCheck, text: t("log.feat2") },
+    { icon: FileSpreadsheet, text: t("log.feat3") },
+    { icon: Bot, text: t("log.feat4") },
   ];
 
   return (
     <div className="min-h-screen flex bg-app">
-      {/* Сол жақ — брендинг */}
-      <div className="hidden lg:flex flex-col justify-center w-1/2 p-16 glass-strong border-r border-soft-c">
-        <div className="flex items-center gap-3 mb-8">
+      {/* ── Сол жақ: брендинг + иллюстрация ── */}
+      <div className="hidden lg:flex flex-col w-1/2 p-12 xl:p-16 relative overflow-hidden glass-strong border-r border-soft-c">
+        {/* декор: нүктелер */}
+        <DotGrid className="absolute top-24 right-14 w-24 h-16 opacity-60" />
+        <DotGrid className="absolute bottom-40 left-8 w-20 h-14 opacity-40" />
+
+        <div className="flex items-center gap-3 mb-10 relative">
           <img src={logoUrl} alt="РАСПИС" className="w-14 h-14 object-contain shrink-0" />
           <span className="font-['IBM_Plex_Sans'] text-3xl font-bold gradient-text">РАСПИС</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-strong-c mb-4">{t("log.tagline")}</h1>
-        <ul className="space-y-3 text-muted-c text-sm">
-          {features.map((t) => (
-            <li key={t} className="flex items-center gap-2"><Check className="w-4 h-4 accent-c shrink-0" /> {t}</li>
+
+        <h1 className="text-3xl xl:text-4xl font-bold text-strong-c mb-2 leading-tight relative">{t("log.tagline")}</h1>
+        <p className="text-muted-c text-sm mb-8 relative">{t("log.sub")}</p>
+
+        <ul className="space-y-3.5 text-soft-c text-sm relative">
+          {features.map((f) => (
+            <li key={f.text} className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-xl bg-[rgba(74,144,217,0.12)] border border-[rgba(74,144,217,0.25)] flex items-center justify-center shrink-0">
+                <f.icon className="w-4.5 h-4.5 accent-c" style={{ width: 18, height: 18 }} />
+              </span>
+              {f.text}
+            </li>
           ))}
         </ul>
+
+        {/* Иллюстрация: астында жұмсақ ақшыл дақ — ақ құмыра/экран қараңғыда да оқылады */}
+        <div className="relative flex-1 flex items-end justify-center mt-6 min-h-[220px]">
+          <div
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[130%] aspect-[2/1] rounded-[50%] pointer-events-none"
+            style={{ background: "radial-gradient(ellipse at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.35) 45%, transparent 70%)" }}
+            aria-hidden
+          />
+          <img
+            src={illuUrl}
+            alt=""
+            className="relative w-full max-w-[560px] object-contain"
+            style={{ filter: "drop-shadow(0 18px 32px rgba(30,58,95,0.18))" }}
+          />
+        </div>
       </div>
 
-      {/* Оң жақ — кіру */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="glass-strong border border-soft-c rounded-2xl p-8 w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-2 mb-6 justify-center">
-            <img src={logoUrl} alt="РАСПИС" className="w-11 h-11 object-contain shrink-0" />
+      {/* ── Оң жақ: кіру карточкасы ── */}
+      <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden">
+        {/* декор: нүктелер, ұшқындар, жұмсақ дөңгелектер */}
+        <DotGrid className="absolute top-16 left-10 w-24 h-16 opacity-50" aria-hidden />
+        <DotGrid className="absolute bottom-16 right-10 w-24 h-16 opacity-40" aria-hidden />
+        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.10) 0%, transparent 70%)" }} aria-hidden />
+        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(74,144,217,0.08) 0%, transparent 70%)" }} aria-hidden />
+
+        <div className="glass-strong border border-soft-c rounded-2xl p-8 w-full max-w-sm relative shadow-xl">
+          {/* Елтаңба-логотип + ұшқындар */}
+          <div className="relative flex justify-center mb-5">
+            <Sparkle className="absolute -left-1 top-2" size={14} color="#4A90D9" />
+            <Sparkle className="absolute left-8 -top-1" size={9} color="#D9A441" />
+            <Sparkle className="absolute -right-1 top-6" size={12} color="#D9A441" />
+            <Sparkle className="absolute right-9 -top-2" size={8} color="#4A90D9" />
+            <img src={logoUrl} alt="РАСПИС" className="w-20 h-20 object-contain" />
+          </div>
+          <div className="lg:hidden text-center mb-2">
             <span className="font-['IBM_Plex_Sans'] text-2xl font-bold gradient-text">РАСПИС</span>
           </div>
-          <h2 className="text-xl font-bold text-strong-c mb-1">Қош келдіңіз!</h2>
-          <p className="text-xs text-muted-c mb-6">Жалғастыру үшін Google аккаунтыңызбен кіріңіз</p>
+
+          <h2 className="text-xl font-bold text-strong-c mb-1 text-center">Қош келдіңіз!</h2>
+          <p className="text-xs text-muted-c mb-6 text-center">Жалғастыру үшін Google аккаунтыңызбен кіріңіз</p>
 
           {!configured && (
             <div className="rounded-lg bg-[rgba(229,115,115,0.1)] border border-red-500/30 p-3 mb-4">
