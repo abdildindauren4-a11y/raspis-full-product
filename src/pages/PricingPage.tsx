@@ -3,16 +3,16 @@ import { useState } from "react";
 import { CreditCard, Sparkles, Telescope, CheckCircle2 } from "lucide-react";
 import fireUrl from "@/assets/deco-fire.png";
 import badge50Url from "@/assets/deco-badge50.png";
-import booksUrl from "@/assets/deco-books.png";
+import schoolFreeUrl from "@/assets/deco-school-free.png";
 import schoolProUrl from "@/assets/deco-school-pro.png";
 import schoolPremiumUrl from "@/assets/deco-school-premium.png";
 import schoolSuperUrl from "@/assets/deco-school-super.png";
 
 // Тариф → 3D көрініс: арзаннан қымбатқа қарай «мектеп эволюциясы»
-// (Free — кітап/қолмен әдіс, Pro — классикалық мектеп, Premium — заманауи,
+// (Free — қарапайым сұр мектеп, Pro — классикалық, Premium — заманауи,
 // Super — футуристік AI-кампус). Көз өсуді көреді — қымбат картаға тартылады.
 const PLAN_ART: Record<PlanId, { src: string; h: string }> = {
-  free: { src: booksUrl, h: "max-h-16" },
+  free: { src: schoolFreeUrl, h: "max-h-20" },
   pro: { src: schoolProUrl, h: "max-h-24" },
   premium: { src: schoolPremiumUrl, h: "max-h-24" },
   super: { src: schoolSuperUrl, h: "max-h-24" },
