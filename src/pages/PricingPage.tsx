@@ -11,15 +11,17 @@ import schoolSuperUrl from "@/assets/deco-school-super.png";
 // Тариф → 3D көрініс: арзаннан қымбатқа қарай «мектеп эволюциясы»
 // (Free — қарапайым сұр мектеп, Pro — классикалық, Premium — заманауи,
 // Super — футуристік AI-кампус). Көз өсуді көреді — қымбат картаға тартылады.
-const PLAN_ART: Record<PlanId, { src: string; h: string }> = {
-  free: { src: schoolFreeUrl, h: "max-h-20" },
-  pro: { src: schoolProUrl, h: "max-h-24" },
-  premium: { src: schoolPremiumUrl, h: "max-h-24" },
-  super: { src: schoolSuperUrl, h: "max-h-24" },
+// color/btnBg — баға мен «Таңдау» батырмасы мектептің түсіне сай боялады
+// (екі тақырыпта да оқылатын орта тондар).
+const PLAN_ART: Record<PlanId, { src: string; h: string; color: string; btnBg: string }> = {
+  free:    { src: schoolFreeUrl,    h: "max-h-20", color: "#64748b", btnBg: "linear-gradient(135deg,#94a3b8,#64748b)" },
+  pro:     { src: schoolProUrl,     h: "max-h-24", color: "#2f6cb8", btnBg: "linear-gradient(135deg,#4a86cf,#2c5a9e)" },
+  premium: { src: schoolPremiumUrl, h: "max-h-24", color: "#e07b1a", btnBg: "linear-gradient(135deg,#f09b3e,#d97b1f)" },
+  super:   { src: schoolSuperUrl,   h: "max-h-24", color: "#7d5fd0", btnBg: "linear-gradient(135deg,#8b6fd8,#6a4fbf)" },
 };
 import GlassCard from "@/components/shared/GlassCard";
 import PaymentModal from "@/components/shared/PaymentModal";
-import { btnP, btnG } from "@/components/shared/Form";
+import { btnG } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { PLAN_ORDER, PLANS, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
@@ -84,8 +86,14 @@ export default function PricingPage() {
                   </span>
                 ) : null}
               </div>
-              {promo && <p className="text-sm text-faint-c line-through mb-0.5">{formatKzt(p.price)}</p>}
-              <p className="text-2xl font-bold gradient-text mb-1">
+              {/* Акция кезінде сызылған ескі баға; Free-де көрінбейтін орын
+                  ұстағыш — барлық картаның мектептері бір деңгейде тұруы үшін */}
+              {promoState.active && (
+                <p className={`text-sm mb-0.5 ${promo ? "text-faint-c line-through" : "invisible"}`}>
+                  {promo ? formatKzt(p.price) : "—"}
+                </p>
+              )}
+              <p className="text-2xl font-bold mb-1" style={{ color: PLAN_ART[id].color }}>
                 {p.price === 0 ? "0 ₸" : formatKzt(effectivePrice(p.price, promoState.active))}
               </p>
               <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : p.durationLabel}</p>
@@ -113,7 +121,11 @@ export default function PricingPage() {
               {isCurrent ? (
                 <button className={btnG + " w-full cursor-default"} disabled>{t("plan.current")}</button>
               ) : (
-                <button className={btnP + " w-full"} onClick={() => setPayPlan(id)}>
+                <button
+                  className="w-full py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
+                  style={{ background: PLAN_ART[id].btnBg }}
+                  onClick={() => setPayPlan(id)}
+                >
                   {t("plan.select")}
                 </button>
               )}
