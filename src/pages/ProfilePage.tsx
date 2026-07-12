@@ -45,9 +45,18 @@ export default function ProfilePage() {
       {/* Негізгі ақпарат */}
       <GlassCard hover={false}>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white text-2xl font-bold">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
+          {user?.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt={displayName}
+              referrerPolicy="no-referrer"
+              className="w-16 h-16 rounded-2xl object-cover border border-soft-c"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white text-2xl font-bold">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-strong-c truncate">{displayName}</h2>
             {email && <p className="text-sm text-muted-c flex items-center gap-1.5 mt-0.5"><Mail className="w-3.5 h-3.5" /> {email}</p>}

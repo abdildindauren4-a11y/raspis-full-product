@@ -1,10 +1,38 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLang } from "@/contexts/LangContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, User, Moon, Sun, Cloud } from "lucide-react";
 import NotificationBell from "@/components/layout/NotificationBell";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useData } from "@/store/dataStore";
+
+// Пайдаланушы аватары: Google фотосы болса — сурет, болмаса әріп/белгіше
+export function UserAvatar({ size = 32, className = "" }: { size?: number; className?: string }) {
+  const { user, record } = useAuth();
+  const storeName = useData((s) => s.userName);
+  const name = user?.displayName || record?.name || storeName || "";
+  if (user?.photoURL) {
+    return (
+      <img
+        src={user.photoURL}
+        alt={name}
+        referrerPolicy="no-referrer"
+        className={`rounded-full object-cover border border-soft-c ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div
+      className={`rounded-full gradient-primary flex items-center justify-center text-white font-bold ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+    >
+      {name ? name.charAt(0).toUpperCase() : <User style={{ width: size * 0.5, height: size * 0.5 }} />}
+    </div>
+  );
+}
 
 function ThemeToggleButton() {
   const { theme, toggleTheme } = useTheme();
@@ -40,7 +68,14 @@ function SyncIndicator() {
 
 export default function TopBar() {
   const { t } = useLang();
+  const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
+  const { user, record, logout: authLogout } = useAuth();
+  const school = useData((s) => s.school);
+  const storeLogout = useData((s) => s.logout);
+  const userName = useData((s) => s.userName);
+  const displayName = user?.displayName || record?.name || userName || t("prof.defaultName");
+  const email = user?.email || record?.email || "";
 
   return (
     <header className="h-[70px] glass border-b border-soft-c flex items-center justify-between px-6 sticky top-0 z-[1100]">
@@ -70,12 +105,10 @@ export default function TopBar() {
             onClick={() => setShowProfile(!showProfile)}
             className="flex items-center gap-3 px-3 py-2 rounded-xl bg-input-c border border-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-all"
           >
-            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-sm font-medium text-strong-c">Администратор</p>
-              <p className="text-xs text-muted-c">№12 Гимназия</p>
+            <UserAvatar size={32} />
+            <div className="text-left hidden sm:block max-w-[180px]">
+              <p className="text-sm font-medium text-strong-c truncate">{displayName}</p>
+              <p className="text-xs text-muted-c truncate">{school.name}</p>
             </div>
           </button>
 
@@ -90,19 +123,31 @@ export default function TopBar() {
                   transition={{ duration: 0.2 }}
                   className="absolute right-0 top-full mt-2 w-[240px] glass-strong rounded-2xl border border-soft-c shadow-2xl z-[1200] overflow-hidden"
                 >
-                  <div className="p-4 border-b border-soft-c">
-                    <p className="font-medium text-strong-c">Администратор</p>
-                    <p className="text-xs text-muted-c">admin@school12.kz</p>
+                  <div className="p-4 border-b border-soft-c flex items-center gap-3">
+                    <UserAvatar size={40} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-strong-c truncate">{displayName}</p>
+                      {email && <p className="text-xs text-muted-c truncate">{email}</p>}
+                    </div>
                   </div>
                   <div className="p-2">
-                    <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors">
+                    <button
+                      onClick={() => { setShowProfile(false); navigate("/profile"); }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors"
+                    >
                       {t("top.profile")}
                     </button>
-                    <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors">
+                    <button
+                      onClick={() => { setShowProfile(false); navigate("/settings"); }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-soft-c hover:bg-[rgba(127,127,127,0.1)] transition-colors"
+                    >
                       {t("top.settings")}
                     </button>
                     <hr className="my-1 border-soft-c" />
-                    <button className="w-full text-left px-3 py-2 rounded-lg text-sm status-bad hover:bg-red-500/10 transition-colors">
+                    <button
+                      onClick={async () => { setShowProfile(false); await authLogout(); storeLogout(); navigate("/login"); }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm status-bad hover:bg-red-500/10 transition-colors"
+                    >
                       {t("top.logout")}
                     </button>
                   </div>

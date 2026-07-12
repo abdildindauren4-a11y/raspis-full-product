@@ -1,11 +1,11 @@
 // filepath: src/App.tsx
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import logoUrl from "@/assets/logo.png";
 import Sidebar from "@/components/layout/Sidebar";
-import TopBar from "@/components/layout/TopBar";
+import TopBar, { UserAvatar } from "@/components/layout/TopBar";
 import NotificationBell from "@/components/layout/NotificationBell";
 import DataGuard from "@/components/shared/DataGuard";
 import SalesChat from "@/components/shared/SalesChat";
@@ -39,6 +39,7 @@ function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);   // мобиль: drawer ашық па
   useCloudSync(); // бұлтпен автоматты синхрондау (Firebase қосулы болса)
   const location = useLocation();
+  const navigate = useNavigate();
 
   // бет ауысқанда мобиль менюді жабу
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
@@ -81,8 +82,12 @@ function AppLayout({ children }: { children: ReactNode }) {
           </button>
           <img src={logoUrl} alt="РАСПИС" className="w-8 h-8 object-contain shrink-0" />
           <span className="font-['IBM_Plex_Sans'] text-lg font-bold gradient-text">РАСПИС</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <NotificationBell />
+            {/* Профиль аватары — Google фотосы, басқанда профильге өтеді */}
+            <button onClick={() => navigate("/profile")} aria-label="Профиль" className="rounded-full">
+              <UserAvatar size={34} />
+            </button>
           </div>
         </div>
         <div className="hidden lg:block">
