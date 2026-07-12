@@ -23,6 +23,7 @@ export const translations = {
   "nav.logout": { kk: "Шығу", ru: "Выйти", en: "Logout" },
   "nav.collapse": { kk: "Жабу", ru: "Свернуть", en: "Collapse" },
   "nav.settings": { kk: "Баптаулар", ru: "Настройки", en: "Settings" },
+  "nav.settingsGeneral": { kk: "Жалпы баптаулар", ru: "Общие настройки", en: "General settings" },
   "nav.profile": { kk: "Профиль", ru: "Профиль", en: "Profile" },
   "nav.pricing": { kk: "Тарифтер", ru: "Тарифы", en: "Pricing" },
   "nav.admin": { kk: "Әкімші панелі", ru: "Панель админа", en: "Admin panel" },

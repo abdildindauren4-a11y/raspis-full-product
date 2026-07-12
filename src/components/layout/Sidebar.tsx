@@ -54,10 +54,15 @@ const dataChildren: NavLeaf[] = [
   { icon: UsersRound, key: "nav.groups", path: "/groups" },
 ];
 
+// Баптау беттері — «Баптаулар» модуліне жиналған (алгоритм да баптау)
+const settingsChildren: NavLeaf[] = [
+  { icon: Cpu, key: "nav.algorithm", path: "/algorithm" },
+  { icon: Settings, key: "nav.settingsGeneral", path: "/settings" },
+];
+
 const menuItems: NavItem[] = [
   { icon: LayoutDashboard, key: "nav.dashboard", path: "/" },
   { icon: Database, key: "nav.data", children: dataChildren },
-  { icon: Cpu, key: "nav.algorithm", path: "/algorithm" },
   { icon: Sparkles, key: "nav.generate", path: "/generate" },
   { icon: CalendarDays, key: "nav.schedule", path: "/schedule" },
   { icon: History, key: "nav.versions", path: "/versions" },
@@ -65,7 +70,7 @@ const menuItems: NavItem[] = [
   { icon: Bot, key: "nav.aiAdvisor", path: "/ai-advisor" },
   { icon: FileUp, key: "nav.import", path: "/import" },
   { icon: FileDown, key: "nav.export", path: "/export" },
-  { icon: Settings, key: "nav.settings", path: "/settings" },
+  { icon: Settings, key: "nav.settings", children: settingsChildren },
   { icon: User, key: "nav.profile", path: "/profile" },
   { icon: CreditCard, key: "nav.pricing", path: "/pricing" },
 ];
@@ -84,10 +89,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
   // Әкімшіге admin элементтерін қосамыз
   const items = role === "admin" ? [...menuItems, ...adminItems] : menuItems;
 
-  // «Деректер» тобы: ішіндегі бет ашық болса — автоматты ашылады
-  const dataActive = dataChildren.some((c) => c.path === location.pathname);
-  const [dataOpen, setDataOpen] = useState(dataActive);
-  useEffect(() => { if (dataActive) setDataOpen(true); }, [dataActive]);
+  // Топтар (Деректер, Баптаулар): ішіндегі бет ашық болса — автоматты ашылады
+  const activeGroupKey = items.find(
+    (i): i is NavGroup => "children" in i && i.children.some((c) => c.path === location.pathname)
+  )?.key;
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
+    activeGroupKey ? { [activeGroupKey]: true } : {}
+  );
+  useEffect(() => {
+    if (activeGroupKey) setOpenGroups((p) => (p[activeGroupKey] ? p : { ...p, [activeGroupKey]: true }));
+  }, [activeGroupKey]);
 
   return (
     <motion.aside
@@ -133,8 +144,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
         {items.map((item, index) => {
           const Icon = item.icon;
 
-          // ── «Деректер» тобы: ашылмалы модуль ──
+          // ── Топ (Деректер / Баптаулар): ашылмалы модуль ──
           if ("children" in item) {
+            const groupOpen = !!openGroups[item.key];
+            const groupActive = item.children.some((c) => c.path === location.pathname);
+            const toggleGroup = () =>
+              setOpenGroups((p) => ({ ...p, [item.key]: !p[item.key] }));
             return (
               <div key={item.key}>
                 <motion.button
@@ -143,16 +158,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                   transition={{ delay: index * 0.03, duration: 0.3, ease: "easeOut" }}
                   onClick={() => {
                     // жиналған панельде: панельді ашып, топты жаямыз
-                    if (isCollapsed) { setIsCollapsed(false); setDataOpen(true); }
-                    else setDataOpen(!dataOpen);
+                    if (isCollapsed) { setIsCollapsed(false); setOpenGroups((p) => ({ ...p, [item.key]: true })); }
+                    else toggleGroup();
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
-                    dataActive
+                    groupActive
                       ? "bg-[rgba(0,198,255,0.12)] accent-c border-l-[3px] border-[var(--accent)]"
                       : "text-muted-c hover:bg-[rgba(127,127,127,0.1)] hover:text-soft-c"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${dataActive ? "accent-c" : ""}`} />
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${groupActive ? "accent-c" : ""}`} />
                   <AnimatePresence>
                     {!isCollapsed && (
                       <motion.span
@@ -167,7 +182,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                     )}
                   </AnimatePresence>
                   {!isCollapsed && (
-                    <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${dataOpen ? "" : "-rotate-90"}`} />
+                    <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${groupOpen ? "" : "-rotate-90"}`} />
                   )}
                   {isCollapsed && (
                     <div className="absolute left-full ml-3 px-3 py-1.5 bg-surface border border-soft-c rounded-lg text-sm text-strong-c whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[1400]">
@@ -177,7 +192,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
                 </motion.button>
                 {/* Ішкі модульдер */}
                 <AnimatePresence>
-                  {!isCollapsed && dataOpen && (
+                  {!isCollapsed && groupOpen && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
