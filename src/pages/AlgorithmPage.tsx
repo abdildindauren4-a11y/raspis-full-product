@@ -51,7 +51,7 @@ export default function AlgorithmPage() {
       <div className="relative">
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("algo.title")}</h1>
         <p className="text-muted-c mt-1">{t("algo.optHint")}</p>
-        <img src={clockUrl} alt="" aria-hidden className="hidden sm:block absolute right-2 -top-3 w-16 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
+        <img src={clockUrl} alt="" aria-hidden className="absolute right-0 sm:right-2 -top-3 w-12 sm:w-16 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <GlassCard hover={false}>

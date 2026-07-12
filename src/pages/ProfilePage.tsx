@@ -39,7 +39,7 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-3xl">
       <div className="relative">
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("prof.title")}</h1>
-        <img src={plantUrl} alt="" aria-hidden className="hidden sm:block absolute right-2 -top-4 w-14 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
+        <img src={plantUrl} alt="" aria-hidden className="absolute right-0 sm:right-2 -top-4 w-12 sm:w-14 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
       </div>
 
       {/* Негізгі ақпарат */}

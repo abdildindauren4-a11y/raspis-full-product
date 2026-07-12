@@ -66,12 +66,12 @@ export default function DashboardPage() {
           style={{ backgroundImage: "radial-gradient(rgba(74,144,217,0.35) 1.5px, transparent 1.5px)", backgroundSize: "14px 14px" }}
           aria-hidden
         />
-        <div className="lg:pr-[320px] relative">
+        <div className="pr-24 sm:pr-40 lg:pr-[320px] relative">
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("dash.title")}</h1>
           <p className="text-muted-c mt-1">{school.name}</p>
         </div>
         <img src={booksUrl} alt="" aria-hidden className="hidden xl:block absolute right-[240px] -bottom-3 w-[92px] pointer-events-none" style={{ filter: "drop-shadow(0 8px 14px rgba(30,58,95,0.18))" }} />
-        <img src={monitorUrl} alt="" aria-hidden className="hidden lg:block absolute -right-4 -bottom-10 w-[260px] pointer-events-none" style={{ filter: "drop-shadow(0 10px 18px rgba(30,58,95,0.18))" }} />
+        <img src={monitorUrl} alt="" aria-hidden className="absolute -right-2 -bottom-5 w-28 sm:w-40 lg:-right-4 lg:-bottom-10 lg:w-[260px] pointer-events-none" style={{ filter: "drop-shadow(0 10px 18px rgba(30,58,95,0.18))" }} />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s) => (

@@ -170,7 +170,7 @@ export default function ExportPage() {
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("exp.title")}</h1>
           <p className="text-muted-c">{active.name} · {classes.length} {t("exp.statClasses")} · {t("exp.statQuality")} {active.result.quality}/100</p>
         </div>
-        <img src={docDecoUrl} alt="" aria-hidden className="hidden sm:block absolute right-0 -top-2 w-16 -rotate-6 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
+        <img src={docDecoUrl} alt="" aria-hidden className="absolute right-0 -top-2 w-12 sm:w-16 -rotate-6 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         <GlassCard hover={false}>
