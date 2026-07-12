@@ -8,6 +8,7 @@ import { Sparkles, Printer } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import type { Slot } from "@/algorithm/engine";
+import folderUrl from "@/assets/deco-folder.png";
 
 
 export default function SchedulePage() {
@@ -20,9 +21,12 @@ export default function SchedulePage() {
 
   if (!active)
     return (
-      <div className="flex flex-col items-center justify-center h-72 gap-3">
+      <div className="flex flex-col items-center justify-center h-80 gap-3 text-center">
+        <img src={folderUrl} alt="" aria-hidden className="w-32 mb-1" style={{ filter: "drop-shadow(0 10px 18px rgba(30,58,95,0.18))" }} />
         <p className="text-muted-c">{t("sched.noSchedule")}</p>
-        <Link to="/generate" className="accent-c text-sm flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Генерация бетіне өту →</Link>
+        <Link to="/generate" className="px-4 py-2 rounded-xl gradient-primary text-white text-sm inline-flex items-center gap-2">
+          <Sparkles className="w-4 h-4" /> Генерация бетіне өту →
+        </Link>
       </div>
     );
 

@@ -9,6 +9,7 @@ import { useLang } from "@/contexts/LangContext";
 import type { TransKey } from "@/i18n/translations";
 import type { Role } from "@/lib/roles";
 import { PLANS } from "@/lib/plans";
+import plantUrl from "@/assets/deco-plant.png";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string; desc: string }> = {
   admin: { label: "prof.adminLabel", icon: Crown, cls: "status-warn", desc: "prof.adminDesc" },
@@ -36,7 +37,10 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("prof.title")}</h1>
+      <div className="relative">
+        <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("prof.title")}</h1>
+        <img src={plantUrl} alt="" aria-hidden className="hidden sm:block absolute right-2 -top-4 w-14 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
+      </div>
 
       {/* Негізгі ақпарат */}
       <GlassCard hover={false}>

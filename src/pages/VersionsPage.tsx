@@ -1,7 +1,10 @@
 // filepath: src/pages/VersionsPage.tsx
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG, btnD } from "@/components/shared/Form";
+import calendarUrl from "@/assets/deco-calendar.png";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
@@ -41,7 +44,16 @@ export default function VersionsPage() {
         <p className="text-muted-c mt-1">{t("ver.subtitle")}</p>
       </div>
       {versions.length === 0 && (
-        <GlassCard hover={false}><p className="text-center text-muted-c py-8 text-sm">{t("ver.empty")}</p></GlassCard>
+        <GlassCard hover={false}>
+          <div className="flex flex-col items-center text-center py-10">
+            <img src={calendarUrl} alt="" aria-hidden className="w-32 mb-4" style={{ filter: "drop-shadow(0 10px 18px rgba(30,58,95,0.18))" }} />
+            <p className="text-strong-c font-medium mb-1">{t("ver.empty")}</p>
+            <p className="text-muted-c text-sm mb-4 max-w-sm">{t("ver.emptyHint")}</p>
+            <Link to="/generate" className="px-4 py-2 rounded-xl gradient-primary text-white text-sm inline-flex items-center gap-2">
+              <Sparkles className="w-4 h-4" /> {t("gen.button")}
+            </Link>
+          </div>
+        </GlassCard>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {versions.map((v) => (

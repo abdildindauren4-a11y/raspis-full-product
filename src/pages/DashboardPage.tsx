@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Users, GraduationCap, DoorOpen, Gauge, Sparkles, CheckCircle2, Circle, Calendar, BarChart3, Upload, HeartPulse, AlertTriangle } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { useData, useActiveVersion } from "@/store/dataStore";
+import monitorUrl from "@/assets/deco-monitor.png";
+import booksUrl from "@/assets/deco-books.png";
 import { useLang } from "@/contexts/LangContext";
 import { teacherBudgets, classBudget, classScoreBudget, teacherSpread, roomThroughputs, shiftCapacity, ROOM_TYPE_KK } from "@/lib/dataBudget";
 
@@ -57,9 +59,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("dash.title")}</h1>
-        <p className="text-muted-c mt-1">{school.name}</p>
+      {/* Hero: қарсы алу + 3D декор (монитор мен кітаптар — тек кең экранда) */}
+      <div className="relative overflow-hidden rounded-2xl border border-soft-c glass-strong px-6 py-6 lg:py-8 lg:px-8">
+        <div
+          className="absolute top-4 left-1/2 w-24 h-14 opacity-40 pointer-events-none hidden lg:block"
+          style={{ backgroundImage: "radial-gradient(rgba(74,144,217,0.35) 1.5px, transparent 1.5px)", backgroundSize: "14px 14px" }}
+          aria-hidden
+        />
+        <div className="lg:pr-[320px] relative">
+          <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("dash.title")}</h1>
+          <p className="text-muted-c mt-1">{school.name}</p>
+        </div>
+        <img src={booksUrl} alt="" aria-hidden className="hidden xl:block absolute right-[240px] -bottom-3 w-[92px] pointer-events-none" style={{ filter: "drop-shadow(0 8px 14px rgba(30,58,95,0.18))" }} />
+        <img src={monitorUrl} alt="" aria-hidden className="hidden lg:block absolute -right-4 -bottom-10 w-[260px] pointer-events-none" style={{ filter: "drop-shadow(0 10px 18px rgba(30,58,95,0.18))" }} />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s) => (

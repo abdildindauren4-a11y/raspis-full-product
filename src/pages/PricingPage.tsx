@@ -1,6 +1,8 @@
 // filepath: src/pages/PricingPage.tsx
 import { useState } from "react";
-import { CreditCard, Sparkles, Telescope, CheckCircle2, Flame } from "lucide-react";
+import { CreditCard, Sparkles, Telescope, CheckCircle2 } from "lucide-react";
+import fireUrl from "@/assets/deco-fire.png";
+import badge50Url from "@/assets/deco-badge50.png";
 import GlassCard from "@/components/shared/GlassCard";
 import PaymentModal from "@/components/shared/PaymentModal";
 import { btnP, btnG } from "@/components/shared/Form";
@@ -31,7 +33,7 @@ export default function PricingPage() {
 
       {promoState.active && (
         <div className="rounded-xl border border-[rgba(217,164,65,0.4)] bg-[rgba(217,164,65,0.1)] px-4 py-3 flex items-center gap-3">
-          <Flame className="w-5 h-5 status-warn shrink-0" />
+          <img src={fireUrl} alt="" aria-hidden className="w-8 h-auto shrink-0" style={{ filter: "drop-shadow(0 3px 6px rgba(217,120,30,0.35))" }} />
           <p className="text-sm font-medium text-strong-c">
             {t("plan.promoBanner")
               .replace("{n}", String(promoState.seats))
@@ -49,15 +51,20 @@ export default function PricingPage() {
             <GlassCard
               key={id}
               hover={false}
-              className={isCurrent ? "!border-2 !border-[var(--accent)]" : ""}
+              className={(isCurrent ? "!border-2 !border-[var(--accent)] " : "") + "relative !overflow-visible"}
             >
+              {/* 3D −50% жапсырмасы — акция кезінде ақылы тарифтерде */}
+              {promo && (
+                <img
+                  src={badge50Url}
+                  alt={`−${promoState.percent}%`}
+                  className="absolute -top-4 -right-3 w-14 rotate-12 pointer-events-none"
+                  style={{ filter: "drop-shadow(0 4px 8px rgba(200,120,20,0.35))" }}
+                />
+              )}
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-lg font-bold text-strong-c">{p.name}</h3>
-                {promo ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide status-warn bg-[rgba(217,164,65,0.15)] px-2 py-0.5 rounded-full">
-                    −{promoState.percent}%
-                  </span>
-                ) : isCurrent ? (
+                {isCurrent && !promo ? (
                   <span className="text-[10px] font-semibold uppercase tracking-wide accent-c bg-[rgba(74,144,217,0.12)] px-2 py-0.5 rounded-full">
                     {t("plan.current")}
                   </span>

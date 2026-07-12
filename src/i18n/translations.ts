@@ -328,6 +328,7 @@ export const translations = {
   "ver.title": { kk: "Нұсқалар", ru: "Версии", en: "Versions" },
   "ver.subtitle": { kk: "Сақталған кесте нұсқалары", ru: "Сохранённые версии расписания", en: "Saved schedule versions" },
   "ver.empty": { kk: "Әзірге сақталған нұсқа жоқ", ru: "Сохранённых версий пока нет", en: "No saved versions yet" },
+  "ver.emptyHint": { kk: "Кесте құрып, «Нұсқа ретінде сақтау» батырмасын бассаңыз — әр нұсқа осында сақталып, кез келгеніне қайта орала аласыз", ru: "Создайте расписание и нажмите «Сохранить как версию» — все версии будут храниться здесь", en: "Generate a schedule and press “Save as version” — every version is kept here so you can roll back anytime" },
   "ver.active": { kk: "Белсенді", ru: "Активная", en: "Active" },
   "ver.activate": { kk: "Белсендіру", ru: "Активировать", en: "Activate" },
   "ver.created": { kk: "Құрылған", ru: "Создано", en: "Created" },

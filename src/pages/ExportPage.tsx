@@ -14,6 +14,7 @@ import { exportProfessionalExcel } from "@/lib/excelExport";
 import { exportSchedulePDF } from "@/lib/pdfExport";
 import { buildCertData, certUrl } from "@/lib/certificate";
 import QRCode from "qrcode";
+import docDecoUrl from "@/assets/deco-document.png";
 
 
 export default function ExportPage() {
@@ -161,7 +162,7 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 relative">
         <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center">
           <FileSpreadsheet className="w-5 h-5 text-white" />
         </div>
@@ -169,6 +170,7 @@ export default function ExportPage() {
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("exp.title")}</h1>
           <p className="text-muted-c">{active.name} · {classes.length} {t("exp.statClasses")} · {t("exp.statQuality")} {active.result.quality}/100</p>
         </div>
+        <img src={docDecoUrl} alt="" aria-hidden className="hidden sm:block absolute right-0 -top-2 w-16 -rotate-6 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         <GlassCard hover={false}>
