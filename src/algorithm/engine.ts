@@ -220,13 +220,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // Пәннің «ең кеш сабақ» шегі: Subject.maxSlot берілсе — сол; әйтпесе
   // математика/алгебра/геометрия атауынан автоматты 4 (алғашқы 4 сабақ ішінде,
   // жұмсақ режимде 5-ке дейін рұқсат). Басқа пәндерге шек жоқ.
+  // МАҢЫЗДЫ: бір-ақ рет алдын ала есептеледі — hardCheck ыстық жолында
+  // toLowerCase/includes шақыру генерацияны айтарлықтай баяулатады.
   const MATH_LATE_LIMIT = 4;
-  const lateLimitOf = (s: Subject): number | undefined => {
-    if (s.maxSlot) return s.maxSlot;
+  const LATE_LIMIT: Record<string, number | undefined> = {};
+  for (const s of subjects) {
+    if (s.maxSlot) { LATE_LIMIT[s.id] = s.maxSlot; continue; }
     const n = s.name.toLowerCase();
-    return n.includes("математика") || n.includes("алгебра") || n.includes("геометрия")
+    LATE_LIMIT[s.id] = n.includes("математика") || n.includes("алгебра") || n.includes("геометрия")
       ? MATH_LATE_LIMIT : undefined;
-  };
+  }
+  const lateLimitOf = (s: Subject): number | undefined => LATE_LIMIT[s.id];
 
   /* ЭТАП 0 — precheck */
   prog(3, 0);

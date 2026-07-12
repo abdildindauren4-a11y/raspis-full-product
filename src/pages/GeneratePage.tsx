@@ -132,13 +132,15 @@ export default function GeneratePage() {
 
   const run = async () => {
     const kind: GenerationKind = mode === "deep" ? "deep" : "quick";
+    // Квота тексерісі (Firestore, желіде 1-3 сек) мен генерацияны ҚАТАР
+    // жүргіземіз — пайдаланушы желі кідірісін күтпейді. Квота жетпесе,
+    // жұмыс тоқтатылып нәтиже жойылады (fail-closed сақталады: рұқсатсыз
+    // нәтижені көру/сақтау мүмкін емес).
+    let quotaPromise: Promise<{ ok: boolean; remaining: number }> | null = null;
     if (configured && !isAdmin) {
-      // Firebase қосулы: квота тек нақты кірген пайдаланушыдан есептеледі.
       // Кірмеген (ескі жергілікті сессия) — алдымен қайта кіру керек.
       if (!user) { navigate("/login"); return; }
-      const { ok } = await consumeGeneration(user.uid, kind);
-      if (!ok) { setUpgradeKind(kind); setUpgradeOpen(true); return; }
-      refreshRecord();
+      quotaPromise = consumeGeneration(user.uid, kind);
     }
     setSaved(false);
     const input: AlgoInput = {
@@ -157,6 +159,18 @@ export default function GeneratePage() {
         input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots, anchor: true };
       }
       start(input);
+    }
+    // Қатар жүрген квота жауабын күтеміз: жетпесе — бәрін тоқтатып, жоямыз
+    if (quotaPromise) {
+      const { ok } = await quotaPromise;
+      if (!ok) {
+        cancel(); reset();
+        multi.cancel(); multi.reset();
+        setUpgradeKind(kind);
+        setUpgradeOpen(true);
+        return;
+      }
+      refreshRecord();
     }
   };
 
@@ -277,7 +291,7 @@ export default function GeneratePage() {
                 </div>
                 <input type="range" min={20} max={300} step={10} value={deepCount}
                   onChange={(e) => setDeepCount(Number(e.target.value))} className="w-full accent-[var(--accent)]" />
-                <p className="text-xs text-faint-c mt-2">Болжалды уақыт: ~{Math.round(deepCount * 0.07)} сек. Көп нұсқа = жақсырақ нәтиже, бірақ ұзағырақ.</p>
+                <p className="text-xs text-faint-c mt-2">Болжалды уақыт: ~{Math.round(deepCount * 0.15)} сек (мектеп көлеміне байланысты). Көп нұсқа = жақсырақ нәтиже, бірақ ұзағырақ.</p>
               </div>
             )}
           </GlassCard>
