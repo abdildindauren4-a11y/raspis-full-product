@@ -5,11 +5,20 @@ import { Bell, Check, AlertTriangle, Info, XCircle } from "lucide-react";
 import { buildNotifications } from "@/lib/notify";
 import { useData, useActiveVersion } from "@/store/dataStore";
 
+// Оқылған хабарландырулар (id бойынша) — панельді ашқанда белгіленіп,
+// браузерде сақталады. Санауыш тек ОҚЫЛМАҒАНДАРДЫ көрсетеді.
+const SEEN_KEY = "raspis-notif-seen";
+const loadSeen = (): Set<string> => {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); }
+  catch { return new Set(); }
+};
+
 // Хабарландыру қоңырауы — десктоп TopBar-да да, мобиль үстіңгі жолағында да
 // қолданылады (бұрын тек десктопта болатын, сондықтан телефонда көрінбейтін).
 export default function NotificationBell() {
   const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState<Set<string>>(loadSeen);
 
   // Нақты хабарландырулар — қолданба күйінен (диагностика, кесте сапасы)
   const { classes, teachers, rooms, subjects, school, settings } = useData();
@@ -21,6 +30,20 @@ export default function NotificationBell() {
     ),
     [classes, teachers, rooms, subjects, school, settings, active, lang]
   );
+
+  // Оқылмаған хабарландырулар саны — панель ашылғанда нөлге түседі
+  const unseenCount = notifications.filter((n) => !seen.has(n.id)).length;
+
+  const openPanel = () => {
+    if (!open) {
+      // Ашылған сәтте бәрі «оқылды» деп белгіленеді
+      const next = new Set(seen);
+      notifications.forEach((n) => next.add(n.id));
+      setSeen(next);
+      try { localStorage.setItem(SEEN_KEY, JSON.stringify([...next])); } catch { /* толса — елеусіз */ }
+    }
+    setOpen(!open);
+  };
 
   const icon = (type: string) => {
     switch (type) {
@@ -34,14 +57,14 @@ export default function NotificationBell() {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={openPanel}
         className="relative p-2.5 rounded-xl bg-input-c border border-soft-c text-muted-c hover:text-strong-c hover:bg-[rgba(127,127,127,0.1)] transition-all"
         aria-label={t("top.notifications")}
       >
         <Bell className="w-5 h-5" />
-        {notifications.length > 0 && (
+        {unseenCount > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full gradient-primary text-[10px] font-bold text-white flex items-center justify-center">
-            {notifications.length}
+            {unseenCount}
           </span>
         )}
       </button>
