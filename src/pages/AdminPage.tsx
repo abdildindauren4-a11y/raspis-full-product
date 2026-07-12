@@ -1,6 +1,6 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle, FileText, Printer, FileDown, ChevronDown } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,11 @@ import {
 import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
 import { getPromoState, type PromoState } from "@/lib/promo";
 import { resolveSwapAlert } from "@/lib/antiResale";
+import {
+  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, printDoc, downloadDoc,
+  type DocRequisites, type DocParams,
+} from "@/lib/procurementDocs";
+import { effectivePrice } from "@/lib/plans";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
   admin: { label: "role.admin", icon: Crown, cls: "status-warn" },
@@ -83,6 +88,30 @@ export default function AdminPage() {
 
   const swapAlerts = users.filter((u) => u.swapAlert);
 
+  // ── Сатып алу құжаттарының генераторы (мектептерге ресми қағаздар) ──
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [req, setReq] = useState<DocRequisites>(loadRequisites);
+  const [docSchool, setDocSchool] = useState("");
+  const [docDirector, setDocDirector] = useState("");
+  const [docPlan, setDocPlan] = useState<PlanId>("premium");
+  const [docPrice, setDocPrice] = useState<number>(effectivePrice(PLANS.premium.price));
+  const [docOutNo, setDocOutNo] = useState("");
+  const setReqField = (k: keyof DocRequisites, v: string) => {
+    const next = { ...req, [k]: v };
+    setReq(next);
+    saveRequisites(next);
+  };
+  const docDate = () => {
+    const m = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    const d = new Date();
+    return `«${d.getDate()}» ${m[d.getMonth()]} ${d.getFullYear()} г.`;
+  };
+  const docParams = (): DocParams => ({
+    schoolName: docSchool, directorName: docDirector,
+    plan: docPlan, price: docPrice, outNo: docOutNo, date: docDate(),
+  });
+  const docInput = "px-3 py-2 rounded-lg bg-input-c border border-soft-c text-sm text-strong-c placeholder:text-faint-c focus:outline-none focus:border-[var(--accent)] w-full";
+
   const filtered = users.filter((u) =>
     u.email.toLowerCase().includes(query.toLowerCase()) || u.name.toLowerCase().includes(query.toLowerCase())
   );
@@ -131,6 +160,85 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      {/* ҚҰЖАТ ГЕНЕРАТОРЫ: мектептерге ресми тех. спецификация мен КП */}
+      <GlassCard hover={false}>
+        <button onClick={() => setDocsOpen(!docsOpen)} className="w-full flex items-center justify-between gap-2">
+          <h3 className="font-semibold text-strong-c flex items-center gap-2">
+            <FileText className="w-4 h-4 accent-c" /> Сатып алу құжаттары (мектепке)
+          </h3>
+          <ChevronDown className={`w-4 h-4 text-muted-c transition-transform ${docsOpen ? "" : "-rotate-90"}`} />
+        </button>
+        {docsOpen && (
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-muted-c">
+              Ресми үлгідегі <b>Техникалық спецификация</b> (ҚР Үкіметінің 06.05.2019 № 261 қаулысы) және{" "}
+              <b>Коммерциялық ұсыныс</b>. Реквизиттер бір рет толтырылып, осы браузерде сақталады.
+            </p>
+            {/* ЖК реквизиттері */}
+            <div>
+              <p className="text-xs font-semibold text-strong-c mb-2">ЖК реквизиттері (бір рет)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input className={docInput} placeholder="ЖК атауы (ИП «...»)" value={req.ipName} onChange={(e) => setReqField("ipName", e.target.value)} />
+                <input className={docInput} placeholder="ЖСН/БИН" value={req.iinBin} onChange={(e) => setReqField("iinBin", e.target.value)} />
+                <input className={docInput} placeholder="Мекенжай" value={req.address} onChange={(e) => setReqField("address", e.target.value)} />
+                <input className={docInput} placeholder="ИИК (KZ...)" value={req.iik} onChange={(e) => setReqField("iik", e.target.value)} />
+                <input className={docInput} placeholder="Банк (АО «...»)" value={req.bank} onChange={(e) => setReqField("bank", e.target.value)} />
+                <input className={docInput} placeholder="БИК" value={req.bik} onChange={(e) => setReqField("bik", e.target.value)} />
+                <input className={docInput + " sm:col-span-2"} placeholder="Қол қоюшы (Ф.И.О.)" value={req.signer} onChange={(e) => setReqField("signer", e.target.value)} />
+              </div>
+            </div>
+            {/* Мектеп деректері */}
+            <div>
+              <p className="text-xs font-semibold text-strong-c mb-2">Мектеп (әр жолы жаңа)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input className={docInput} placeholder="Мектеп атауы (КГУ «ОШ № 104»...)" value={docSchool} onChange={(e) => setDocSchool(e.target.value)} />
+                <input className={docInput} placeholder="Директордың аты-жөні (қаласаңыз)" value={docDirector} onChange={(e) => setDocDirector(e.target.value)} />
+                <select
+                  className={docInput}
+                  value={docPlan}
+                  onChange={(e) => {
+                    const pl = e.target.value as PlanId;
+                    setDocPlan(pl);
+                    setDocPrice(effectivePrice(PLANS[pl].price));
+                  }}
+                >
+                  {PLAN_ORDER.filter((x) => x !== "free").map((x) => (
+                    <option key={x} value={x}>{PLANS[x].name} — {PLANS[x].durationLabel}</option>
+                  ))}
+                </select>
+                <input className={docInput} type="number" placeholder="Баға (тенге)" value={docPrice} onChange={(e) => setDocPrice(Number(e.target.value) || 0)} />
+                <input className={docInput} placeholder="Шығыс № (қаласаңыз)" value={docOutNo} onChange={(e) => setDocOutNo(e.target.value)} />
+              </div>
+            </div>
+            {/* Батырмалар */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="rounded-xl border border-soft-c p-3">
+                <p className="text-sm font-medium text-strong-c mb-2">Техникалық спецификация</p>
+                <div className="flex gap-2">
+                  <button onClick={() => printDoc(tehSpecHtml(req, docParams()))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                    <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
+                  </button>
+                  <button onClick={() => downloadDoc(tehSpecHtml(req, docParams()), "РАСПИС_Техническая_спецификация.doc")} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+                    <FileDown className="w-3.5 h-3.5" /> Word (.doc)
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-xl border border-soft-c p-3">
+                <p className="text-sm font-medium text-strong-c mb-2">Коммерциялық ұсыныс</p>
+                <div className="flex gap-2">
+                  <button onClick={() => printDoc(kpHtml(req, docParams()))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                    <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
+                  </button>
+                  <button onClick={() => downloadDoc(kpHtml(req, docParams()), "РАСПИС_Коммерческое_предложение.doc")} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+                    <FileDown className="w-3.5 h-3.5" /> Word (.doc)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </GlassCard>
 
       {/* Іске қосу акциясының санауышы: орындар толғанда сайтта автоматты өшеді */}
       {LAUNCH_PROMO.active && promo && (
