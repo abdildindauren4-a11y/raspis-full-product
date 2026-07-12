@@ -8,6 +8,10 @@ export interface Subject {
   id: string; name: string; score: number; coeff: number;
   ideal: number[]; room: RoomType | null; primaryScore?: number;
   digital: boolean; corr: boolean; canDouble: boolean; black: string[];
+  // Пәннің ЕҢ КЕШ сабақ нөмірі (қатаң шек). Берілмесе — математика/алгебра/
+  // геометрия атауынан автоматты 4 деп танылады (педагогикалық норма:
+  // ауыр нақты пәндер алғашқы 4 сабақта; жұмсақ режимде +1 → 5-ке рұқсат).
+  maxSlot?: number;
   // Электив (факультатив): күндік балл лимиті мен шаршау есебіне кірмейді
   // (eff()=0), сондықтан приоритет кезегінде ең соңында, негізгі пәндер
   // орналасқаннан кейінгі бос слоттарға ғана орналасады.
@@ -213,6 +217,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const eff = (cls: Klass, s: Subject) =>
     s.elective ? 0 : cls.grade <= 4 && s.primaryScore != null ? s.primaryScore : s.score;
 
+  // Пәннің «ең кеш сабақ» шегі: Subject.maxSlot берілсе — сол; әйтпесе
+  // математика/алгебра/геометрия атауынан автоматты 4 (алғашқы 4 сабақ ішінде,
+  // жұмсақ режимде 5-ке дейін рұқсат). Басқа пәндерге шек жоқ.
+  const MATH_LATE_LIMIT = 4;
+  const lateLimitOf = (s: Subject): number | undefined => {
+    if (s.maxSlot) return s.maxSlot;
+    const n = s.name.toLowerCase();
+    return n.includes("математика") || n.includes("алгебра") || n.includes("геометрия")
+      ? MATH_LATE_LIMIT : undefined;
+  };
+
   /* ЭТАП 0 — precheck */
   prog(3, 0);
   const targetClasses = input.partial ? classes.filter((c) => input.partial!.classIds.includes(c.id)) : classes;
@@ -317,6 +332,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const exSlots = rx ? rx.extraSlots : 2;   // әдепкі: +2 сабақ
       const exScore = rx ? rx.extraScore : 20;  // әдепкі: +20 балл
       if (slot > maxSlots(cls.grade) + exSlots) return "күндік сабақ лимиті (шкаладан тыс)";
+      // Математика тектес пән: жұмсақ режимде де ең көбі +1 сабаққа ғана кешігеді (4→5)
+      const lateLim = lateLimitOf(subj);
+      if (lateLim && slot > lateLim + 1) return "пәннің кеш сабақ шегі (жұмсақ +1-ден тыс)";
       if (dScore[cls.id][day] + eff(cls, subj) > dayLimitS(cls.grade, settings) + exScore) return "күндік ауыртпалық (шкаладан тыс)";
       if (rx && !rx.allowFatigue && eff(cls, subj) > 4 && fatigueAt(cls.id, day, slot) > fatThrS(cls.grade, settings)) return "шаршау шегі";
       if (rx && !rx.allowBlacklist) {
@@ -328,6 +346,10 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
 
     if (slot > maxSlots(cls.grade)) return "күндік сабақ лимиті";
+    // Математика/алгебра/геометрия — алғашқы 4 сабақтан кеш қойылмайды
+    // (қатаң; тек жұмсақ режимде 5-сабаққа рұқсат)
+    const lateLim = lateLimitOf(subj);
+    if (lateLim && slot > lateLim) return "пән кеш сабаққа қойылмайды";
     if (eff(cls, subj) > 4 && fatigueAt(cls.id, day, slot) > fatThrS(cls.grade, settings)) return "шаршау шегі";
     const prev = cm[cls.id][day][slot - 1];
     const next = slot < 8 ? cm[cls.id][day][slot + 1] : null;
@@ -346,6 +368,10 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const softViolations = (cls: Klass, subj: Subject, day: number, slot: number): string[] => {
     const v: string[] = [];
     if (slot > maxSlots(cls.grade)) v.push(`${cls.name}: күндік сабақ лимитінен асты (${slot}-сабақ)`);
+    {
+      const lim = lateLimitOf(subj);
+      if (lim && slot > lim) v.push(`${cls.name} ${DAY_KZ[day]}: «${subj.name}» ${slot}-сабаққа қойылды (норма — алғашқы ${lim}, жеңілдетумен рұқсат)`);
+    }
     if (eff(cls, subj) > 4 && fatigueAt(cls.id, day, slot) > fatThrS(cls.grade, settings)) v.push(`${cls.name} ${DAY_KZ[day]}: ауыр пән шаршау шегінен тыс (${subj.name})`);
     const prev = cm[cls.id][day][slot - 1];
     if (prev && (subj.black.includes(S[prev].name) || S[prev].black.includes(subj.name))) v.push(`${cls.name} ${DAY_KZ[day]}: ${S[prev].name} + ${subj.name} қатар`);
@@ -518,6 +544,8 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const checkDouble = (tk: Task, day: number, slot: number): string | null => {
     const { cls, s } = tk;
     if (slot + 1 > maxSlots(cls.grade)) return null;
+    // кеш сабақ шегі: жұптың екінші жартысы да шектен аспауы керек
+    { const lim = lateLimitOf(s); if (lim && slot + 1 > lim) return null; }
     const e1 = hardCheck(cls, tk.cu.teacherId!, s, day, slot);
     if (e1) return null;
     if (cm[cls.id][day][slot + 1] !== null) return null;
