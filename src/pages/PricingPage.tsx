@@ -3,6 +3,20 @@ import { useState } from "react";
 import { CreditCard, Sparkles, Telescope, CheckCircle2 } from "lucide-react";
 import fireUrl from "@/assets/deco-fire.png";
 import badge50Url from "@/assets/deco-badge50.png";
+import booksUrl from "@/assets/deco-books.png";
+import schoolProUrl from "@/assets/deco-school-pro.png";
+import schoolPremiumUrl from "@/assets/deco-school-premium.png";
+import schoolSuperUrl from "@/assets/deco-school-super.png";
+
+// Тариф → 3D көрініс: арзаннан қымбатқа қарай «мектеп эволюциясы»
+// (Free — кітап/қолмен әдіс, Pro — классикалық мектеп, Premium — заманауи,
+// Super — футуристік AI-кампус). Көз өсуді көреді — қымбат картаға тартылады.
+const PLAN_ART: Record<PlanId, { src: string; h: string }> = {
+  free: { src: booksUrl, h: "max-h-16" },
+  pro: { src: schoolProUrl, h: "max-h-24" },
+  premium: { src: schoolPremiumUrl, h: "max-h-24" },
+  super: { src: schoolSuperUrl, h: "max-h-24" },
+};
 import GlassCard from "@/components/shared/GlassCard";
 import PaymentModal from "@/components/shared/PaymentModal";
 import { btnP, btnG } from "@/components/shared/Form";
@@ -75,6 +89,16 @@ export default function PricingPage() {
                 {p.price === 0 ? "0 ₸" : formatKzt(effectivePrice(p.price, promoState.active))}
               </p>
               <p className="text-xs text-faint-c mb-5">{id === "free" ? " " : p.durationLabel}</p>
+              {/* Тарифтің 3D көрінісі — карталардың бос бөлігі */}
+              <div className="h-24 flex items-end justify-center mb-4">
+                <img
+                  src={PLAN_ART[id].src}
+                  alt=""
+                  aria-hidden
+                  className={`w-auto object-contain ${PLAN_ART[id].h}`}
+                  style={{ filter: "drop-shadow(0 8px 14px rgba(30,58,95,0.18))" }}
+                />
+              </div>
               <div className="space-y-2.5 mb-6 text-sm">
                 <div className="flex items-center gap-2 text-soft-c">
                   <Sparkles className="w-4 h-4 accent-c shrink-0" /> {p.quickGenerations} {t("plan.quickUnit")}
