@@ -15,10 +15,13 @@ import { findBest, commit, buildParts } from "./seed";
 const unitTask = (u: PlacedUnit): Task =>
   ({ cls: u.p.cls, cu: u.p.cu, s: u.p.s, pr: 0, singles: 0, doubles: 0 });
 
-// Орналастырылған бірлікті дәл сол күйінде қайтару (сәтсіз әрекеттен кейін)
-function restore(ctx: RuleContext, u: PlacedUnit, units: PlacedUnit[]): void {
+// Орналастырылған бірлікті дәл сол күйінде қайтару (сәтсіз әрекеттен кейін).
+// НАЗАР: жаңа объект қайтады — ескі сілтеме енді units-те ЖОҚ, қайта қолдануға
+// болмайды (қайта қолдану күйді бүлдіреді).
+function restore(ctx: RuleContext, u: PlacedUnit, units: PlacedUnit[]): PlacedUnit {
   const nu = ctx.state.place(u.p, u.made[0]?.score ?? 0, u.eff);
   units.push(nu);
+  return nu;
 }
 
 function removeUnit(ctx: RuleContext, u: PlacedUnit, units: PlacedUnit[]): void {
@@ -88,7 +91,9 @@ function tryMoveBlocker(ctx: RuleContext, rules: CompiledRules, m: MissingUnit, 
 /* ── 2. ТЕСІК: бос ұяшықты жабу ── */
 export function repairGaps(ctx: RuleContext, rules: CompiledRules, units: PlacedUnit[]): number {
   let fixed = 0;
-  for (let pass = 0; pass < 3; pass++) {
+  // Тізбекті жылжу (тесік бір слотқа ғана жылжиды) ұзын құйрықты да
+  // жабуы үшін өтім саны күндегі слот санына жетеді
+  for (let pass = 0; pass < ctx.time.slots; pass++) {
     let changed = false;
     for (const cls of ctx.input.classes) {
       for (let day = 1; day <= ctx.time.days; day++) {
@@ -97,13 +102,94 @@ export function repairGaps(ctx: RuleContext, rules: CompiledRules, units: Placed
         if (used.length < 2) continue;
         for (let hole = used[0] + 1; hole < used[used.length - 1]; hole++) {
           if (ctx.state.classAt(cls.id, day, hole)) continue;
-          if (fillHole(ctx, rules, cls.id, day, hole, units)) { fixed++; changed = true; }
+          if (fillHole(ctx, rules, cls.id, day, hole, units)) { fixed++; changed = true; continue; }
+          // Күндер арасындағы своп: басқа күннің сабағы тесікке, осы күннің
+          // шеткі сабағы оның орнына
+          if (swapIntoHole(ctx, rules, cls.id, day, hole, units)) { fixed++; changed = true; continue; }
+          // Тесіктен кейін жалғыз сабақ қалса — оны басқа күнге көшіріп,
+          // тесікті күн соңына айналдырамыз
+          if (used[used.length - 1] === hole + 1 && evictEdge(ctx, rules, cls.id, day, hole + 1, units)) {
+            fixed++; changed = true; continue;
+          }
+          // Тесік бірінші сабақтан кейін тұрса — бірінші сабақты басқа
+          // күнге көшірсек күн кешірек басталып, үздіксіз болады
+          if (used[0] === hole - 1 && evictEdge(ctx, rules, cls.id, day, hole - 1, units)) {
+            fixed++; changed = true;
+          }
         }
       }
     }
     if (!changed) break;
   }
   return fixed;
+}
+
+// Күндер арасындағы своп: басқа күндегі w сабағы тесікке келеді, ал осы
+// күннің ШЕТКІ сабағы (бірінші/соңғы — үздіксіздік бұзылмайды) w-ның ескі
+// ұяшығына кетеді.
+function swapIntoHole(ctx: RuleContext, rules: CompiledRules, classId: string, day: number, hole: number, units: PlacedUnit[]): boolean {
+  let first = 0, last = 0;
+  for (let sl = 1; sl <= ctx.time.slots; sl++)
+    if (ctx.state.classAt(classId, day, sl)) { if (!first) first = sl; last = sl; }
+  const movers = units.filter((u) =>
+    u.p.cls.id === classId && u.p.day === day && !u.p.partOfDouble &&
+    (u.p.slot === first || u.p.slot === last));
+  const others = units.filter((u) => u.p.cls.id === classId && u.p.day !== day && !u.p.partOfDouble);
+  for (let w of others) {
+    if (!units.includes(w)) continue; // алдыңғы rollback-тен кейін ескірген
+    if (ctx.state.subjCount(classId, w.p.s.id, day) > 0) continue;
+    for (let t of movers) {
+      if (!units.includes(t) || !units.includes(w)) continue;
+      if (t.p.s.id !== w.p.s.id && ctx.state.subjCount(classId, t.p.s.id, w.p.day) > 0) continue;
+      // РЕТІ МАҢЫЗДЫ: алдымен t ШЫҒАДЫ (күн лимиті босайды, «улы көрші»
+      // кетеді), сосын w тесікке кіреді, сосын t w-ның орнына барады
+      removeUnit(ctx, t, units);
+      removeUnit(ctx, w, units);
+      // restore жаңа объект қайтарады — сілтемелерді жаңартып отырамыз
+      const rollback = () => { w = restore(ctx, w, units); t = restore(ctx, t, units); };
+      const partsW = buildParts(ctx, unitTask(w), day, hole);
+      if (typeof partsW === "string") { rollback(); continue; }
+      const pW: CandidatePlacement = { cls: w.p.cls, cu: w.p.cu, s: w.p.s, day, slot: hole, shift: w.p.shift, parts: partsW };
+      if (firstViolation(rules, ctx, pW)) { rollback(); continue; }
+      const placedW = commit(ctx, { p1: pW, score: softScore(rules, ctx, pW) }, units);
+      const partsT = buildParts(ctx, unitTask(t), w.p.day, w.p.slot);
+      if (typeof partsT !== "string") {
+        const pT: CandidatePlacement = { cls: t.p.cls, cu: t.p.cu, s: t.p.s, day: w.p.day, slot: w.p.slot, shift: t.p.shift, parts: partsT };
+        if (!firstViolation(rules, ctx, pT)) {
+          commit(ctx, { p1: pT, score: softScore(rules, ctx, pT) }, units);
+          return true;
+        }
+      }
+      for (const pu of placedW) removeUnit(ctx, pu, units);
+      rollback();
+    }
+  }
+  return false;
+}
+
+// Күннің ШЕТКІ (бірінші/соңғы) сабағын басқа күннің шетіне көшіру —
+// үздіксіздік екі күнде де сақталады
+function evictEdge(ctx: RuleContext, rules: CompiledRules, classId: string, day: number, edgeSlot: number, units: PlacedUnit[]): boolean {
+  const u = units.find((x) => x.p.cls.id === classId && x.p.day === day && x.p.slot === edgeSlot && !x.p.partOfDouble);
+  if (!u) return false;
+  removeUnit(ctx, u, units);
+  for (let d2 = 1; d2 <= ctx.time.days; d2++) {
+    if (d2 === day) continue;
+    if (ctx.state.subjCount(classId, u.p.s.id, d2) > 0) continue;
+    // Тек күн шетіне (жаңа тесік ашпау үшін): соңғы слоттан кейінгі орын
+    let last = 0;
+    for (let sl = 1; sl <= ctx.time.slots; sl++) if (ctx.state.classAt(classId, d2, sl)) last = sl;
+    const slot = last + 1;
+    if (slot > ctx.time.slots) continue;
+    const parts = buildParts(ctx, unitTask(u), d2, slot);
+    if (typeof parts === "string") continue;
+    const p: CandidatePlacement = { cls: u.p.cls, cu: u.p.cu, s: u.p.s, day: d2, slot, shift: u.p.shift, parts };
+    if (firstViolation(rules, ctx, p)) continue;
+    commit(ctx, { p1: p, score: softScore(rules, ctx, p) }, units);
+    return true;
+  }
+  restore(ctx, u, units);
+  return false;
 }
 
 function fillHole(ctx: RuleContext, rules: CompiledRules, classId: string, day: number, hole: number, units: PlacedUnit[]): boolean {
@@ -119,18 +205,33 @@ function fillHole(ctx: RuleContext, rules: CompiledRules, classId: string, day: 
   // жаңа тесік ашуы мүмкін, оны келесі өтім жабады)
   const rank = (u: PlacedUnit) =>
     u.p.day === day ? 0 : u.p.slot === lastOf(u.p.day) ? 1 : 2;
+  // Сол күннен: тесіктен кейінгілер (жоғары тарту) НЕМЕСЕ күннің бірінші
+  // сабағы (оны тесікке түсірсек күн кешірек басталып, үздіксіз қалады)
+  let firstOfDay = 0;
+  for (let sl = 1; sl <= ctx.time.slots; sl++) if (ctx.state.classAt(classId, day, sl)) { firstOfDay = sl; break; }
   const cand = units
     .filter((u) => u.p.cls.id === classId && !u.p.partOfDouble)
-    .filter((u) => u.p.day !== day || u.p.slot > hole)
+    .filter((u) => u.p.day !== day || u.p.slot > hole || u.p.slot === firstOfDay)
     .sort((a, b) => rank(a) - rank(b));
+  const dbg = (globalThis as { __V2_DEBUG?: boolean }).__V2_DEBUG;
   for (const u of cand) {
-    if (u.p.day !== day && ctx.state.subjCount(classId, u.p.s.id, day) > 0) continue;
+    if (u.p.day !== day && ctx.state.subjCount(classId, u.p.s.id, day) > 0) {
+      if (dbg) console.log(`  [hole ${classId} d${day}s${hole}] ${u.p.s.name}@d${u.p.day}s${u.p.slot}: пән тесік күнінде бар`);
+      continue;
+    }
     removeUnit(ctx, u, units);
     const t = unitTask(u);
     const parts = buildParts(ctx, t, day, hole);
-    if (typeof parts === "string") { restore(ctx, u, units); continue; }
+    if (typeof parts === "string") {
+      if (dbg) console.log(`  [hole ${classId} d${day}s${hole}] ${u.p.s.name}@d${u.p.day}s${u.p.slot}: ${parts}`);
+      restore(ctx, u, units); continue;
+    }
     const p: CandidatePlacement = { cls: u.p.cls, cu: u.p.cu, s: u.p.s, day, slot: hole, shift: u.p.shift, parts };
-    if (firstViolation(rules, ctx, p)) { restore(ctx, u, units); continue; }
+    const viol = firstViolation(rules, ctx, p);
+    if (viol) {
+      if (dbg) console.log(`  [hole ${classId} d${day}s${hole}] ${u.p.s.name}@d${u.p.day}s${u.p.slot}: ${viol}`);
+      restore(ctx, u, units); continue;
+    }
     // Көшіру жаңа тесік ашпасын: көшкен сабақтың ескі орны күн соңы болуы керек
     // (day-ішілік жылжуда әрқашан солай: hole < ескі слот, ескі слот кейін
     // тексерілетін тесіктерде қайта жабылады)

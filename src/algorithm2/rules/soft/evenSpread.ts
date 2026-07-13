@@ -18,6 +18,21 @@ export const evenWeekSpread: Rule = {
   },
 };
 
+export const dayLoadEvenness: Rule = {
+  id: "day-load-evenness",
+  title: "Күндік ауыртпалық теңдігі",
+  description: "Ауыр күн мен жеңіл күннің балл айырмасы азайтылады (бір күн 7 сабақ, келесісі 4 болмасын)",
+  kind: "soft", defaultEnabled: true, removable: true,
+  defaultWeight: 2,
+  score(ctx, p) {
+    // Балл жағынан бос күн — тартымды (0..8): сынып ұпайының 40%-ы күндік
+    // балл дисперсиясынан тұрады, осы ереже соны тікелей басқарады
+    const lim = ctx.dayLimitOf(p.cls.grade);
+    const cur = ctx.state.scoreOn(p.cls.id, p.day);
+    return Math.max(0, (1 - cur / lim) * 8);
+  },
+};
+
 export const compactDay: Rule = {
   id: "compact-day",
   title: "Тесіксіз күн",

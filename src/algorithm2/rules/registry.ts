@@ -16,7 +16,7 @@ import { blacklistPair, digitalThenLight } from "./hard/pairs";
 import { subjectMaxSlot, corrLate } from "./hard/subjectSlots";
 import { interShiftGap } from "./hard/interShift";
 import { idealSlot } from "./soft/idealSlot";
-import { evenWeekSpread, compactDay } from "./soft/evenSpread";
+import { evenWeekSpread, dayLoadEvenness, compactDay } from "./soft/evenSpread";
 
 export const ALL_RULES: Rule[] = [
   // қатаң
@@ -26,7 +26,7 @@ export const ALL_RULES: Rule[] = [
   dayScoreLimit, fatigueThreshold, blacklistPair, digitalThenLight,
   subjectMaxSlot, corrLate, interShiftGap,
   // жұмсақ
-  idealSlot, evenWeekSpread, compactDay,
+  idealSlot, evenWeekSpread, dayLoadEvenness, compactDay,
 ];
 
 export type HardFn = (ctx: RuleContext, p: CandidatePlacement) => string | null;

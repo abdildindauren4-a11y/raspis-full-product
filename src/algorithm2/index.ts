@@ -11,6 +11,7 @@ import type { RuleContext, EngineV2Config } from "./rules/types";
 import { compileRules } from "./rules/registry";
 import { runSeed } from "./solver/seed";
 import { repairDeficit, repairGaps, softFill } from "./solver/repair";
+import { improveSchedule } from "./solver/improve";
 
 export type { EngineV2Config, RuleConfigMap, Rule, ParamSchema } from "./rules/types";
 export { ALL_RULES } from "./rules/registry";
@@ -44,22 +45,35 @@ const betterThan = (a: AlgoResult, b: AlgoResult) => {
 export function generate2(input: AlgoInput, config?: EngineV2Config, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
   const MAX_ATTEMPTS = 5;
-  let best: AlgoResult | null = null;
-  let used = 0;
-  for (let a = 0; a < MAX_ATTEMPTS; a++) {
-    used++;
-    const rng = a === 0 ? () => 0 : mulberry32(((input.seed || 1) * 31 + a) | 0);
-    const res = runOnce(input, config, rng, a === 0 ? onProgress : undefined);
-    if (!best || betterThan(res, best)) best = res;
-    if (missOf(best) === 0) break; // толық сыйды — іздеуді тоқтатамыз
+  const rngOf = (a: number) => (a === 0 ? () => 0 : mulberry32(((input.seed || 1) * 31 + a) | 0));
+  // 0-әрекет — детерминистік, ТОЛЫҚ (improve-пен)
+  let best = runOnce(input, config, rngOf(0), true, onProgress);
+  let bestA = 0;
+  let used = 1;
+  if (missOf(best) > 0 || best.gaps.length > 0) {
+    // Мінсіз емес — жеңіл (improve-сіз) барлау әрекеттері, ең жақсысын
+    // кейін толық режимде қайта жүргіземіз (уақыт бюджеті үшін)
+    let bestLight: AlgoResult | null = null;
+    for (let a = 1; a < MAX_ATTEMPTS; a++) {
+      used++;
+      const res = runOnce(input, config, rngOf(a), false);
+      if (!bestLight || betterThan(res, bestLight)) { bestLight = res; bestA = a; }
+      if (missOf(bestLight) === 0 && bestLight.gaps.length === 0) break;
+    }
+    if (bestLight && (missOf(bestLight) < missOf(best) ||
+        (missOf(bestLight) === missOf(best) && bestLight.gaps.length < best.gaps.length))) {
+      const full = runOnce(input, config, rngOf(bestA), true);
+      // Үшеуінің ең жақсысы (improve тесік ашса — жеңіл нұсқа да жеңе алады)
+      for (const cand of [bestLight, full]) if (betterThan(cand, best)) best = cand;
+    }
   }
-  best!.stats.timeMs = Date.now() - t0;
-  best!.stats.iters = used;
+  best.stats.timeMs = Date.now() - t0;
+  best.stats.iters = used;
   onProgress?.(100, 9);
-  return best!;
+  return best;
 }
 
-function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () => number, onProgress?: ProgressFn): AlgoResult {
+function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () => number, full: boolean, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
   const time = buildTime(config?.time);
   const state = new ScheduleState(time);
@@ -120,9 +134,17 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
     missing = softFill(ctx, rules, missing, units, config?.rules, warnings);
   }
 
-  /* ── repair: тесіктерді жабу ── */
-  onProgress?.(75, 7);
+  /* ── repair: тесіктерді жабу (improve алдында — тығыз бастау) ── */
+  onProgress?.(65, 7);
   repairGaps(ctx, rules, units);
+
+  /* ── improve: глобал жылжыту + maximin (әділдік) — тек толық режимде ── */
+  onProgress?.(70, 6);
+  if (full) {
+    improveSchedule(ctx, rules, units);
+    // improve кейбір жерде тесік қалдыруы мүмкін — соңғы тазалау
+    repairGaps(ctx, rules, units);
+  }
 
   /* ── қорытынды есептер — v1 (ЭТАП 9) формулаларымен бірдей ── */
   onProgress?.(90, 9);
