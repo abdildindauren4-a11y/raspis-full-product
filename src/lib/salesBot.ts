@@ -132,14 +132,14 @@ WhatsApp: ${PAYMENT.kaspiPhone} — көрсетілім сұрау, төлем,
 }
 
 // Бір (кілт, модель) жұбымен нақты сұраныс
-async function callGemini(key: string, model: string, contents: unknown): Promise<string> {
+async function callGemini(key: string, model: string, contents: unknown, genCfg?: Record<string, unknown>): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents,
-      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: genCfg || { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
     }),
   });
   if (!resp.ok) throw new Error(`HTTP_${resp.status}`);
@@ -149,11 +149,39 @@ async function callGemini(key: string, model: string, contents: unknown): Promis
   return text;
 }
 
+// Батарея-ротациямен Gemini шақыруы (кілт × модель жұптары бойынша) — сату-чат
+// та, ережелер-чат та ортақ қолданады. Соңғы сәтті жұптан бастап, әр
+// сәтсіздікте (429/404/403/503) келесі жұпқа көшеді.
+export function hasGeminiBattery(): boolean {
+  return allKeys().length > 0;
+}
+export async function geminiBattery(contents: unknown, genCfg?: Record<string, unknown>): Promise<string> {
+  const keys = allKeys();
+  if (!keys.length) throw new Error("NO_KEY");
+  const pairs: { k: number; m: number }[] = [];
+  for (let k = 0; k < keys.length; k++)
+    for (let m = 0; m < MODELS.length; m++) pairs.push({ k, m });
+  let start = Number(localStorage.getItem(KI_STORAGE)) || 0;
+  if (start >= pairs.length || start < 0) start = 0;
+  let lastErr: Error = new Error("API_ERROR");
+  for (let a = 0; a < pairs.length; a++) {
+    const i = (start + a) % pairs.length;
+    const { k, m } = pairs[i];
+    try {
+      const text = await callGemini(keys[k], MODELS[m], contents, genCfg);
+      localStorage.setItem(KI_STORAGE, String(i));
+      return text;
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error("API_ERROR");
+    }
+  }
+  throw lastErr;
+}
+
 // Gemini-ге сұраныс (сату-кеңесші рөлінде) — батарея-ротациямен:
 // соңғы сәтті жұптан бастап, сәтсіздікте келесі (кілт, модель) жұбына көшеді.
 export async function askSalesBot(userMessage: string, history: BotMessage[]): Promise<string> {
-  const keys = allKeys();
-  if (!keys.length) throw new Error("NO_KEY");
+  if (!hasGeminiBattery()) throw new Error("NO_KEY");
 
   // Акция күйін нақты санауыштан аламыз (орын толса бот та жеңілдік айтпайды).
   // Firestore баяу болса — 2 секундтан кейін статикалық күймен жалғасамыз,
@@ -172,30 +200,7 @@ export async function askSalesBot(userMessage: string, history: BotMessage[]): P
     ...history.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
     { role: "user", parts: [{ text: userMessage }] },
   ];
-
-  // (кілт × модель) жұптарының тізімі: кілт бойымен, әр кілтке модельдер ретімен
-  const pairs: { k: number; m: number }[] = [];
-  for (let k = 0; k < keys.length; k++)
-    for (let m = 0; m < MODELS.length; m++) pairs.push({ k, m });
-
-  // соңғы сәтті жұптан бастаймыз (лимиті біткен кілтке қайта-қайта ұрынбау үшін)
-  let start = Number(localStorage.getItem(KI_STORAGE)) || 0;
-  if (start >= pairs.length || start < 0) start = 0;
-
-  let lastErr: Error = new Error("API_ERROR");
-  for (let a = 0; a < pairs.length; a++) {
-    const i = (start + a) % pairs.length;
-    const { k, m } = pairs[i];
-    try {
-      const text = await callGemini(keys[k], MODELS[m], contents);
-      localStorage.setItem(KI_STORAGE, String(i));
-      return text;
-    } catch (e) {
-      // 429 (лимит) / 404 (модель жабық) / 403 (кілт) / 503 — келесі батареяға
-      lastErr = e instanceof Error ? e : new Error("API_ERROR");
-    }
-  }
-  throw lastErr;
+  return geminiBattery(contents);
 }
 
 // ── Кілтсіз режим: жиі сұрақтарға дайын жауаптар ──

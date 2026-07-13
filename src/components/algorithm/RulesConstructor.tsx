@@ -8,6 +8,7 @@ import GlassCard from "@/components/shared/GlassCard";
 import { useData } from "@/store/dataStore";
 import { ALL_RULES } from "@/algorithm2";
 import type { EngineV2Config, Rule } from "@/algorithm2";
+import RuleChat from "./RuleChat";
 import { Lock, Shield, Sparkles, RotateCcw, Check } from "lucide-react";
 
 export default function RulesConstructor() {
@@ -52,6 +53,9 @@ export default function RulesConstructor() {
           </button>
         )}
       </div>
+
+      {/* ЖИ-баптаушы чат */}
+      <RuleChat />
 
       {/* Қатаң ережелер */}
       <div className="flex items-center gap-2 text-xs font-semibold text-muted-c uppercase tracking-wide mb-2">
