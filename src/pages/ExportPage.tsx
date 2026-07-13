@@ -9,7 +9,7 @@ import GlassCard from "@/components/shared/GlassCard";
 import { btnP, btnG } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import { exportProfessionalExcel } from "@/lib/excelExport";
 import { exportSchedulePDF } from "@/lib/pdfExport";
 import { getExportLabels } from "@/lib/exportLabels";
@@ -138,7 +138,7 @@ export default function ExportPage() {
         for (let day = 1; day <= 5; day++) {
           const o = active.result.slots.find((x) => x.classId === c.id && x.day === day && x.slot === slot && (!x.groupId || x.groupId === "Г1"));
           if (!o) { html += "<td>—</td>"; continue; }
-          if (o.subjectId === HOMEROOM_SUBJECT_ID) { html += `<td style="font-style:italic;color:#64748b"><b>${HOMEROOM_LABEL}</b></td>`; continue; }
+          if (o.subjectId === HOMEROOM_SUBJECT_ID) { html += `<td style="font-style:italic;color:#64748b"><b>${t("common.homeroom")}</b></td>`; continue; }
           const s = subjects.find((x) => x.id === o.subjectId)!;
           const cl = s.score >= 9 ? "r" : s.score >= 6 ? "y" : "g";
           html += `<td class="${cl}"><b>${s.name}${o.dpart ? " ×2" : ""}</b><br>${tName(o.teacherId)}<br>${rName(o.roomId)}</td>`;

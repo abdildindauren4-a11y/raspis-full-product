@@ -6,7 +6,7 @@ import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
 import QRCode from "qrcode";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
-import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import { buildCertData, certUrl } from "@/lib/certificate";
 import { getExportLabels, type ExportLabels } from "@/lib/exportLabels";
 import notoRegularUrl from "@/assets/fonts/NotoSans-Regular.ttf?url";
@@ -116,7 +116,7 @@ export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
         const main = os.find((o) => !o.groupId || o.groupId === "Г1");
         const g2 = os.find((o) => o.groupId === "Г2");
         if (!main) { row.push("—"); rowMeta.push(null); continue; }
-        if (main.subjectId === HOMEROOM_SUBJECT_ID) { row.push(HOMEROOM_LABEL); rowMeta.push({ color: [226, 232, 240] }); continue; }
+        if (main.subjectId === HOMEROOM_SUBJECT_ID) { row.push(L.homeroom); rowMeta.push({ color: [226, 232, 240] }); continue; }
         const subj = S.get(main.subjectId);
         let cellText = `${subj?.name || ""}${main.dpart ? L.doubleSuffix : ""}\n${tName(main.teacherId)} · ${rName(main.roomId)}`;
         if (g2) cellText += `\n${L.group2}: ${tName(g2.teacherId)} · ${rName(g2.roomId)}`;

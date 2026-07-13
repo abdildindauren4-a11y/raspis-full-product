@@ -40,6 +40,7 @@ export interface ExportLabels {
   group2: string;      // «2-топ»
   qualityWord: string; // «сапа»
   schoolYear: string;  // «оқу жылы»
+  homeroom: string;    // «Сынып сағаты»
 }
 
 const DICT: Record<Lang, Omit<ExportLabels, "lang">> = {
@@ -62,7 +63,7 @@ const DICT: Record<Lang, Omit<ExportLabels, "lang">> = {
     free: "бос", doubleSuffix: " (қос)",
     roomTypes: { regular: "қарапайым", physics: "физика", chemistry: "химия", computer: "информатика", gym: "спортзал" },
     certTitle: "Сапа сертификаты (QR)", certScan: "Растау үшін QR-кодты сканерлеңіз",
-    classWord: "сынып", shiftWord: "ауысым", group2: "2-топ", qualityWord: "сапа", schoolYear: "оқу жылы",
+    classWord: "сынып", shiftWord: "ауысым", group2: "2-топ", qualityWord: "сапа", schoolYear: "оқу жылы", homeroom: "Сынып сағаты",
   },
   ru: {
     days: ["", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница"],
@@ -83,7 +84,7 @@ const DICT: Record<Lang, Omit<ExportLabels, "lang">> = {
     free: "свободно", doubleSuffix: " (сдвоенный)",
     roomTypes: { regular: "обычный", physics: "физика", chemistry: "химия", computer: "информатика", gym: "спортзал" },
     certTitle: "Сертификат качества (QR)", certScan: "Отсканируйте QR-код для проверки",
-    classWord: "класс", shiftWord: "смена", group2: "2-группа", qualityWord: "качество", schoolYear: "учебный год",
+    classWord: "класс", shiftWord: "смена", group2: "2-группа", qualityWord: "качество", schoolYear: "учебный год", homeroom: "Классный час",
   },
   en: {
     days: ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
@@ -104,7 +105,7 @@ const DICT: Record<Lang, Omit<ExportLabels, "lang">> = {
     free: "free", doubleSuffix: " (double)",
     roomTypes: { regular: "regular", physics: "physics", chemistry: "chemistry", computer: "computer", gym: "gym" },
     certTitle: "Quality certificate (QR)", certScan: "Scan the QR code to verify",
-    classWord: "class", shiftWord: "shift", group2: "Group 2", qualityWord: "quality", schoolYear: "school year",
+    classWord: "class", shiftWord: "shift", group2: "Group 2", qualityWord: "quality", schoolYear: "school year", homeroom: "Homeroom",
   },
 };
 

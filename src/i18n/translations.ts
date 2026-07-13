@@ -142,6 +142,7 @@ export const translations = {
 
   // ── Common labels ──
   "common.class": { kk: "Сынып", ru: "Класс", en: "Class" },
+  "common.homeroom": { kk: "Сынып сағаты", ru: "Классный час", en: "Homeroom" },
   "common.teacher": { kk: "Мұғалім", ru: "Учитель", en: "Teacher" },
   "common.subject": { kk: "Пән", ru: "Предмет", en: "Subject" },
   "common.room": { kk: "Кабинет", ru: "Кабинет", en: "Room" },

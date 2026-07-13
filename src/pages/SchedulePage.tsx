@@ -6,7 +6,7 @@ import { inputCls, subjBg, btnG, btnP } from "@/components/shared/Form";
 import { useLang } from "@/contexts/LangContext";
 import { Sparkles, Printer, Hand, Save, X, Undo2, Info } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
-import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import type { Slot } from "@/algorithm/engine";
 import { lessonBlock, isMovable, moveViolation, movedBlock, type EditCtx } from "@/lib/manualEdit";
 import folderUrl from "@/assets/deco-folder.png";
@@ -248,7 +248,7 @@ export default function SchedulePage() {
                               if (o.subjectId === HOMEROOM_SUBJECT_ID) {
                                 return (
                                   <div key={ci} className="rounded-lg border p-1.5 mb-1 text-center italic text-faint-c bg-[rgba(127,127,127,0.08)]">
-                                    {HOMEROOM_LABEL}
+                                    {t("common.homeroom")}
                                   </div>
                                 );
                               }

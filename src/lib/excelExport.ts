@@ -5,7 +5,7 @@
 // бет нөмірі бар.
 import ExcelJS from "exceljs";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
-import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import { getExportLabels, type ExportLabels } from "@/lib/exportLabels";
 
 // Модуль деңгейіндегі жапсырмалар — экспорт басында ctx.labels-тен орнатылады
@@ -231,7 +231,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
           const main = os.find((o) => !o.groupId || o.groupId === "Г1");
           const g2 = os.find((o) => o.groupId === "Г2");
           if (main && main.subjectId === HOMEROOM_SUBJECT_ID) {
-            cell.value = HOMEROOM_LABEL;
+            cell.value = L.homeroom;
             cell.font = { name: "Arial", size: 9, italic: true, color: { argb: "FF64748B" } };
             cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };

@@ -7,7 +7,7 @@ import { btnP, btnG, btnD } from "@/components/shared/Form";
 import calendarUrl from "@/assets/deco-calendar.png";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 
 export default function VersionsPage() {
   const { t } = useLang();
@@ -26,7 +26,7 @@ export default function VersionsPage() {
     const mapB = new Map(b.result.slots.filter((o) => !o.groupId || o.groupId === "Г1").map((o) => [key(o), o]));
     const changes: string[] = [];
     const cName = (id: string) => classes.find((c) => c.id === id)?.name || id;
-    const sName = (id: string) => id === HOMEROOM_SUBJECT_ID ? HOMEROOM_LABEL : subjects.find((s) => s.id === id)?.name || id;
+    const sName = (id: string) => id === HOMEROOM_SUBJECT_ID ? t("common.homeroom") : subjects.find((s) => s.id === id)?.name || id;
     const DAYS = ["", t("day.mon").slice(0,2), t("day.tue").slice(0,2), t("day.wed").slice(0,2), t("day.thu").slice(0,2), t("day.fri").slice(0,2)];
     for (const [k, oB] of mapB) {
       const oA = mapA.get(k);
