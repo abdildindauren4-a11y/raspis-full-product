@@ -52,13 +52,27 @@ export function generate2(input: AlgoInput, config?: EngineV2Config, onProgress?
   const MAX_LIGHT = 4;
   const rngOf = (a: number) => (a === 0 ? () => 0 : mulberry32(((input.seed || 1) * 31 + a) | 0));
 
+  // Уақыт бюджеті: барлау (multi-seed) бір мезгілде бір толық жүгіруден
+  // аспауы үшін. Артық шектелген (тыйым көп) мектепте сыймаған сабақтар
+  // бәрібір сыймайды — 4 рет қайталау босқа уақыт. Бюджет асса, барлауды
+  // тоқтатып, қолда бары мен бір толық жүгіруге көшеміз.
+  const EXPLORE_BUDGET_MS = 450;
+
+  const totalNeed = input.classes.reduce((a, c) => a + c.curriculum.reduce((x, cu) => x + cu.hours, 0), 0);
+  const overLimit = Math.max(8, totalNeed * 0.03);
+
   // 1) Жеңіл барлау — детерминистік тұқымнан бастап
   let bestLight = runOnce(input, config, rngOf(0), false, onProgress);
   let bestA = 0;
   let used = 1;
   let noGain = 0;
-  if (missOf(bestLight) > 0 || bestLight.gaps.length > 0) {
+  // Бірінші әрекеттің өзі артық шектелген болса (тыйым тым көп) — қайта
+  // тұқымдау сыймаған сабақтарды сыйғыза алмайды. Барлауды мүлдем бастамай,
+  // бірден қайтарамыз (завуч тыйымды азайтуы керек, жауап тез келсін).
+  const firstOver = missOf(bestLight) > overLimit;
+  if (!firstOver && (missOf(bestLight) > 0 || bestLight.gaps.length > 0)) {
     for (let a = 1; a < MAX_LIGHT && noGain < 2; a++) {
+      if (Date.now() - t0 > EXPLORE_BUDGET_MS) break; // бюджет бітті — тоқта
       used++;
       const res = runOnce(input, config, rngOf(a), false);
       if (betterThan(res, bestLight)) { bestLight = res; bestA = a; noGain = 0; }
@@ -67,13 +81,22 @@ export function generate2(input: AlgoInput, config?: EngineV2Config, onProgress?
     }
   }
 
-  // 2) Ең жақсы тұқымға ТОЛЫҚ (improve) жүргізу — бір-ақ рет
-  const best = runOnce(input, config, rngOf(bestA), true);
-  // improve сирек жағдайда тесік ашса — жеңіл нұсқа жеңе алады
-  const winner = betterThan(bestLight, best) ? bestLight : best;
+  // Артық шектелген (сыймаған сабақ көп) — improve бәрібір өтпейді,
+  // қосымша толық жүгіру тек босқа қайта seed жасайды. Жеңіл нәтижені
+  // бірден қайтарамыз (завуч тыйымды азайтуы керек, жауап тез келсін).
+  const bestOverConstrained = missOf(bestLight) > overLimit;
+
+  let winner = bestLight;
+  if (!bestOverConstrained) {
+    // 2) Ең жақсы тұқымға ТОЛЫҚ (improve) жүргізу — бір-ақ рет
+    const best = runOnce(input, config, rngOf(bestA), true);
+    used++;
+    // improve сирек жағдайда тесік ашса — жеңіл нұсқа жеңе алады
+    winner = betterThan(bestLight, best) ? bestLight : best;
+  }
 
   winner.stats.timeMs = Date.now() - t0;
-  winner.stats.iters = used + 1;
+  winner.stats.iters = used;
   onProgress?.(100, 9);
   return winner;
 }
@@ -149,9 +172,15 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
   onProgress?.(65, 7);
   repairGaps(ctx, rules, units);
 
-  /* ── improve: глобал жылжыту + maximin (әділдік) — тек толық режимде ── */
+  /* ── improve: глобал жылжыту + maximin (әділдік) — тек толық режимде ──
+     Артық шектелген (тыйым тым көп) кестеде сабақтар сыймай тұр — слоттарды
+     дәлдеудің мәні жоқ, сапаны сыймаған сабақтар анықтайды. Мұндайда improve
+     өткіземіз: завуч тыйымды азайтуы керек, ал жауап ЖЫЛДАМ келуі маңызды. */
+  const missNow = missing.reduce((a, m) => a + (m.isDouble ? 2 : 1), 0);
+  const totalNeededQuick = input.classes.reduce((a, c) => a + c.curriculum.reduce((x, cu) => x + cu.hours, 0), 0);
+  const overConstrained = missNow > Math.max(8, totalNeededQuick * 0.03);
   onProgress?.(70, 6);
-  if (full) {
+  if (full && !overConstrained) {
     improveSchedule(ctx, rules, units);
     // improve кейбір жерде тесік қалдыруы мүмкін — соңғы тазалау
     repairGaps(ctx, rules, units);
