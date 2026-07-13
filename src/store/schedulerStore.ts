@@ -13,8 +13,11 @@
 // және бет ауысса да сақталады.
 import { create } from "zustand";
 import type { AlgoInput, AlgoResult, MultiResult } from "@/algorithm/engine";
+import type { EngineV2Config } from "@/algorithm2";
+import type { EngineId } from "@/lib/engines";
 
 export type GenMode = "full" | "partial" | "deep" | "update";
+export interface EngineSel { engine?: EngineId; config?: EngineV2Config }
 
 interface SchedulerState {
   mode: GenMode;
@@ -24,7 +27,7 @@ interface SchedulerState {
   running: boolean; pct: number; stage: number;
   result: AlgoResult | null; error: string | null;
   worker: Worker | null;
-  start: (input: AlgoInput) => void;
+  start: (input: AlgoInput, sel?: EngineSel) => void;
   cancel: () => void;
   reset: () => void;
 
@@ -42,7 +45,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   setMode: (m) => set({ mode: m }),
 
   running: false, pct: 0, stage: 0, result: null, error: null, worker: null,
-  start: (input) => {
+  start: (input, sel) => {
     get().worker?.terminate();
     const w = new Worker(new URL("../workers/scheduler.worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (e) => {
@@ -52,7 +55,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       else if (m.type === "error") { set({ error: m.message, running: false }); w.terminate(); }
     };
     set({ running: true, pct: 0, stage: 0, result: null, error: null, worker: w });
-    w.postMessage({ input });
+    w.postMessage({ input, engine: sel?.engine, config: sel?.config });
   },
   cancel: () => {
     get().worker?.terminate();

@@ -4,6 +4,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { School, Settings, Subject, Teacher, Room, Klass, AlgoResult } from "@/algorithm/engine";
 import { seedSchool, seedSettings, seedSubjects, buildSeed } from "@/lib/seed";
 import { buildBigSeed, bigSchool, bigSettings, bigSubjects } from "@/lib/bigSeed";
+import { DEFAULT_ENGINE, type EngineId } from "@/lib/engines";
+import type { EngineV2Config } from "@/algorithm2";
 
 export interface SubstitutionRecord {
   id: string;
@@ -30,6 +32,12 @@ interface DataState {
   subjects: Subject[]; classes: Klass[]; teachers: Teacher[]; rooms: Room[];
   versions: Version[]; activeVersionId: string | null;
   substitutions: SubstitutionRecord[];
+  // Алгоритм-модель таңдауы (ЖИ-чаттардағы модель ауыстырғыш сияқты).
+  // Әр модельдің ӨЗ баптау кеңістігі бар — engineConfigs-та сақталады.
+  activeEngine: EngineId;
+  engineConfigs: Partial<Record<EngineId, EngineV2Config>>;
+  setActiveEngine: (id: EngineId) => void;
+  setEngineConfig: (id: EngineId, cfg: EngineV2Config) => void;
   login: (name: string) => void; logout: () => void;
   setSchool: (s: Partial<School>) => void;
   setSettings: (s: Partial<Settings>) => void;
@@ -58,6 +66,9 @@ export const useData = create<DataState>()(
       subjects: seedSubjects, classes: seed.classes,
       teachers: seed.teachers, rooms: seed.rooms,
       versions: [], activeVersionId: null, substitutions: [],
+      activeEngine: DEFAULT_ENGINE, engineConfigs: {},
+      setActiveEngine: (activeEngine) => set({ activeEngine }),
+      setEngineConfig: (id, cfg) => set({ engineConfigs: { ...get().engineConfigs, [id]: cfg } }),
       login: (name) => set({ loggedIn: true, userName: name }),
       logout: () => set({ loggedIn: false, userName: "" }),
       setSchool: (s) => set({ school: { ...get().school, ...s } }),

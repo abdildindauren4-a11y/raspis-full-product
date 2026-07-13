@@ -1,7 +1,8 @@
 // filepath: src/pages/GeneratePage.tsx
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange, RefreshCw, Lock } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange, RefreshCw, Lock, Cpu } from "lucide-react";
+import { ENGINES } from "@/lib/engines";
 import GlassCard from "@/components/shared/GlassCard";
 import AIRobot, { type RobotStageGroup } from "@/components/shared/AIRobot";
 import UpgradeModal from "@/components/shared/UpgradeModal";
@@ -21,6 +22,9 @@ import type { AlgoInput, AlgoResult } from "@/algorithm/engine";
 
 export default function GeneratePage() {
   const data = useData();
+  const activeEngine = useData((s) => s.activeEngine);
+  const engineConfigs = useData((s) => s.engineConfigs);
+  const setActiveEngine = useData((s) => s.setActiveEngine);
   const active = useActiveVersion();
   const navigate = useNavigate();
   const { lang, t } = useLang();
@@ -158,7 +162,8 @@ export default function GeneratePage() {
         // anchor: қайта құрылатын сыныптарда да жарамды сабақтар ескі орнында қалады
         input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots, anchor: true };
       }
-      start(input);
+      // Таңдалған модель (Классик v1 / Хамелеон v2) және оның конфигі
+      start(input, activeEngine === "v2" ? { engine: "v2", config: engineConfigs.v2 } : undefined);
     }
     // Қатар жүрген квота жауабын күтеміз: жетпесе — бәрін тоқтатып, жоямыз
     if (quotaPromise) {
@@ -219,6 +224,32 @@ export default function GeneratePage() {
 
       {!isRunning && !activeResult && !runError && (
         <>
+          {/* Алгоритм-модель ауыстырғышы (ЖИ-чаттардағы модель таңдау сияқты) */}
+          <GlassCard hover={false}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-semibold text-muted-c flex items-center gap-1.5 shrink-0">
+                <Cpu className="w-4 h-4 accent-c" /> Алгоритм-модель:
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                {ENGINES.map((eng) => (
+                  <button key={eng.id} onClick={() => setActiveEngine(eng.id)}
+                    className={`px-3 py-2 rounded-xl text-left transition-all border ${
+                      activeEngine === eng.id
+                        ? "gradient-primary text-white border-transparent glow-blue"
+                        : "bg-input-c text-muted-c border-soft-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
+                    <span className="font-semibold text-sm flex items-center gap-1.5">
+                      {eng.name}
+                      {eng.beta && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeEngine === eng.id ? "bg-white/25" : "bg-[rgba(127,127,127,0.15)]"}`}>beta</span>
+                      )}
+                    </span>
+                    <span className="text-[11px] opacity-80 block">{eng.tagline}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </GlassCard>
+
           <GlassCard hover={false}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button onClick={() => setMode("full")}
