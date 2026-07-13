@@ -24,7 +24,10 @@ export interface SeedResult { missing: MissingUnit[]; units: PlacedUnit[] }
 
 export function buildTasks(ctx: RuleContext): Task[] {
   const tasks: Task[] = [];
+  // Ішінара режимде тек қайта құрылатын сыныптарға тапсырма жасалады
+  const targets = ctx.input.partial ? new Set(ctx.input.partial.classIds) : null;
   for (const cls of ctx.input.classes) {
+    if (targets && !targets.has(cls.id)) continue;
     for (const cu of cls.curriculum) {
       if (!cu.hours) continue;
       const s = ctx.subjectsById.get(cu.subjectId);
@@ -46,8 +49,7 @@ export function buildTasks(ctx: RuleContext): Task[] {
   return tasks;
 }
 
-export function runSeed(ctx: RuleContext, rules: CompiledRules, onProgress?: (pct: number) => void): SeedResult {
-  const tasks = buildTasks(ctx);
+export function runSeed(ctx: RuleContext, rules: CompiledRules, tasks: Task[], onProgress?: (pct: number) => void): SeedResult {
   const missing: MissingUnit[] = [];
   const units: PlacedUnit[] = [];
   let done = 0;
@@ -88,15 +90,18 @@ export function findBest(ctx: RuleContext, rules: CompiledRules, t: Task, isDoub
 
   for (let day = 1; day <= time.days; day++) {
     for (let slot = 1; slot <= time.slots - (isDouble ? 1 : 0); slot++) {
-      const parts = buildParts(ctx, t, day, slot);
+      let parts = buildParts(ctx, t, day, slot);
       if (typeof parts === "string") { lastReason = parts; continue; }
+      // Қос сабақ жұбы dpart белгісімен жүреді (экспорт/якорь таниды)
+      if (isDouble && !t.cu.isSplit) parts = parts.map((x) => ({ ...x, dpart: 1 as const }));
       const p1: CandidatePlacement = { cls: t.cls, cu: t.cu, s: t.s, day, slot, shift, parts, partOfDouble: isDouble ? 1 : undefined };
       const v1r = firstViolation(rules, ctx, p1);
       if (v1r) { lastReason = v1r; continue; }
       let p2: CandidatePlacement | undefined;
       if (isDouble) {
-        const parts2 = buildParts(ctx, t, day, slot + 1);
+        let parts2 = buildParts(ctx, t, day, slot + 1);
         if (typeof parts2 === "string") { lastReason = parts2; continue; }
+        if (!t.cu.isSplit) parts2 = parts2.map((x) => ({ ...x, dpart: 2 as const }));
         p2 = { cls: t.cls, cu: t.cu, s: t.s, day, slot: slot + 1, shift, parts: parts2, partOfDouble: 2 };
         const v2r = firstViolation(rules, ctx, p2);
         if (v2r) { lastReason = v2r; continue; }

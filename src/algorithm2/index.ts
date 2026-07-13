@@ -4,14 +4,16 @@
 // M2: v1 ережелерінің толық köшірмесі + repair + softFill (жалғасуда)
 
 import type { AlgoInput, AlgoResult, ProgressFn, StressTest, GapInfo, Settings, Unplaced, Subject, Klass } from "../algorithm/engine";
-import { maxSlots, dayLimitS, fatThrS, pScore, buildTimeline } from "../algorithm/engine";
+import { maxSlots, dayLimitS, fatThrS, pScore, buildTimeline, HOMEROOM_SUBJECT_ID } from "../algorithm/engine";
 import { buildTime } from "./time";
 import { ScheduleState } from "./model";
+import type { PlacedUnit } from "./model";
 import type { RuleContext, EngineV2Config } from "./rules/types";
 import { compileRules } from "./rules/registry";
-import { runSeed } from "./solver/seed";
+import { runSeed, buildTasks } from "./solver/seed";
 import { repairDeficit, repairGaps, softFill } from "./solver/repair";
 import { improveSchedule } from "./solver/improve";
+import { lockBaseSlots, anchorOldPlacements } from "./solver/partial";
 
 export type { EngineV2Config, RuleConfigMap, Rule, ParamSchema } from "./rules/types";
 export { ALL_RULES } from "./rules/registry";
@@ -116,9 +118,15 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
   const rules = compileRules(config?.rules);
   const warnings: string[] = [];
 
+  /* ── ішінара режим: құлыптау + якорь ── */
+  lockBaseSlots(ctx);
+  const tasks = buildTasks(ctx);
+  const units: PlacedUnit[] = [];
+  anchorOldPlacements(ctx, rules, tasks, units);
+
   /* ── seed ── */
-  const seedRes = runSeed(ctx, rules, (pct) => onProgress?.(Math.round(pct * 55), 1));
-  const units = seedRes.units;
+  const seedRes = runSeed(ctx, rules, tasks, (pct) => onProgress?.(Math.round(pct * 55), 1));
+  units.push(...seedRes.units);
 
   /* ── repair: дефицит (кедергіні жылжыту, бірнеше өтім) ── */
   onProgress?.(60, 5);
@@ -185,6 +193,22 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
   const totalNeed = input.classes.reduce((a, c) => a + c.curriculum.reduce((x, cu) => x + cu.hours, 0), 0);
   warnings.push(...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`));
 
+  /* СЫНЫП САҒАТЫ: барлық есеп аяқталған соң қосылады (v1-мен бірдей) —
+     нағыз пән емес, әр сыныптың сол күнгі соңғы сабағынан кейінгі слот */
+  if (settings.homeroom?.enabled) {
+    const hd = settings.homeroom.day;
+    for (const c of input.classes) {
+      let last = 0;
+      for (let sl = 1; sl <= time.slots; sl++) if (state.classAt(c.id, hd, sl)) last = sl;
+      if (!last || last >= maxSlots(c.grade, settings)) continue;
+      state.slots.push({
+        key: `hr-${c.id}-${hd}`, classId: c.id, subjectId: HOMEROOM_SUBJECT_ID,
+        teacherId: "", roomId: c.homeRoomId || "", day: hd, slot: last + 1,
+        shift: c.shift, score: 0,
+      });
+    }
+  }
+
   onProgress?.(100, 9);
   return {
     success: true,
@@ -204,7 +228,11 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
 
 function collectGaps(ctx: RuleContext): GapInfo[] {
   const gaps: GapInfo[] = [];
+  // Ішінара режимде тек қайта құрылған сыныптардың тесігі есептеледі
+  // (құлыпталғандардікі өзгертілмейді — есепке алу шешім бермейді)
+  const targets = ctx.input.partial ? new Set(ctx.input.partial.classIds) : null;
   for (const c of ctx.input.classes) {
+    if (targets && !targets.has(c.id)) continue;
     for (let day = 1; day <= ctx.time.days; day++) {
       const used: number[] = [];
       for (let sl = 1; sl <= ctx.time.slots; sl++) if (ctx.state.classAt(c.id, day, sl)) used.push(sl);
