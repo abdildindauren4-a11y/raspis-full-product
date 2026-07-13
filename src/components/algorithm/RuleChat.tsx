@@ -129,7 +129,7 @@ export default function RuleChat() {
 
       {applied && (
         <p className="text-xs status-good flex items-center gap-1.5 mt-3">
-          <Check className="w-3.5 h-3.5 shrink-0" /> Баптау қолданылды. Генерация бетінде қайта құрсаңыз, жаңа ережелер қолданылады.
+          <Check className="w-3.5 h-3.5 shrink-0" /> Баптау қосылды (бұрынғылар сақталды). Төмендегі «Белсенді баптаулар» тізімінен көре аласыз, қажет болса қолмен өшіресіз.
         </p>
       )}
 
