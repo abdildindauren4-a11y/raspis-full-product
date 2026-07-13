@@ -5,9 +5,10 @@ import { Field, inputCls, btnG, btnP } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { DEFAULT_MAX_LESSONS } from "@/algorithm/engine";
-import { School, Settings2, BarChart3, Battery, Target, RotateCcw, Lightbulb, ChevronDown, PlusCircle } from "lucide-react";
+import { School, Settings2, BarChart3, Battery, Target, RotateCcw, Lightbulb, ChevronDown, PlusCircle, Sparkles } from "lucide-react";
 import { seedSettings } from "@/lib/seed";
 import clockUrl from "@/assets/deco-clock.png";
+import RulesConstructor from "@/components/algorithm/RulesConstructor";
 
 function Slider({ label, value, min, max, step, onChange, suffix }: {
   label: string; value: number; min: number; max: number; step?: number;
@@ -29,6 +30,7 @@ function Slider({ label, value, min, max, step, onChange, suffix }: {
 export default function AlgorithmPage() {
   const { t } = useLang();
   const { school, setSchool, settings, setSettings, subjects, setSubjects, resetSeed, resetBigSeed } = useData();
+  const activeEngine = useData((s) => s.activeEngine);
   const [extraOpen, setExtraOpen] = useState(false);
   const dl = settings.dayLimits, ft = settings.fatigue, cf = settings.coeffs;
   const hr = settings.homeroom || { enabled: false, day: 1 };
@@ -53,6 +55,19 @@ export default function AlgorithmPage() {
         <p className="text-muted-c mt-1">{t("algo.optHint")}</p>
         <img src={clockUrl} alt="" aria-hidden className="absolute right-0 sm:right-2 -top-3 w-12 sm:w-16 pointer-events-none" style={{ filter: "drop-shadow(0 6px 12px rgba(30,58,95,0.18))" }} />
       </div>
+
+      {/* Хамелеон ережелер конструкторы — тек v2 моделі таңдалғанда */}
+      {activeEngine === "v2" ? (
+        <RulesConstructor />
+      ) : (
+        <GlassCard hover={false}>
+          <p className="text-sm text-muted-c flex items-center gap-2">
+            <Sparkles className="w-4 h-4 accent-c shrink-0" />
+            «Хамелеон» моделін таңдасаңыз (Генерация бетінде), кез келген ережені осы жерде өзіңіз баптай аласыз.
+          </p>
+        </GlassCard>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <GlassCard hover={false}>
           <h3 className="font-semibold text-strong-c mb-4 flex items-center gap-2"><School className="w-4 h-4 accent-c" /> {t("algo.schoolParams")}</h3>
