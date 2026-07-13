@@ -14,8 +14,8 @@ import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
 import { getPromoState, type PromoState } from "@/lib/promo";
 import { resolveSwapAlert } from "@/lib/antiResale";
 import {
-  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, printDoc, downloadDoc,
-  type DocRequisites, type DocParams,
+  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, printDoc, downloadDoc, docDateStr,
+  type DocRequisites, type DocParams, type DocLang,
 } from "@/lib/procurementDocs";
 import { effectivePrice } from "@/lib/plans";
 
@@ -96,19 +96,15 @@ export default function AdminPage() {
   const [docPlan, setDocPlan] = useState<PlanId>("premium");
   const [docPrice, setDocPrice] = useState<number>(effectivePrice(PLANS.premium.price));
   const [docOutNo, setDocOutNo] = useState("");
+  const [docLang, setDocLang] = useState<DocLang>("ru"); // құжат тілі
   const setReqField = (k: keyof DocRequisites, v: string) => {
     const next = { ...req, [k]: v };
     setReq(next);
     saveRequisites(next);
   };
-  const docDate = () => {
-    const m = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
-    const d = new Date();
-    return `«${d.getDate()}» ${m[d.getMonth()]} ${d.getFullYear()} г.`;
-  };
   const docParams = (): DocParams => ({
     schoolName: docSchool, directorName: docDirector,
-    plan: docPlan, price: docPrice, outNo: docOutNo, date: docDate(),
+    plan: docPlan, price: docPrice, outNo: docOutNo, date: docDateStr(docLang),
   });
   const docInput = "px-3 py-2 rounded-lg bg-input-c border border-soft-c text-sm text-strong-c placeholder:text-faint-c focus:outline-none focus:border-[var(--accent)] w-full";
 
@@ -211,15 +207,28 @@ export default function AdminPage() {
                 <input className={docInput} placeholder="Шығыс № (қаласаңыз)" value={docOutNo} onChange={(e) => setDocOutNo(e.target.value)} />
               </div>
             </div>
+            {/* Құжат тілі */}
+            <div>
+              <p className="text-xs font-semibold text-strong-c mb-2">Құжат тілі</p>
+              <div className="flex gap-2">
+                {([["ru", "Орысша"], ["kk", "Қазақша"], ["en", "English"]] as [DocLang, string][]).map(([code, label]) => (
+                  <button key={code} onClick={() => setDocLang(code)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                      docLang === code ? "gradient-primary text-white border-transparent" : "bg-input-c border-soft-c text-muted-c hover:border-[var(--accent)]"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {/* Батырмалар */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Техникалық спецификация</p>
                 <div className="flex gap-2">
-                  <button onClick={() => printDoc(tehSpecHtml(req, docParams()))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                  <button onClick={() => printDoc(tehSpecHtml(req, docParams(), docLang))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
                     <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
                   </button>
-                  <button onClick={() => downloadDoc(tehSpecHtml(req, docParams()), "РАСПИС_Техническая_спецификация.doc")} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+                  <button onClick={() => downloadDoc(tehSpecHtml(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
                     <FileDown className="w-3.5 h-3.5" /> Word (.doc)
                   </button>
                 </div>
@@ -227,10 +236,10 @@ export default function AdminPage() {
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Коммерциялық ұсыныс</p>
                 <div className="flex gap-2">
-                  <button onClick={() => printDoc(kpHtml(req, docParams()))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                  <button onClick={() => printDoc(kpHtml(req, docParams(), docLang))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
                     <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
                   </button>
-                  <button onClick={() => downloadDoc(kpHtml(req, docParams()), "РАСПИС_Коммерческое_предложение.doc")} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+                  <button onClick={() => downloadDoc(kpHtml(req, docParams(), docLang), `RASPIS_Offer_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
                     <FileDown className="w-3.5 h-3.5" /> Word (.doc)
                   </button>
                 </div>
