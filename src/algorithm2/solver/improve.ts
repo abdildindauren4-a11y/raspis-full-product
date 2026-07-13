@@ -119,22 +119,27 @@ function liftByRelocate(ctx: RuleContext, rules: CompiledRules, cls: Klass, own:
     if (!units.includes(u) || u.p.partOfDouble) continue;
     if (!sourceIsEndpoint(ctx, u)) continue; // ортасынан алу тесік ашады
     removeUnit(ctx, u, units);
-    let best: { p: CandidatePlacement; delta: number; sc: number } | null = null;
+    // Кандидаттарды АЛДЫМЕН арзан дельтамен сұрыптаймыз (ереже тексерісі жоқ);
+    // қымбат buildParts+firstViolation тек ең үміттілерге қолданылады
+    const ranked: { day: number; slot: number; delta: number }[] = [];
+    const oldP = u.made[0]?.score ?? 0;
     for (let day = 1; day <= ctx.time.days; day++) {
       for (let slot = 1; slot <= ctx.time.slots; slot++) {
         if (day === u.p.day && slot === u.p.slot) continue;
         if (!targetKeepsCompact(ctx, cls.id, day, slot)) continue;
-        const parts = buildParts(ctx, unitTask(u), day, slot);
-        if (typeof parts === "string") continue;
-        const p: CandidatePlacement = { cls: u.p.cls, cu: u.p.cu, s: u.p.s, day, slot, shift: u.p.shift, parts };
-        if (firstViolation(rules, ctx, p)) continue;
-        const delta = classDelta(n, dscBase, [{
-          fromDay: u.p.day, toDay: day, eff: u.eff,
-          oldP: u.made[0]?.score ?? 0, newP: ctx.pScoreOf(u.p.s, slot),
-        }]);
-        if (delta > 0.5 && (!best || delta > best.delta))
-          best = { p, delta, sc: softScore(rules, ctx, p) };
+        const delta = classDelta(n, dscBase, [{ fromDay: u.p.day, toDay: day, eff: u.eff, oldP, newP: ctx.pScoreOf(u.p.s, slot) }]);
+        if (delta > 0.5) ranked.push({ day, slot, delta });
       }
+    }
+    ranked.sort((a, b) => b.delta - a.delta);
+    let best: { p: CandidatePlacement; sc: number } | null = null;
+    for (const r of ranked) {
+      const parts = buildParts(ctx, unitTask(u), r.day, r.slot);
+      if (typeof parts === "string") continue;
+      const p: CandidatePlacement = { cls: u.p.cls, cu: u.p.cu, s: u.p.s, day: r.day, slot: r.slot, shift: u.p.shift, parts };
+      if (firstViolation(rules, ctx, p)) continue;
+      best = { p, sc: softScore(rules, ctx, p) }; // ең жоғары дельта — бірінші сай келгені
+      break;
     }
     if (best) { commit(ctx, { p1: best.p, score: best.sc }, units); return true; }
     units.push(ctx.state.place(u.p, u.made[0]?.score ?? 0, u.eff));
@@ -211,10 +216,10 @@ export function maximinPass(ctx: RuleContext, rules: CompiledRules, units: Place
 export function improveSchedule(ctx: RuleContext, rules: CompiledRules, units: PlacedUnit[]): void {
   globalPass(ctx, rules, units);
   if (ctx.settings.maximin !== false) {
-    // Екі раунд: maximin тығырыққа тірелгендерді глобал пасс қозғалтып,
-    // екінші раундқа жаңа мүмкіндік ашады
+    // Екінші раунд maximin тек аралық globalPass бірдеңе қозғалтса ғана
+    // мағыналы (әйтпесе бос уақыт — bigSeed тәрізді тығырықта пайдасыз)
     maximinPass(ctx, rules, units, Math.max(40, ctx.input.classes.length * 4));
-    globalPass(ctx, rules, units);
-    maximinPass(ctx, rules, units, Math.max(20, ctx.input.classes.length * 2));
+    const moved = globalPass(ctx, rules, units);
+    if (moved > 0) maximinPass(ctx, rules, units, Math.max(20, ctx.input.classes.length * 2));
   }
 }

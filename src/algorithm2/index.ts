@@ -42,37 +42,40 @@ const betterThan = (a: AlgoResult, b: AlgoResult) => {
   return a.quality > b.quality;
 };
 
-// Search-фаза (multi-seed): алдымен детерминистік әрекет; сыймаған сабақ
-// қалса — кезек пен таңдауға жеңіл шу қосып қайта жүгіреді, ең жақсысы алынады
+// Search-фаза (multi-seed): АРЗАН барлау → ҚЫМБАТ жақсарту стратегиясы.
+// Алдымен детерминистік жеңіл әрекет (improve-сіз). Мінсіз болса — соған
+// бір рет improve қосамыз. Болмаса — тағы бірнеше жеңіл тұқымды сынап,
+// ЕҢ ЖАҚСЫ тұқымды таңдап, оған ҒАНА improve жүргіземіз (improve — ең
+// қымбат фаза, сондықтан бір-ақ рет орындалады).
 export function generate2(input: AlgoInput, config?: EngineV2Config, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
-  const MAX_ATTEMPTS = 5;
+  const MAX_LIGHT = 4;
   const rngOf = (a: number) => (a === 0 ? () => 0 : mulberry32(((input.seed || 1) * 31 + a) | 0));
-  // 0-әрекет — детерминистік, ТОЛЫҚ (improve-пен)
-  let best = runOnce(input, config, rngOf(0), true, onProgress);
+
+  // 1) Жеңіл барлау — детерминистік тұқымнан бастап
+  let bestLight = runOnce(input, config, rngOf(0), false, onProgress);
   let bestA = 0;
   let used = 1;
-  if (missOf(best) > 0 || best.gaps.length > 0) {
-    // Мінсіз емес — жеңіл (improve-сіз) барлау әрекеттері, ең жақсысын
-    // кейін толық режимде қайта жүргіземіз (уақыт бюджеті үшін)
-    let bestLight: AlgoResult | null = null;
-    for (let a = 1; a < MAX_ATTEMPTS; a++) {
+  let noGain = 0;
+  if (missOf(bestLight) > 0 || bestLight.gaps.length > 0) {
+    for (let a = 1; a < MAX_LIGHT && noGain < 2; a++) {
       used++;
       const res = runOnce(input, config, rngOf(a), false);
-      if (!bestLight || betterThan(res, bestLight)) { bestLight = res; bestA = a; }
+      if (betterThan(res, bestLight)) { bestLight = res; bestA = a; noGain = 0; }
+      else noGain++;
       if (missOf(bestLight) === 0 && bestLight.gaps.length === 0) break;
     }
-    if (bestLight && (missOf(bestLight) < missOf(best) ||
-        (missOf(bestLight) === missOf(best) && bestLight.gaps.length < best.gaps.length))) {
-      const full = runOnce(input, config, rngOf(bestA), true);
-      // Үшеуінің ең жақсысы (improve тесік ашса — жеңіл нұсқа да жеңе алады)
-      for (const cand of [bestLight, full]) if (betterThan(cand, best)) best = cand;
-    }
   }
-  best.stats.timeMs = Date.now() - t0;
-  best.stats.iters = used;
+
+  // 2) Ең жақсы тұқымға ТОЛЫҚ (improve) жүргізу — бір-ақ рет
+  const best = runOnce(input, config, rngOf(bestA), true);
+  // improve сирек жағдайда тесік ашса — жеңіл нұсқа жеңе алады
+  const winner = betterThan(bestLight, best) ? bestLight : best;
+
+  winner.stats.timeMs = Date.now() - t0;
+  winner.stats.iters = used + 1;
   onProgress?.(100, 9);
-  return best;
+  return winner;
 }
 
 function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () => number, full: boolean, onProgress?: ProgressFn): AlgoResult {
