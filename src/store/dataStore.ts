@@ -48,6 +48,8 @@ interface DataState {
   saveVersion: (result: AlgoResult, isPartial: boolean, scope?: string) => Version;
   activateVersion: (id: string) => void;
   deleteVersion: (id: string) => void;
+  // Қолмен реттеу: белсенді нұсқаның слоттарын алмастыру (сапа сол күйінде қалады)
+  setActiveSlots: (slots: AlgoResult["slots"]) => void;
   addSubstitution: (s: SubstitutionRecord) => void;
   deleteSubstitution: (id: string) => void;
   resetSeed: () => void;
@@ -87,6 +89,13 @@ export const useData = create<DataState>()(
         return v;
       },
       activateVersion: (id) => set({ activeVersionId: id }),
+      setActiveSlots: (slots) => {
+        const id = get().activeVersionId;
+        set({
+          versions: get().versions.map((v) =>
+            v.id === id ? { ...v, result: { ...v.result, slots }, name: v.name.includes("(қолмен түзетілген)") ? v.name : `${v.name} (қолмен түзетілген)` } : v),
+        });
+      },
       addSubstitution: (s) => set({ substitutions: [...get().substitutions, s] }),
       deleteSubstitution: (id) => set({ substitutions: get().substitutions.filter((s) => s.id !== id) }),
       deleteVersion: (id) => {

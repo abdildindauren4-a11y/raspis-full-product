@@ -331,6 +331,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (t.shift !== 3 && t.shift !== cls.shift) return "мұғалім басқа ауысымда";
     if (t.unavailable.includes(`${day}-${slot}`)) return "мұғалім шектеуі";
     if (!interShiftOk(t, cls.shift, day)) return "ауысым аралық үзіліс (40 мин)";
+    // Пәннің «икстап тастау» торы — қатаң (жұмсақ режимде де): завуч осы
+    // уақытқа пәнді қоюға тыйым салған
+    if (subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`)) return "пәнге бұл уақытқа тыйым салынған";
 
     // ═══ ЖҰМСАҚ ЕРЕЖЕЛЕР — қажет болса шкала бойынша жұмсартылады ═══
     if (soft) {
@@ -518,6 +521,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (slot > maxSlots(cls.grade)) return null;
     if (cm[cls.id][day][slot] !== null) return null;
     if (ds[cls.id][day].has(s.id)) return null;
+    if (s.bannedSlots && s.bannedSlots.includes(`${day}-${slot}`)) return null;
     if (eff(cls, s) > 4 && fatigueAt(cls.id, day, slot) > fatThrS(cls.grade, settings)) return null;
     if (dScore[cls.id][day] + eff(cls, s) > dayLimitS(cls.grade, settings)) return null;
     const prev = cm[cls.id][day][slot - 1];
@@ -558,6 +562,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (cm[cls.id][day][slot + 1] !== null) return null;
     if (tm[tk.cu.teacherId!][cls.shift][day][slot + 1] !== null) return null;
     if (T[tk.cu.teacherId!].unavailable.includes(`${day}-${slot + 1}`)) return null;
+    if (s.bannedSlots && s.bannedSlots.includes(`${day}-${slot + 1}`)) return null;
     if (dScore[cls.id][day] + eff(cls, s) * 2 > dayLimitS(cls.grade, settings)) return null;
     if (s.score > 4 && fatigueAt(cls.id, day, slot) + s.score * SLOT_K[slot] > fatThrS(cls.grade, settings) + s.score) {
       // екінші бөлік шаршауы шамамен — қатаң тексеру:

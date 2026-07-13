@@ -1,23 +1,40 @@
 // filepath: src/pages/SchedulePage.tsx
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo } from "react";
 import { Link } from "react-router-dom";
 import GlassCard from "@/components/shared/GlassCard";
-import { inputCls, subjBg, btnG } from "@/components/shared/Form";
+import { inputCls, subjBg, btnG, btnP } from "@/components/shared/Form";
 import { useLang } from "@/contexts/LangContext";
-import { Sparkles, Printer } from "lucide-react";
+import { Sparkles, Printer, Hand, Save, X, Undo2, Info } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import type { Slot } from "@/algorithm/engine";
+import { lessonBlock, isMovable, moveViolation, movedBlock, type EditCtx } from "@/lib/manualEdit";
 import folderUrl from "@/assets/deco-folder.png";
 
 
 export default function SchedulePage() {
   const { classes, teachers, rooms, subjects, school, settings } = useData();
+  const setActiveSlots = useData((s) => s.setActiveSlots);
   const active = useActiveVersion();
   const [view, setView] = useState<"class" | "teacher" | "room">("class");
   const { t } = useLang();
   const [sel, setSel] = useState("");
   const tl = buildTimeline(school);
+
+  // ── Қолмен реттеу режимі ──
+  const [editMode, setEditMode] = useState(false);
+  const [editSlots, setEditSlots] = useState<Slot[]>([]);
+  const [picked, setPicked] = useState<string | null>(null); // ұсталған сабақ блогының anchor.key
+  const [dirty, setDirty] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const editCtx: EditCtx = useMemo(() => ({
+    subjects: new Map(subjects.map((s) => [s.id, s])),
+    teachers: new Map(teachers.map((tc) => [tc.id, tc])),
+    classes: new Map(classes.map((c) => [c.id, c])),
+    rooms: new Map(rooms.map((r) => [r.id, r])),
+    settings,
+  }), [subjects, teachers, classes, rooms, settings]);
 
   if (!active)
     return (
@@ -30,7 +47,71 @@ export default function SchedulePage() {
       </div>
     );
 
-  const slots = active.result.slots;
+  // Редакциялау режимінде жергілікті көшірме, әйтпесе сақталған нұсқа
+  const slots = editMode ? editSlots : active.result.slots;
+  const canEdit = view === "class"; // қолмен реттеу тек сынып көрінісінде
+
+  const enterEdit = () => { setView("class"); setEditSlots(active.result.slots.map((o) => ({ ...o }))); setEditMode(true); setPicked(null); setDirty(false); setMsg(""); };
+  const cancelEdit = () => { setEditMode(false); setPicked(null); setDirty(false); setMsg(""); };
+  const saveEdit = () => { setActiveSlots(editSlots); setEditMode(false); setPicked(null); setDirty(false); setMsg("Кесте сақталды."); };
+
+  // Ұсталған блок пен оның есепке алынбайтын кілттері
+  const pickedBlock = picked ? lessonBlock(slots, slots.find((o) => o.key === picked)!) : null;
+  const pickedKeys = new Set(pickedBlock?.map((o) => o.key) || []);
+
+  // Мақсат ұяшыққа не болатынын бағалау: 'move' | 'swap' | 'self' | 'blocked'
+  const evalTarget = (day: number, slot: number, cellBlockAnchor: Slot | null): { kind: string; reason?: string } => {
+    if (!pickedBlock) return { kind: "none" };
+    const pb = pickedBlock[0];
+    if (pb.day === day && pb.slot === slot) return { kind: "self" };
+    // Мақсатта сол сыныптың басқа (жылжымалы) сабағы болса — своп
+    if (cellBlockAnchor) {
+      const tgt = lessonBlock(slots, cellBlockAnchor);
+      if (!isMovable(tgt).ok) return { kind: "blocked", reason: "мұндағы сабақ жылжымайды" };
+      const ign = new Set([...pickedKeys, ...tgt.map((o) => o.key)]);
+      const r1 = moveViolation(slots, pickedBlock, day, slot, editCtx, ign);
+      if (r1) return { kind: "blocked", reason: r1 };
+      const r2 = moveViolation(slots, tgt, pb.day, pb.slot, editCtx, ign);
+      if (r2) return { kind: "blocked", reason: r2 };
+      return { kind: "swap" };
+    }
+    // Бос ұяшық — жай жылжу
+    const r = moveViolation(slots, pickedBlock, day, slot, editCtx, pickedKeys);
+    return r ? { kind: "blocked", reason: r } : { kind: "move" };
+  };
+
+  const doMove = (day: number, slot: number, cellBlockAnchor: Slot | null) => {
+    if (!pickedBlock) return;
+    const ev = evalTarget(day, slot, cellBlockAnchor);
+    if (ev.kind === "self") { setPicked(null); return; }
+    if (ev.kind === "blocked") { setMsg(ev.reason || "бұл жерге қою мүмкін емес"); return; }
+    const pb = pickedBlock[0];
+    let next = editSlots;
+    if (ev.kind === "swap" && cellBlockAnchor) {
+      const tgt = lessonBlock(slots, cellBlockAnchor);
+      const movedTgt = new Map(movedBlock(tgt, pb.day, pb.slot).map((o) => [o.key, o]));
+      const movedPk = new Map(movedBlock(pickedBlock, day, slot).map((o) => [o.key, o]));
+      next = editSlots.map((o) => movedPk.get(o.key) || movedTgt.get(o.key) || o);
+    } else {
+      const movedPk = new Map(movedBlock(pickedBlock, day, slot).map((o) => [o.key, o]));
+      next = editSlots.map((o) => movedPk.get(o.key) || o);
+    }
+    setEditSlots(next); setPicked(null); setDirty(true); setMsg("");
+  };
+
+  const onCellClick = (day: number, slot: number, cellAnchor: Slot | null) => {
+    if (!editMode || !canEdit) return;
+    if (!picked) {
+      if (!cellAnchor) return; // бос ұяшық — ұстайтын ештеңе жоқ
+      const blk = lessonBlock(slots, cellAnchor);
+      const mv = isMovable(blk);
+      if (!mv.ok) { setMsg(mv.reason || "жылжымайды"); return; }
+      setPicked(cellAnchor.key); setMsg("");
+    } else {
+      doMove(day, slot, cellAnchor);
+    }
+  };
+
   const S = (id: string) => subjects.find((x) => x.id === id);
   const Tn = (id: string) => teachers.find((x) => x.id === id)?.name || "";
   const Rn = (id: string) => rooms.find((x) => x.id === id)?.number || "";
@@ -64,13 +145,52 @@ export default function SchedulePage() {
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("sched.title")}</h1>
           <p className="text-muted-c mt-1">{active.name} · сапа {active.result.quality}/100</p>
         </div>
-        <button className={btnG + " flex items-center gap-2"} onClick={() => window.print()}><Printer className="w-4 h-4" /> Басып шығару</button>
+        <div className="flex items-center gap-2">
+          {!editMode ? (
+            <>
+              <button className={btnG + " flex items-center gap-2"} onClick={() => window.print()}><Printer className="w-4 h-4" /> Басып шығару</button>
+              <button className={btnP + " flex items-center gap-2"} onClick={enterEdit}><Hand className="w-4 h-4" /> Қолмен реттеу</button>
+            </>
+          ) : (
+            <>
+              <button className={btnP + " flex items-center gap-2 disabled:opacity-50"} disabled={!dirty} onClick={saveEdit}><Save className="w-4 h-4" /> Сақтау</button>
+              <button className={btnG + " flex items-center gap-2"} onClick={cancelEdit}><X className="w-4 h-4" /> Болдырмау</button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Қолмен реттеу нұсқауы */}
+      {editMode && (
+        <div className="rounded-xl border border-soft-c bg-input-c/60 p-3 flex items-start gap-2 flex-wrap">
+          <Info className="w-4 h-4 accent-c shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-c flex-1 min-w-[200px]">
+            {picked
+              ? "Сабақ ұсталды — жасыл ұяшыққа қойыңыз (немесе басқа сабақпен орын ауыстырыңыз). Қызыл — болмайды. Қайта басу — бас тарту."
+              : "Жылжытатын сабақты басыңыз. Жүйе жарамды орындарды жасыл, жарамсызды қызыл көрсетеді әрі себебін айтады."}
+          </p>
+          {picked && (
+            <button className="text-xs flex items-center gap-1 px-2 py-1 rounded-lg bg-app-c text-muted-c hover:text-strong-c" onClick={() => setPicked(null)}>
+              <Undo2 className="w-3.5 h-3.5" /> Таңдауды алу
+            </button>
+          )}
+        </div>
+      )}
+      {editMode && msg && (
+        <div className="rounded-xl border border-soft-c bg-app-c p-2.5 text-xs status-warn flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 shrink-0" /> {msg}
+        </div>
+      )}
+      {!editMode && msg && (
+        <div className="rounded-xl border border-soft-c bg-app-c p-2.5 text-xs status-good flex items-center gap-2">
+          <Save className="w-3.5 h-3.5 shrink-0" /> {msg}
+        </div>
+      )}
       <div className="flex flex-wrap gap-3">
         <div className="flex gap-2">
           {(["class", "teacher", "room"] as const).map((m) => (
-            <button key={m} onClick={() => { setView(m); setSel(""); }}
-              className={`px-4 py-2 rounded-xl text-sm transition-all ${view === m ? "gradient-primary text-white" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
+            <button key={m} disabled={editMode && m !== "class"} onClick={() => { setView(m); setSel(""); }}
+              className={`px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-40 ${view === m ? "gradient-primary text-white" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
               {m === "class" ? t("common.class") : m === "teacher" ? t("common.teacher") : t("common.room")}
             </button>
           ))}
@@ -106,10 +226,24 @@ export default function SchedulePage() {
                       </td>
                       {[1, 2, 3, 4, 5].map((day) => {
                         const cells = grid[`${sh}-${day}-${slot}`] || [];
+                        // Редакциялау: ұяшық anchor (жылжымалы жалғыз сабақ) + бағалау
+                        const cellAnchor = editMode && canEdit
+                          ? cells.find((o) => o.subjectId !== HOMEROOM_SUBJECT_ID) || null
+                          : null;
+                        const ev = editMode && canEdit && picked ? evalTarget(day, slot, cellAnchor) : { kind: "none" as string };
+                        const cellHi =
+                          ev.kind === "move" || ev.kind === "swap" ? "ring-2 ring-emerald-500/70 rounded-lg cursor-pointer"
+                          : ev.kind === "blocked" ? "ring-2 ring-red-500/50 rounded-lg cursor-not-allowed"
+                          : "";
                         return (
-                          <td key={day} className="p-1 align-top min-w-[140px]">
+                          <td key={day}
+                            title={editMode && ev.kind === "blocked" ? ev.reason : editMode && (ev.kind === "move" || ev.kind === "swap") ? (ev.kind === "swap" ? "Орын ауыстыру" : "Осында қою") : undefined}
+                            onClick={editMode && canEdit ? () => onCellClick(day, slot, cellAnchor) : undefined}
+                            className={`p-1 align-top min-w-[140px] ${cellHi}`}>
                             {cells.length === 0 ? (
-                              <div className="text-center text-faint-c py-3">—</div>
+                              <div className={`text-center py-3 ${ev.kind === "move" ? "status-good font-bold" : "text-faint-c"}`}>
+                                {ev.kind === "move" ? "＋" : "—"}
+                              </div>
                             ) : cells.map((o, ci) => {
                               if (o.subjectId === HOMEROOM_SUBJECT_ID) {
                                 return (
@@ -119,8 +253,11 @@ export default function SchedulePage() {
                                 );
                               }
                               const s = S(o.subjectId);
+                              const isPicked = pickedKeys.has(o.key);
                               return (
-                                <div key={ci} className={`rounded-lg border p-1.5 mb-1 ${s ? subjBg(s.score) : ""}`}>
+                                <div key={ci}
+                                  onClick={editMode && canEdit && !picked ? (e) => { e.stopPropagation(); onCellClick(day, slot, o); } : undefined}
+                                  className={`rounded-lg border p-1.5 mb-1 ${s ? subjBg(s.score) : ""} ${isPicked ? "ring-2 ring-[var(--accent)] scale-[0.97]" : ""} ${editMode && canEdit && !picked ? "cursor-grab hover:brightness-95" : ""}`}>
                                   <p className="font-semibold leading-tight">
                                     {s?.name}{o.dpart ? " ×2" : ""}{o.groupId ? ` · ${o.groupId}` : ""}
                                   </p>
