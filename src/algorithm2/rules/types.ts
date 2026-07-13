@@ -3,7 +3,7 @@
 // Ереже = ДЕРЕК (аты, түсіндірмесі, параметрлері) + функция.
 // Шешуші (solver) ережелердің мазмұнын білмейді — тек тізімін жүреді.
 
-import type { AlgoInput, Klass, Subject, Teacher, Room, Settings } from "../../algorithm/engine";
+import type { AlgoInput, Klass, Subject, Teacher, Room, Settings, TL } from "../../algorithm/engine";
 import type { TimeModel } from "../time";
 import type { ScheduleState, CandidatePlacement } from "../model";
 
@@ -29,6 +29,14 @@ export interface RuleContext {
   roomsById: Map<string, Room>;
   classesById: Map<string, Klass>;
   maxLessonsOf(grade: number): number; // СанПиН күндік сабақ лимиті
+  dayLimitOf(grade: number): number;   // күндік балл лимиті
+  fatigueThrOf(grade: number): number; // шаршау шегі
+  effOf(cls: Klass, s: Subject): number; // пәннің тиімді салмағы (бастауышта primaryScore)
+  pScoreOf(s: Subject, slot: number): number; // пәннің слоттағы орналасу ұпайы (0..10)
+  lateLimitOf(s: Subject): number | undefined; // пәннің ең кеш сабақ шегі (математика ≤4)
+  fatigueAt(classId: string, day: number, beforeSlot: number): number; // жинақталған шаршау
+  timeline: Record<1 | 2, TL[]>; // қоңырау кестесі (ауысым аралық үзіліске)
+  rng(): number; // 0..1 — multi-seed іздеудегі жеңіл шу (0-әрекетте әрқашан 0)
 }
 
 export type RuleParams = Record<string, unknown>;

@@ -4,81 +4,90 @@
 // ЕҢ ЖАҚСЫ (soft ұпайы max) орын таңдалады. v1-дің дәлелденген эвристикасы —
 // бірақ шарттар кодқа тігілмеген: бәрі ережелер реестрінен оқылады.
 
-import type { Klass, CurItem, Subject, Unplaced } from "../../algorithm/engine";
+import type { Klass, CurItem, Subject } from "../../algorithm/engine";
 import type { RuleContext } from "../rules/types";
 import type { CompiledRules } from "../rules/registry";
 import { firstViolation, softScore } from "../rules/registry";
-import type { CandidatePlacement, Part } from "../model";
+import type { CandidatePlacement, Part, PlacedUnit } from "../model";
 import { NO_ROOM } from "../model";
 
-interface Task {
+export interface Task {
   cls: Klass; cu: CurItem; s: Subject;
   pr: number;          // приоритет (үлкені бұрын)
   singles: number; doubles: number;
 }
 
-export interface SeedResult { unplaced: Unplaced[] }
+// Орналаспай қалған бірлік — repair/softFill фазалары қайта әрекеттенеді
+export interface MissingUnit { task: Task; isDouble: boolean; lastReason: string }
 
-export function runSeed(ctx: RuleContext, rules: CompiledRules, onProgress?: (pct: number) => void): SeedResult {
-  const { input, time } = ctx;
+export interface SeedResult { missing: MissingUnit[]; units: PlacedUnit[] }
 
-  /* ── тапсырмалар кезегі ── */
+export function buildTasks(ctx: RuleContext): Task[] {
   const tasks: Task[] = [];
-  for (const cls of input.classes) {
+  for (const cls of ctx.input.classes) {
     for (const cu of cls.curriculum) {
       if (!cu.hours) continue;
       const s = ctx.subjectsById.get(cu.subjectId);
       if (!s) continue;
       // Аптада күн санынан көп сағат — қос сабақсыз сыймайды
-      const doubles = Math.max(0, cu.hours - time.days);
+      const doubles = Math.max(0, cu.hours - ctx.time.days);
       const singles = cu.hours - doubles * 2;
       const pr =
         (s.room ? 1000 : 0) +          // арнайы кабинет — тапшы ресурс, бірінші
         (cu.isSplit ? 500 : 0) +       // топқа бөлінген — екі мұғалім бірден керек
+        (ctx.lateLimitOf(s) ? 300 : 0) + // слот шегі барлар (математика ≤4) — ерте орналассын
         cu.hours * 20 +                // сағаты көбі бұрын
-        s.score;                       // ауыры бұрын
+        s.score +                      // ауыры бұрын
+        ctx.rng() * 15;                // multi-seed: кезек ретін сәл araластыру
       tasks.push({ cls, cu, s, pr, singles, doubles });
     }
   }
   tasks.sort((a, b) => b.pr - a.pr);
+  return tasks;
+}
 
-  /* ── орналастыру ── */
-  const unplaced: Unplaced[] = [];
+export function runSeed(ctx: RuleContext, rules: CompiledRules, onProgress?: (pct: number) => void): SeedResult {
+  const tasks = buildTasks(ctx);
+  const missing: MissingUnit[] = [];
+  const units: PlacedUnit[] = [];
   let done = 0;
   for (const t of tasks) {
-    let miss = 0;
-    let lastReason = "";
     for (let d = 0; d < t.doubles; d++) {
-      const r = placeUnit(ctx, rules, t, true);
-      if (r) { miss += 2; lastReason = r; }
+      const r = placeUnit(ctx, rules, t, true, units);
+      if (typeof r === "string") missing.push({ task: t, isDouble: true, lastReason: r });
     }
     for (let sN = 0; sN < t.singles; sN++) {
-      const r = placeUnit(ctx, rules, t, false);
-      if (r) { miss += 1; lastReason = r; }
-    }
-    if (miss > 0) {
-      unplaced.push({
-        className: t.cls.name, subject: t.s.name,
-        placed: t.cu.hours - miss, need: t.cu.hours, reason: lastReason,
-      });
+      const r = placeUnit(ctx, rules, t, false, units);
+      if (typeof r === "string") missing.push({ task: t, isDouble: false, lastReason: r });
     }
     done++;
     if (onProgress && done % 10 === 0) onProgress(done / tasks.length);
   }
-  return { unplaced };
+  return { missing, units };
 }
 
 // Бір бірлікті (жалғыз сабақ немесе қос сабақ) ең жақсы орынға қою.
-// Сәтті болса null, болмаса — соңғы себеп.
-function placeUnit(ctx: RuleContext, rules: CompiledRules, t: Task, isDouble: boolean): string | null {
+// Сәтті болса орналастыру(лар), болмаса — соңғы себеп (string).
+export function placeUnit(
+  ctx: RuleContext, rules: CompiledRules, t: Task, isDouble: boolean,
+  units?: PlacedUnit[],
+): PlacedUnit[] | string {
+  const best = findBest(ctx, rules, t, isDouble);
+  if (typeof best === "string") return best;
+  return commit(ctx, best, units);
+}
+
+export interface BestSpot { p1: CandidatePlacement; p2?: CandidatePlacement; score: number }
+
+// Ережелерден өткен ұяшықтар ішінен soft ұпайы ең жоғарысын табу
+export function findBest(ctx: RuleContext, rules: CompiledRules, t: Task, isDouble: boolean): BestSpot | string {
   const { time } = ctx;
   const shift = t.cls.shift;
-  let best: { p1: CandidatePlacement; p2?: CandidatePlacement; score: number } | null = null;
+  let best: BestSpot | null = null;
   let lastReason = "орын табылмады";
 
   for (let day = 1; day <= time.days; day++) {
-    const maxSlot = Math.min(time.slots, ctx.maxLessonsOf(t.cls.grade));
-    for (let slot = 1; slot <= maxSlot - (isDouble ? 1 : 0); slot++) {
+    for (let slot = 1; slot <= time.slots - (isDouble ? 1 : 0); slot++) {
       const parts = buildParts(ctx, t, day, slot);
       if (typeof parts === "string") { lastReason = parts; continue; }
       const p1: CandidatePlacement = { cls: t.cls, cu: t.cu, s: t.s, day, slot, shift, parts, partOfDouble: isDouble ? 1 : undefined };
@@ -92,21 +101,26 @@ function placeUnit(ctx: RuleContext, rules: CompiledRules, t: Task, isDouble: bo
         const v2r = firstViolation(rules, ctx, p2);
         if (v2r) { lastReason = v2r; continue; }
       }
-      const sc = softScore(rules, ctx, p1) + (p2 ? softScore(rules, ctx, p2) : 0);
+      const sc = softScore(rules, ctx, p1) + (p2 ? softScore(rules, ctx, p2) : 0) + ctx.rng() * 0.4;
       if (!best || sc > best.score) best = { p1, p2, score: sc };
     }
   }
+  return best || lastReason;
+}
 
-  if (!best) return lastReason;
-  const avg = best.score / (best.p2 ? 2 : 1);
-  ctx.state.place(best.p1, Math.round(avg * 10) / 10);
-  if (best.p2) ctx.state.place(best.p2, Math.round(avg * 10) / 10);
-  return null;
+export function commit(ctx: RuleContext, best: BestSpot, units?: PlacedUnit[]): PlacedUnit[] {
+  const eff = ctx.effOf(best.p1.cls, best.p1.s);
+  // Слотқа жазылатын ұпай — пәннің орналасу сапасы (v1-мен бірдей шкала,
+  // сынып ұпайы осыдан есептеледі)
+  const out = [ctx.state.place(best.p1, ctx.pScoreOf(best.p1.s, best.p1.slot), eff)];
+  if (best.p2) out.push(ctx.state.place(best.p2, ctx.pScoreOf(best.p2.s, best.p2.slot), eff));
+  if (units) units.push(...out);
+  return out;
 }
 
 // Сабақтың бөліктерін (мұғалім+кабинет) құру. Топқа бөлінген сабақта әр
 // топқа жеке бөлік. Кабинет табылмаса — себеп қайтарылады.
-function buildParts(ctx: RuleContext, t: Task, day: number, slot: number): Part[] | string {
+export function buildParts(ctx: RuleContext, t: Task, day: number, slot: number): Part[] | string {
   if (t.cu.isSplit && t.cu.groups?.length) {
     const parts: Part[] = [];
     const taken = new Set<string>();
@@ -129,11 +143,12 @@ function buildParts(ctx: RuleContext, t: Task, day: number, slot: number): Part[
 // бекітілген кабинеті (homeRoomId) бірінші кезекте.
 function findRoom(ctx: RuleContext, t: Task, day: number, slot: number, preferId: string | undefined, taken: Set<string>): string | null {
   const need = t.s.room || "regular";
+  const shift = t.cls.shift;
   const free = (id: string) => {
     if (taken.has(id)) return false;
     const r = ctx.roomsById.get(id);
     const cap = r?.type === "gym" ? r.gymMax || 1 : 1; // спортзал бөлісіледі
-    return ctx.state.roomOcc(id, day, slot).length < cap;
+    return ctx.state.roomOcc(id, shift, day, slot).length < cap;
   };
   if (preferId && free(preferId)) return preferId;
   if (need === "regular" && t.cls.homeRoomId && free(t.cls.homeRoomId)) {

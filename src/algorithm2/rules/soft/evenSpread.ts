@@ -9,7 +9,7 @@ export const evenWeekSpread: Rule = {
   title: "Аптаға тең бөлу",
   description: "Сыныптың күндік жүктемесі апта бойына біркелкі таралады",
   kind: "soft", defaultEnabled: true, removable: true,
-  defaultWeight: 1,
+  defaultWeight: 2, // калибрленген: bigSeed-те тығырықты азайтады
   score(ctx, p) {
     // Күні неғұрлым бос болса — соғұрлым тартымды (0..6 шамасында)
     const used = ctx.state.lessonsOn(p.cls.id, p.day);
@@ -23,7 +23,7 @@ export const compactDay: Rule = {
   title: "Тесіксіз күн",
   description: "Сабақ күннің басынан үзіліссіз тізіледі — сынып кестесінде тесік болмайды",
   kind: "soft", defaultEnabled: true, removable: true,
-  defaultWeight: 2,
+  defaultWeight: 4, // калибрленген: тесіктерді азайтады
   score(ctx, p) {
     // Күндегі келесі бос слотқа дәл жалғасса — жоғары ұпай; секіріп кетсе —
     // тесік ықтималдығы, ұпай төмен. lessonsOn = қойылған сан, келесі

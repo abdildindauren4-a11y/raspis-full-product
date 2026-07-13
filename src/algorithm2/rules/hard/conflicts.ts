@@ -11,7 +11,7 @@ export const conflictTeacher: Rule = {
   kind: "hard", defaultEnabled: true, removable: false,
   check(ctx, p) {
     for (const part of p.parts) {
-      const busy = ctx.state.teacherAt(part.teacherId, p.day, p.slot);
+      const busy = ctx.state.teacherAt(part.teacherId, p.shift, p.day, p.slot);
       if (busy) {
         const t = ctx.teachersById.get(part.teacherId);
         const c = ctx.classesById.get(busy);
@@ -48,7 +48,7 @@ export const conflictRoom: Rule = {
       // Спортзал бірнеше сыныпты сыйғызады (gymMax) — санын осы жерде,
       // деңгей үйлесімін gym-capacity ережесі тексереді
       const cap = r?.type === "gym" ? r.gymMax || 1 : 1;
-      const occ = ctx.state.roomOcc(part.roomId, p.day, p.slot);
+      const occ = ctx.state.roomOcc(part.roomId, p.shift, p.day, p.slot);
       if (occ.length >= cap) {
         const c = ctx.classesById.get(occ[0]);
         return `${r?.number || "кабинет"} бос емес (${c?.name || occ[0]})`;
@@ -70,7 +70,7 @@ export const gymCapacity: Rule = {
       const groups = r.gymGroups && r.gymGroups.length ? r.gymGroups : [[1, 11]];
       const grp = groups.find((g) => g[0] <= p.cls.grade && p.cls.grade <= g[1]);
       if (!grp) return `${p.cls.grade}-сынып спортзал топтарына кірмейді`;
-      for (const oc of ctx.state.roomOcc(part.roomId, p.day, p.slot)) {
+      for (const oc of ctx.state.roomOcc(part.roomId, p.shift, p.day, p.slot)) {
         const ocl = ctx.classesById.get(oc);
         if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1]))
           return `спортзалда басқа жас тобы (${ocl.name}) тұр`;
