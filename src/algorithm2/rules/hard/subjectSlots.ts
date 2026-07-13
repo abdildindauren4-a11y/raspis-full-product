@@ -31,7 +31,7 @@ export const corrLate: Rule = {
   params: [
     { key: "minSlot", label: "Ең ерте слот", type: "number", min: 2, max: 6, default: 4 },
   ],
-  check(ctx, p, params) {
+  check(_ctx, p, params) {
     if (!p.s.corr) return null;
     const min = Number(params.minSlot) || 4;
     if (p.slot < min) return `түзету сабағы ${min}-сабақтан ерте қойылмайды`;

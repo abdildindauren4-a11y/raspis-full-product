@@ -127,7 +127,7 @@ function runOnce(input: AlgoInput, config: EngineV2Config | undefined, rng: () =
   /* ── қорытынды есептер — v1 (ЭТАП 9) формулаларымен бірдей ── */
   onProgress?.(90, 9);
   const gaps = collectGaps(ctx);
-  const unplaced = collectUnplaced(ctx, missing);
+  const unplaced = collectUnplaced(missing);
   const tests = selfCheck(ctx);
 
   // Сынып ұпайы: слот сапасының орташасы (60%) + күндік балл біркелкілігі (40%)
@@ -197,7 +197,7 @@ function collectGaps(ctx: RuleContext): GapInfo[] {
 }
 
 // Орналаспағандарды v1 пішіміне жинақтау (сынып+пән бойынша топтап)
-function collectUnplaced(ctx: RuleContext, missing: { task: { cls: Klass; s: Subject; cu: { hours: number } }; isDouble: boolean; lastReason: string }[]): Unplaced[] {
+function collectUnplaced(missing: { task: { cls: Klass; s: Subject; cu: { hours: number } }; isDouble: boolean; lastReason: string }[]): Unplaced[] {
   const byKey = new Map<string, Unplaced & { miss: number }>();
   for (const m of missing) {
     const k = `${m.task.cls.id}|${m.task.s.id}`;
