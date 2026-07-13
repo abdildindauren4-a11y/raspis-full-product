@@ -23,6 +23,23 @@ export const subjectMaxSlot: Rule = {
   },
 };
 
+export const subjectSlotMatrix: Rule = {
+  id: "subject-slot-matrix",
+  title: "Пәннің тыйым салынған ұяшықтары",
+  description: "Пән апта торында Х қойылған уақыттарға (күн-сабақ) орналастырылмайды",
+  kind: "hard", defaultEnabled: true, removable: true,
+  check(_ctx, p) {
+    const banned = p.s.bannedSlots;
+    if (!banned || !banned.length) return null;
+    const key = `${p.day}-${p.slot}`;
+    if (banned.includes(key)) return `${p.s.name} бұл уақытқа қойылмайды (Х белгіленген)`;
+    // Қос сабақтың екінші жартысы да тексеріледі
+    if (p.partOfDouble === 1 && banned.includes(`${p.day}-${p.slot + 1}`))
+      return `${p.s.name} қос сабағының екінші жартысы тыйым салынған уақытқа түседі`;
+    return null;
+  },
+};
+
 export const corrLate: Rule = {
   id: "corr-late",
   title: "Түзету сабағы — күн соңында",

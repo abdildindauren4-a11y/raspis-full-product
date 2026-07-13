@@ -3,13 +3,13 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { Modal, Field, inputCls, btnP, btnG, btnD } from "@/components/shared/Form";
+import SlotMatrix from "@/components/shared/SlotMatrix";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { teacherBudgets } from "@/lib/dataBudget";
 import type { Teacher } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const DAYS_S = ["", "Дс", "Сс", "Ср", "Бс", "Жм"];
 
 export default function TeachersPage() {
   const { t } = useLang();
@@ -33,10 +33,6 @@ export default function TeachersPage() {
     };
     setTeachers(form.id ? teachers.map((x) => (x.id === t.id ? t : x)) : [...teachers, t]);
     setForm(null);
-  };
-  const toggleUnavail = (key: string) => {
-    const u = form?.unavailable || [];
-    setForm({ ...form, unavailable: u.includes(key) ? u.filter((x) => x !== key) : [...u, key] });
   };
   const usedBy = (id: string) => classes.filter((c) => c.curriculum.some((cu) => cu.teacherId === id || cu.groups?.some((g) => g.teacherId === id))).length;
 
@@ -126,14 +122,9 @@ export default function TeachersPage() {
             </label>
           </Field>
         </div>
-        <Field label="Қолжетімсіз уақыттар (басыңыз)">
-          <div className="overflow-x-auto"><div className="grid gap-1 min-w-[420px]" style={{ gridTemplateColumns: "auto repeat(8, 1fr)" }}>
-            <div></div>
-            {Array.from({ length: 8 }, (_, i) => <div key={i} className="text-center text-xs text-muted-c">{i + 1}</div>)}
-            {[1, 2, 3, 4, 5].map((d) => (
-              <FragmentRow key={d} d={d} unavailable={form?.unavailable || []} toggle={toggleUnavail} />
-            ))}
-          </div></div>
+        <Field label="Қолжетімсіз уақыттар (басыңыз, күн атауын бассаңыз — бүкіл күн)">
+          <SlotMatrix value={form?.unavailable || []}
+            onChange={(unavailable) => setForm({ ...form, unavailable })} />
         </Field>
         <div className="flex gap-2 justify-end mt-4">
           <button className={btnG} onClick={() => setForm(null)}>Болдырмау</button>
@@ -141,23 +132,5 @@ export default function TeachersPage() {
         </div>
       </Modal>
     </div>
-  );
-}
-
-function FragmentRow({ d, unavailable, toggle }: { d: number; unavailable: string[]; toggle: (k: string) => void }) {
-  return (
-    <>
-      <div className="text-xs text-muted-c pr-2 flex items-center">{DAYS_S[d]}</div>
-      {Array.from({ length: 8 }, (_, i) => {
-        const key = `${d}-${i + 1}`;
-        const off = unavailable.includes(key);
-        return (
-          <button key={key} onClick={() => toggle(key)}
-            className={`h-7 rounded text-xs transition-all ${off ? "bg-red-500/30 status-bad" : "bg-input-c text-faint-c hover:bg-[rgba(127,127,127,0.15)]"}`}>
-            {off ? "✕" : ""}
-          </button>
-        );
-      })}
-    </>
   );
 }

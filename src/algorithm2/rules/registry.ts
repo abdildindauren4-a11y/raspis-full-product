@@ -13,7 +13,7 @@ import { maxLessonsPerDay } from "./hard/maxLessonsPerDay";
 import { roomType } from "./hard/roomType";
 import { dayScoreLimit, fatigueThreshold } from "./hard/sanpin";
 import { blacklistPair, digitalThenLight } from "./hard/pairs";
-import { subjectMaxSlot, corrLate } from "./hard/subjectSlots";
+import { subjectMaxSlot, subjectSlotMatrix, corrLate } from "./hard/subjectSlots";
 import { interShiftGap } from "./hard/interShift";
 import { idealSlot } from "./soft/idealSlot";
 import { evenWeekSpread, dayLoadEvenness, compactDay } from "./soft/evenSpread";
@@ -24,7 +24,7 @@ export const ALL_RULES: Rule[] = [
   oneSubjectPerDay, teacherAvailability, teacherShiftGrade,
   maxLessonsPerDay, roomType,
   dayScoreLimit, fatigueThreshold, blacklistPair, digitalThenLight,
-  subjectMaxSlot, corrLate, interShiftGap,
+  subjectMaxSlot, subjectSlotMatrix, corrLate, interShiftGap,
   // жұмсақ
   idealSlot, evenWeekSpread, dayLoadEvenness, compactDay,
 ];

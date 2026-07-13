@@ -16,6 +16,9 @@ export interface Subject {
   // (eff()=0), сондықтан приоритет кезегінде ең соңында, негізгі пәндер
   // орналасқаннан кейінгі бос слоттарға ғана орналасады.
   elective?: boolean;
+  // «Икстап тастау» торы: пән қойылмайтын ұяшықтар ("day-slot", мыс. "1-1").
+  // Хамелеон (v2) subject-slot-matrix ережесі қолданады.
+  bannedSlots?: string[];
 }
 export interface Teacher {
   id: string; name: string; norm: number;
