@@ -6,9 +6,13 @@
 import ExcelJS from "exceljs";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
 import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
+import { getExportLabels, type ExportLabels } from "@/lib/exportLabels";
 
-const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
-const COVER_SHEET = "Мұқаба";
+// Модуль деңгейіндегі жапсырмалар — экспорт басында ctx.labels-тен орнатылады
+// (экспорт бір-бірлеп жүреді, сондықтан қатер жоқ). Әдепкі — қазақша.
+let L: ExportLabels = getExportLabels("kk");
+const DAYS = () => L.days;
+const COVER_SHEET = () => L.cover;
 
 function subjectColor(subj: Subject | undefined): string {
   if (!subj) return "FFFFFF";
@@ -31,6 +35,7 @@ function academicYear(): string {
 interface ExportCtx {
   school: School; classes: Klass[]; teachers: Teacher[];
   rooms: Room[]; subjects: Subject[]; settings?: Settings; result: AlgoResult;
+  labels?: ExportLabels; // сайт тілі (болмаса — қазақша әдепкі)
 }
 
 const BORDER: Partial<ExcelJS.Borders> = {
@@ -40,11 +45,12 @@ const BORDER: Partial<ExcelJS.Borders> = {
   right: { style: "thin", color: { argb: "FFB0B8C0" } },
 };
 
-const GROUPS: { title: string; min: number; max: number }[] = [
-  { title: "1-4 сыныптар", min: 1, max: 4 },
-  { title: "5-9 сыныптар", min: 5, max: 9 },
-  { title: "10-12 сыныптар", min: 10, max: 12 },
-];
+const GROUPS = (): { title: string; min: number; max: number }[] => {
+  const g = L.lang === "ru" ? ["1-4 классы", "5-9 классы", "10-12 классы"]
+    : L.lang === "en" ? ["Grades 1-4", "Grades 5-9", "Grades 10-12"]
+    : ["1-4 сыныптар", "5-9 сыныптар", "10-12 сыныптар"];
+  return [{ title: g[0], min: 1, max: 4 }, { title: g[1], min: 5, max: 9 }, { title: g[2], min: 10, max: 12 }];
+};
 
 // Парақ түрлері бойынша қойынды түсі — навигацияны жеңілдетеді
 const TAB_COLORS: Record<string, string> = {
@@ -65,8 +71,8 @@ function shortName(name: string): string {
 // Баспаға арналған колонтитул: мектеп аты сол жақта, бет №/жалпы саны оң жақта, күні ортада
 function setHeaderFooter(ws: ExcelJS.Worksheet, schoolName: string) {
   ws.headerFooter = {
-    oddHeader: `&L&8&"Arial"${schoolName}&C&8&"Arial"РАСПИС · Апталық сабақ кестесі&R&8&"Arial"&D`,
-    oddFooter: `&L&7&"Arial"Автоматты құрылған · РАСПИС жүйесі&C&7&"Arial"Бет &P / &N&R&7&"Arial"ABDILDIN DAUREN`,
+    oddHeader: `&L&8&"Arial"${schoolName}&C&8&"Arial"${L.brand} · ${L.weeklySchedule}&R&8&"Arial"&D`,
+    oddFooter: `&L&7&"Arial"${L.footer}&C&7&"Arial"&P / &N&R&7&"Arial"ABDILDIN DAUREN`,
     differentFirst: false, differentOddEven: false,
   };
 }
@@ -74,7 +80,7 @@ function setHeaderFooter(ws: ExcelJS.Worksheet, schoolName: string) {
 // Парақ басына "← Мұқабаға оралу" сілтемесі
 function addBackLink(ws: ExcelJS.Worksheet, row: number) {
   const cell = ws.getCell(row, 1);
-  cell.value = { text: "← Мұқабаға оралу", hyperlink: `#'${COVER_SHEET}'!A1` };
+  cell.value = { text: L.backToCover, hyperlink: `#'${COVER_SHEET()}'!A1` };
   cell.font = { name: "Arial", size: 9, color: { argb: "FF2563EB" }, underline: true };
   ws.getRow(row).height = 16;
   return row + 1;
@@ -90,7 +96,7 @@ function writeGridHeader(ws: ExcelJS.Worksheet, row: number, title: string, last
   tc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
   ws.getRow(row).height = 20;
   row++;
-  const headers = ["№", "Уақыт", ...DAYS.slice(1, 6)];
+  const headers = [L.colNum, L.colTime, ...DAYS().slice(1, 6)];
   headers.forEach((h, i) => {
     const cell = ws.getCell(row, i + 1);
     cell.value = h;
@@ -105,6 +111,8 @@ function writeGridHeader(ws: ExcelJS.Worksheet, row: number, title: string, last
 
 export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const { school, classes, teachers, rooms, subjects, settings, result } = ctx;
+  L = ctx.labels || getExportLabels("kk"); // сайт тілін орнату
+  const locale = L.lang === "ru" ? "ru-RU" : L.lang === "en" ? "en-US" : "kk-KZ";
   const tl = buildTimeline(school);
   const S: Record<string, Subject> = {}; subjects.forEach((x) => (S[x.id] = x));
   const T: Record<string, Teacher> = {}; teachers.forEach((x) => (T[x.id] = x));
@@ -112,20 +120,20 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const year = academicYear();
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "РАСПИС";
-  wb.company = "РАСПИС — Мектеп кестесін автоматты құру жүйесі";
-  wb.title = `${school.name} — Апталық сабақ кестесі ${year}`;
-  wb.subject = "Мектеп сабақ кестесі";
-  wb.keywords = "РАСПИС, сабақ кестесі, мектеп";
-  wb.category = "Білім беру";
-  wb.description = `Автоматты құрылған сабақ кестесі. Сапа: ${result.quality}/100.`;
+  wb.creator = L.brand;
+  wb.company = `${L.brand} — ${L.autoSystem}`;
+  wb.title = `${school.name} — ${L.weeklySchedule} ${year}`;
+  wb.subject = L.schoolSchedule;
+  wb.keywords = `${L.brand}, ${L.schoolSchedule}`;
+  wb.category = L.lang === "ru" ? "Образование" : L.lang === "en" ? "Education" : "Білім беру";
+  wb.description = `${L.autoSystem}. ${result.quality}/100.`;
   wb.created = new Date();
 
   const sheetLinks: { title: string; sheet: string }[] = [];
 
   // ═══ МҰҚАБА: мазмұны + жалпы статистика ═══
   // Баған схемасы: A/F — жиек, B-C — статистика (белгі/мән)
-  const cover = wb.addWorksheet(COVER_SHEET, {
+  const cover = wb.addWorksheet(COVER_SHEET(), {
     properties: { tabColor: { argb: TAB_COLORS.cover } },
     views: [{ showGridLines: false }],
     pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, horizontalCentered: true },
@@ -133,36 +141,36 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   cover.columns = [{ width: 4 }, { width: 26 }, { width: 16 }, { width: 3 }, { width: 30 }, { width: 4 }];
   cover.mergeCells("B2:E2");
   const titleCell = cover.getCell("B2");
-  titleCell.value = "РАСПИС";
+  titleCell.value = L.brand;
   titleCell.font = { name: "IBM Plex Sans", size: 26, bold: true, color: { argb: "FF1E3A5F" } };
   cover.mergeCells("B3:E3");
   const subCell = cover.getCell("B3");
-  subCell.value = "Мектеп кестесін автоматты құру жүйесі";
+  subCell.value = L.autoSystem;
   subCell.font = { name: "Arial", size: 11, italic: true, color: { argb: "FF64748B" } };
   cover.mergeCells("B5:E5");
   const schoolCell = cover.getCell("B5");
   schoolCell.value = school.name;
   schoolCell.font = { name: "Arial", size: 16, bold: true, color: { argb: "FF1A2230" } };
   cover.mergeCells("B6:E6");
-  cover.getCell("B6").value = `${year} оқу жылы · апталық сабақ кестесі`;
+  cover.getCell("B6").value = `${year} · ${L.weeklySchedule}`;
   cover.getCell("B6").font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
 
   cover.mergeCells("B8:E8");
   const qCell = cover.getCell("B8");
-  qCell.value = `Сапа көрсеткіші: ${result.quality} / 100`;
+  qCell.value = `${L.lang === "ru" ? "Показатель качества" : L.lang === "en" ? "Quality score" : "Сапа көрсеткіші"}: ${result.quality} / 100`;
   qCell.font = { name: "Arial", size: 13, bold: true, color: { argb: result.quality >= 70 ? "FF16A34A" : result.quality >= 50 ? "FFCA8A04" : "FFDC2626" } };
 
   // ── Статистика (B/C бағандары, 11-жолдан бастап; 10-жол — таза саңылау) ──
   const STAT_TOP = 11;
   const statRows: [string, string | number][] = [
-    ["Сыныптар саны", classes.length],
-    ["Мұғалімдер саны", teachers.length],
-    ["Кабинеттер саны", rooms.length],
-    ["Жалпы сабақ саны", result.stats.total],
-    ["Тесіктер (бос слот)", result.gaps.length],
-    ["Орналаспаған сабақ", result.unplaced.reduce((s, u) => s + u.need - u.placed, 0)],
-    ["Стресс-тесттер", `${result.tests.filter((t) => t.passed).length}/${result.tests.length}`],
-    ["Экспорт күні", new Date().toLocaleDateString("kk-KZ")],
+    [L.statClasses, classes.length],
+    [L.statTeachers, teachers.length],
+    [L.statRooms, rooms.length],
+    [L.statLessons, result.stats.total],
+    [L.statGaps, result.gaps.length],
+    [L.statUnplaced, result.unplaced.reduce((s, u) => s + u.need - u.placed, 0)],
+    [L.statStress, `${result.tests.filter((t) => t.passed).length}/${result.tests.length}`],
+    [L.statDate, new Date().toLocaleDateString(locale)],
   ];
   statRows.forEach(([label, val], i) => {
     const rr = STAT_TOP + i;
@@ -176,7 +184,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const tocStartRow = statBottom + 3;
   cover.mergeCells(tocStartRow, 2, tocStartRow, 5);
   const tocTitle = cover.getCell(tocStartRow, 2);
-  tocTitle.value = "МАЗМҰНЫ";
+  tocTitle.value = L.contents;
   tocTitle.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
   tocTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
   tocTitle.alignment = { vertical: "middle", indent: 1 };
@@ -186,7 +194,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const tocLinkStartRow = tocStartRow + 1;
 
   // ═══ 1-БӨЛІМ: СЫНЫПТАР (топтап) ═══
-  for (const grp of GROUPS) {
+  for (const grp of GROUPS()) {
     const grpClasses = classes.filter((c) => c.grade >= grp.min && c.grade <= grp.max).sort((a, b) => a.grade - b.grade || a.name.localeCompare(b.name));
     if (!grpClasses.length) continue;
     const ws = wb.addWorksheet(grp.title, {
@@ -202,7 +210,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
     let curRow = addBackLink(ws, 1);
     for (const c of grpClasses) {
       const slotCount = maxSlots(c.grade, settings);
-      curRow = writeGridHeader(ws, curRow, `${c.name} сынып · ${school.name} · ${year} оқу жылы`, 7);
+      curRow = writeGridHeader(ws, curRow, `${c.name} · ${school.name} · ${year}`, 7);
       for (let slot = 1; slot <= slotCount; slot++) {
         const r = curRow; ws.getRow(r).height = 38;
         const numCell = ws.getCell(r, 1);
@@ -249,13 +257,13 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
 
   // ═══ 2-БӨЛІМ: МҰҒАЛІМДЕР КЕСТЕСІ (толық) ═══
   {
-    const ws = wb.addWorksheet("Мұғалімдер кестесі", {
+    const ws = wb.addWorksheet(L.teacherSheet, {
       properties: { tabColor: { argb: TAB_COLORS.teachers } },
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, horizontalCentered: true },
       views: [{ state: "frozen", ySplit: 1, xSplit: 2, showGridLines: false }],
     });
     setHeaderFooter(ws, school.name);
-    sheetLinks.push({ title: "Мұғалімдер кестесі", sheet: "Мұғалімдер кестесі" });
+    sheetLinks.push({ title: L.teacherSheet, sheet: L.teacherSheet });
     ws.getColumn(1).width = 5; ws.getColumn(2).width = 12;
     for (let i = 3; i <= 7; i++) ws.getColumn(i).width = 22;
     const activeTeachers = teachers.filter((t) => result.slots.some((o) => o.teacherId === t.id));
@@ -298,17 +306,17 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
 
   // ═══ 3-БӨЛІМ: КАБИНЕТТЕР КЕСТЕСІ (толық) ═══
   {
-    const ws = wb.addWorksheet("Кабинеттер кестесі", {
+    const ws = wb.addWorksheet(L.roomSheet, {
       properties: { tabColor: { argb: TAB_COLORS.rooms } },
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, horizontalCentered: true },
       views: [{ state: "frozen", ySplit: 1, xSplit: 2, showGridLines: false }],
     });
     setHeaderFooter(ws, school.name);
-    sheetLinks.push({ title: "Кабинеттер кестесі", sheet: "Кабинеттер кестесі" });
+    sheetLinks.push({ title: L.roomSheet, sheet: L.roomSheet });
     ws.getColumn(1).width = 5; ws.getColumn(2).width = 12;
     for (let i = 3; i <= 7; i++) ws.getColumn(i).width = 22;
     const activeRooms = rooms.filter((rm) => result.slots.some((o) => o.roomId === rm.id));
-    const typeKz: Record<string, string> = { regular: "қарапайым", physics: "физика", chemistry: "химия", computer: "информатика", gym: "спортзал" };
+    const typeKz: Record<string, string> = L.roomTypes;
     let curRow = addBackLink(ws, 1);
     for (const rm of activeRooms) {
       // Бір кабинет екі ауысымда да қолданылуы мүмкін (1-ауысым таңертең, 2-ауысым түстен кейін).
@@ -344,7 +352,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
               cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
               cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
             } else {
-              cell.value = "бос";
+              cell.value = L.free;
               cell.font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
               cell.alignment = { horizontal: "center", vertical: "middle" };
               cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
@@ -360,16 +368,16 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
 
   // ═══ 4-БӨЛІМ: ЖҮКТЕМЕ ҚОРЫТЫНДЫ ═══
   {
-    const ws = wb.addWorksheet("Жүктеме қорытынды", {
+    const ws = wb.addWorksheet(L.workloadSummary, {
       properties: { tabColor: { argb: TAB_COLORS.summary } },
       views: [{ state: "frozen", ySplit: 2, showGridLines: false }],
       pageSetup: { fitToPage: true, fitToWidth: 1, horizontalCentered: true },
     });
     setHeaderFooter(ws, school.name);
-    sheetLinks.push({ title: "Жүктеме қорытынды", sheet: "Жүктеме қорытынды" });
+    sheetLinks.push({ title: L.workloadSummary, sheet: L.workloadSummary });
     const headerRow = addBackLink(ws, 1);
     ws.columns = [{ width: 28 }, { width: 12 }, { width: 12 }, { width: 6 }, { width: 6 }, { width: 6 }, { width: 6 }, { width: 6 }];
-    ws.getRow(headerRow).values = ["Мұғалім", "Жүктеме", "Толу %", "Дс", "Сс", "Ср", "Бс", "Жм"];
+    ws.getRow(headerRow).values = [L.colTeacher, L.colLoad, L.colFill, ...L.daysShort.slice(1, 6)];
     ws.getRow(headerRow).eachCell((cell) => {
       cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF374151" } };
@@ -415,7 +423,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   });
   const footerRow = tocLinkStartRow + sheetLinks.length + 2;
   cover.mergeCells(footerRow, 2, footerRow, 5);
-  cover.getCell(footerRow, 2).value = "Бұл құжат РАСПИС жүйесімен автоматты құрылды.";
+  cover.getCell(footerRow, 2).value = L.footer;
   cover.getCell(footerRow, 2).font = { name: "Arial", size: 8, italic: true, color: { argb: "FFB0B8C0" } };
 
   const buf = await wb.xlsx.writeBuffer();
@@ -423,7 +431,7 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `РАСПИС_${school.name.slice(0, 25)}_${year}.xlsx`;
+  a.download = `${L.brand}_${school.name.slice(0, 25)}_${year}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }

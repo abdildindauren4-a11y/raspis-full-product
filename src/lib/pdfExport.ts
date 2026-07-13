@@ -8,15 +8,16 @@ import QRCode from "qrcode";
 import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
 import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import { buildCertData, certUrl } from "@/lib/certificate";
+import { getExportLabels, type ExportLabels } from "@/lib/exportLabels";
 import notoRegularUrl from "@/assets/fonts/NotoSans-Regular.ttf?url";
 import notoBoldUrl from "@/assets/fonts/NotoSans-Bold.ttf?url";
 
-const DAYS = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
 const FONT = "NotoSansRP";
 
 interface ExportCtx {
   school: School; classes: Klass[]; teachers: Teacher[];
   rooms: Room[]; subjects: Subject[]; settings?: Settings; result: AlgoResult;
+  labels?: ExportLabels; // сайт тілі (болмаса — қазақша әдепкі)
 }
 
 function subjectColorRGB(subj: Subject | undefined): [number, number, number] {
@@ -57,6 +58,8 @@ async function loadFonts() {
 
 export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
   const { school, classes, teachers, rooms, subjects, settings, result } = ctx;
+  const L = ctx.labels || getExportLabels("kk");
+  const DAYS = L.days;
   const fonts = await loadFonts();
   const tl = buildTimeline(school);
   const T = new Map(teachers.map((t) => [t.id, t]));
@@ -81,7 +84,7 @@ export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
   doc.addFileToVFS("NotoSans-Bold.ttf", fonts.bold);
   doc.addFont("NotoSans-Bold.ttf", FONT, "bold");
   doc.setFont(FONT, "normal");
-  doc.setProperties({ title: `РАСПИС — ${school.name}`, subject: "Апталық сабақ кестесі", creator: "РАСПИС", author: school.name });
+  doc.setProperties({ title: `${L.brand} — ${school.name}`, subject: L.weeklySchedule, creator: L.brand, author: school.name });
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -95,14 +98,14 @@ export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
     doc.setTextColor(26, 34, 48);
     doc.text(school.name, margin, 14);
     doc.setFontSize(11);
-    doc.text(`${c.name} сынып (${c.shift}-ауысым)`, margin, 21);
+    doc.text(`${c.name} ${L.classWord} (${c.shift}-${L.shiftWord})`, margin, 21);
     doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Сапа: ${result.quality}/100  ·  ${year} оқу жылы`, pageW - margin, 14, { align: "right" });
+    doc.text(`${L.qualityWord}: ${result.quality}/100  ·  ${year} ${L.schoolYear}`, pageW - margin, 14, { align: "right" });
 
     const slotCount = maxSlots(c.grade, settings);
-    const head = [["№", "Уақыт", ...DAYS.slice(1)]];
+    const head = [[L.colNum, L.colTime, ...DAYS.slice(1)]];
     const body: string[][] = [];
     const meta: ({ color: [number, number, number] } | null)[][] = [];
     for (let slot = 1; slot <= slotCount; slot++) {
@@ -115,8 +118,8 @@ export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
         if (!main) { row.push("—"); rowMeta.push(null); continue; }
         if (main.subjectId === HOMEROOM_SUBJECT_ID) { row.push(HOMEROOM_LABEL); rowMeta.push({ color: [226, 232, 240] }); continue; }
         const subj = S.get(main.subjectId);
-        let cellText = `${subj?.name || ""}${main.dpart ? " (қос)" : ""}\n${tName(main.teacherId)} · ${rName(main.roomId)}`;
-        if (g2) cellText += `\n2-топ: ${tName(g2.teacherId)} · ${rName(g2.roomId)}`;
+        let cellText = `${subj?.name || ""}${main.dpart ? L.doubleSuffix : ""}\n${tName(main.teacherId)} · ${rName(main.roomId)}`;
+        if (g2) cellText += `\n${L.group2}: ${tName(g2.teacherId)} · ${rName(g2.roomId)}`;
         row.push(cellText);
         rowMeta.push({ color: subjectColorRGB(subj) });
       }
@@ -142,10 +145,10 @@ export async function exportSchedulePDF(ctx: ExportCtx): Promise<void> {
     if (qrDataUrl) {
       doc.addImage(qrDataUrl, "PNG", margin, qrY, 22, 22);
       doc.setFont(FONT, "bold"); doc.setFontSize(9); doc.setTextColor(26, 34, 48);
-      doc.text("Сапа сертификаты (QR)", margin + 26, qrY + 6);
+      doc.text(L.certTitle, margin + 26, qrY + 6);
       doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(90, 86, 80);
-      doc.text("Растау үшін QR-кодты сканерлеңіз", margin + 26, qrY + 11);
-      doc.text(`${school.name} · сапа ${result.quality}/100`, margin + 26, qrY + 16);
+      doc.text(L.certScan, margin + 26, qrY + 11);
+      doc.text(`${school.name} · ${L.qualityWord} ${result.quality}/100`, margin + 26, qrY + 16);
     }
 
     doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(150, 150, 150);

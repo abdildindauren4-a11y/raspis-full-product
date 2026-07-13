@@ -12,6 +12,7 @@ import { useLang } from "@/contexts/LangContext";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID, HOMEROOM_LABEL } from "@/algorithm/engine";
 import { exportProfessionalExcel } from "@/lib/excelExport";
 import { exportSchedulePDF } from "@/lib/pdfExport";
+import { getExportLabels } from "@/lib/exportLabels";
 import { buildCertData, certUrl } from "@/lib/certificate";
 import QRCode from "qrcode";
 import docDecoUrl from "@/assets/deco-document.png";
@@ -20,7 +21,8 @@ import docDecoUrl from "@/assets/deco-document.png";
 export default function ExportPage() {
   const { classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const labels = getExportLabels(lang);
   const DAYS = ["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
   const [busyType, setBusyType] = useState<"excel" | "pdf" | null>(null);
   const [qrImg, setQrImg] = useState<string>("");
@@ -35,7 +37,7 @@ export default function ExportPage() {
     setBusyType("excel");
     try {
       await exportProfessionalExcel({
-        school, classes, teachers, rooms, subjects, settings, result: active.result,
+        school, classes, teachers, rooms, subjects, settings, result: active.result, labels,
       });
     } catch (e) {
       console.error("Excel export қатесі:", e);
@@ -50,7 +52,7 @@ export default function ExportPage() {
     setBusyType("pdf");
     try {
       await exportSchedulePDF({
-        school, classes, teachers, rooms, subjects, settings, result: active.result,
+        school, classes, teachers, rooms, subjects, settings, result: active.result, labels,
       });
     } catch (e) {
       console.error("PDF export қатесі:", e);
