@@ -1,88 +1,114 @@
 rules_version = '2';
 
 // ═══════════════════════════════════════════════════════════════════════
-// RASPIS — Firestore қауіпсіздік ережелері.
+// RASPIS — Firestore қауіпсіздік ережелері (күшейтілген нұсқа).
 //
-// МАҢЫЗДЫ: сайттың нақты қауіпсіздігі ОСЫ ЕРЕЖЕЛЕРМЕН ғана жүзеге асады.
-// Клиенттегі (React) тексерулер — тек интерфейс ыңғайлылығы үшін; оларды
-// кез келген адам браузер консолінен айналып өте алады. Сондықтан деректер
-// оқшаулауы мен рұқсаттар МІНДЕТТІ түрде осында бекітілуі керек.
+// САЙТТЫҢ НАҚТЫ ҚАУІПСІЗДІГІ ТЕК ОСЫ ЕРЕЖЕЛЕРМЕН жүзеге асады. Клиенттегі
+// (React) тексерулерді кез келген адам браузер консолінен айналып өте алады,
+// сондықтан рөл/тариф/квота/деректер оқшаулауы МІНДЕТТІ түрде осында бекітіледі.
 //
-// ОРНАТУ: Firebase Console → Firestore Database → Rules → осыны қойып,
-// «Publish» басыңыз. Содан кейін сайтқа кіріп: кіру → дерек сақтау →
-// генерация → КП жүктеу — бәрі істеп тұрғанын тексеріңіз.
+// Қорғалған шабуылдар:
+//   • артықшылықты көтеру (өзін admin қылу)          → рөл email-мен бекітіледі
+//   • тарифті/квотаны өзі беру                        → тек азаю, тек 'free'-ге түсу
+//   • тариф мерзімін ұзарту                           → planExpiresAt өсе алмайды
+//   • акцияны қайта санату (promo farming)            → promoCounted бекітілген
+//   • бөтен мектеп деректеріне қол жеткізу (IDOR)     → schools тек иесіне
+//   • басқа пайдаланушылардың email-ін жинау          → users оқуы тек өзі/admin
+//   • қолтаңбаны/реквизитті ұрлау не бұрмалау         → config/docRequisites тек admin
+//
+// ОРНАТУ: Firebase Console → Firestore Database → Rules → осыны толық қойып,
+// «Publish». Содан кейін тексеріңіз: кіру → дерек сақтау → генерация → КП жүктеу.
 // ═══════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Көмекші функциялар ──
-    function signedIn() {
+    function isSignedIn() {
       return request.auth != null;
     }
-    // Әкімші — email арқылы (roles.ts:ADMIN_EMAILS-пен сәйкес болуы керек)
+
+    // Әкімші — ТЕК тексерілген email арқылы (пайдаланушы деректен өзгерте
+    // алмайды). roles.ts:ADMIN_EMAILS-пен дәл сәйкес болуы керек.
     function isAdmin() {
-      return signedIn()
+      return isSignedIn()
+        && request.auth.token.email_verified == true
         && request.auth.token.email in ['abdildindauren4@gmail.com'];
     }
-    function ownsDoc(uid) {
-      return signedIn() && request.auth.uid == uid;
-    }
-    // Жаңарту кезінде белгілі бір өрістің өзгермегенін тексеру
-    function unchanged(field) {
-      return request.resource.data[field] == resource.data[field];
+
+    function owns(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
-    // ── users/{uid}: рөл, тариф, квота ──
-    // Әркім тек ӨЗ құжатын оқиды/жазады. Бірақ рөлді, тарифті немесе квотаны
-    // ӨЗІ КӨТЕРЕ АЛМАЙДЫ — оны тек әкімші өзгертеді. Квотаны тек азайтуға
-    // болады (генерация жұмсағанда). Осылай ешкім өзіне admin/premium/шексіз
-    // генерация бере алмайды.
+    // Жаңа құжаттағы өрісті қауіпсіз алу (болмаса — әдепкі мән)
+    function newv(field, d) { return request.resource.data.get(field, d); }
+    // Ескі (қазіргі) құжаттағы өрісті қауіпсіз алу
+    function oldv(field, d) { return resource.data.get(field, d); }
+
+    // ═══ users/{uid} — рөл, тариф, квота, «саусақ ізі» ═══
     match /users/{uid} {
-      allow read: if ownsDoc(uid) || isAdmin();
 
-      // Жаңа тіркелу: тек өз құжатын, тек free/free күйінде (немесе әкімші)
-      allow create: if isAdmin() ||
-        ( ownsDoc(uid)
-          && request.resource.data.role == 'free'
-          && request.resource.data.plan == 'free' );
+      // Оқу: тек өз құжатың немесе әкімші (бөтен email/деректерді тізуге болмайды)
+      allow read: if owns(uid) || isAdmin();
 
-      // Жаңарту: әкімшіге бәрі рұқсат; қарапайым пайдаланушыға — рөлді
-      // өзгертпеу, тарифті тек 'free'-ге түсіру (мерзім бітсе), квотаны
-      // көбейтпеу шартымен ғана.
-      allow update: if isAdmin() ||
-        ( ownsDoc(uid)
-          && unchanged('role')
-          && ( unchanged('plan') || request.resource.data.plan == 'free' )
-          && request.resource.data.quickRemaining <= resource.data.quickRemaining
-          && request.resource.data.deepRemaining <= resource.data.deepRemaining );
+      // Тіркелу: тек өз құжатың, тек free/free, квота 0 (әкімші — еркін).
+      // Осылай ешкім өзін admin/premium/шексіз квотамен «жасап» ала алмайды.
+      allow create: if isAdmin() || (
+        owns(uid)
+        && newv('uid', '') == uid
+        && newv('role', '') == 'free'
+        && newv('plan', '') == 'free'
+        && newv('quickRemaining', 0) == 0
+        && newv('deepRemaining', 0) == 0
+      );
 
+      // Жаңарту: әкімшіге бәрі рұқсат. Қарапайым пайдаланушыға — тек «зиянсыз»
+      // өзгерістер (аты, lastSeen, саусақ ізі, квота азаюы):
+      //   • рөл өзгермейді
+      //   • тариф сол күйінде қалады НЕ 'free'-ге түседі (мерзім бітсе)
+      //   • тариф мерзімі ұзармайды
+      //   • квота тек азаяды (генерация жұмсағанда)
+      //   • акция белгісі, uid, email, құрылу күні өзгермейді
+      allow update: if isAdmin() || (
+        owns(uid)
+        && newv('uid', '') == oldv('uid', '')
+        && newv('email', '') == oldv('email', '')
+        && newv('role', '') == oldv('role', '')
+        && ( newv('plan', '') == oldv('plan', '') || newv('plan', '') == 'free' )
+        && newv('planExpiresAt', 0) <= oldv('planExpiresAt', 0)
+        && newv('quickRemaining', 0) <= oldv('quickRemaining', 0)
+        && newv('deepRemaining', 0) <= oldv('deepRemaining', 0)
+        && newv('promoCounted', false) == oldv('promoCounted', false)
+        && newv('createdAt', 0) == oldv('createdAt', 0)
+      );
+
+      // Жоюды тек әкімші
       allow delete: if isAdmin();
     }
 
-    // ── schools/{uid}: мектептің өз деректері (сыныптар, мұғалімдер, кесте) ──
-    // ЕҢ МАҢЫЗДЫ ОҚШАУЛАУ: әр мектеп тек өз деректерін ғана көреді/өзгертеді.
-    // Басқа біреу бөтен мектептің деректерін оқи/өзгерте алмайды.
+    // ═══ schools/{uid} — мектеп деректері (сыныптар/мұғалімдер/кесте) ═══
+    // ЕҢ МАҢЫЗДЫ ОҚШАУЛАУ: әр мектеп тек ӨЗ деректерін оқиды/жазады.
+    // Бөтен мектептің деректеріне мүлдем қол жетпейді.
     match /schools/{uid} {
-      allow read, write: if ownsDoc(uid) || isAdmin();
+      allow read, write: if owns(uid) || isAdmin();
     }
 
-    // ── config/docRequisites: ЖК реквизиттері мен қолтаңба суреті ──
-    // Тек әкімші оқиды әрі жазады — қолтаңба суреті жария болмайды әрі
-    // ешкім реквизитті/қолтаңбаны бұрмалай алмайды.
+    // ═══ config/docRequisites — ЖК реквизиттері + қолтаңба суреті ═══
+    // Тек әкімші оқиды әрі жазады: қолтаңба суреті жария болмайды әрі ешкім
+    // реквизитті/қолтаңбаны бұрмалай алмайды.
     match /config/docRequisites {
       allow read, write: if isAdmin();
     }
 
-    // ── config/promo: іске қосу науқанының санауышы ──
-    // Бәрі оқи алады (сайтта көрсетіледі). Жазуды тек кірген пайдаланушы
-    // жасай алады (жаңа мектеп ақылы тарифке қосылғанда +1).
+    // ═══ config/promo — іске қосу науқанының санауышы ═══
+    // Санды бәрі көре алады (баға бетінде, кірмей тұрып та). Жазуды тек әкімші
+    // жасайды (жаңа мектеп ақылы тарифке қосылғанда). Санауыш бұрмаланбайды.
     match /config/promo {
       allow read: if true;
-      allow write: if signedIn();
+      allow write: if isAdmin();
     }
 
-    // ── Қалғанының бәрі ЖАБЫҚ ──
+    // ═══ Қалғанының бәрі — ТОЛЫҚ ЖАБЫҚ (default-deny) ═══
     match /{document=**} {
       allow read, write: if false;
     }

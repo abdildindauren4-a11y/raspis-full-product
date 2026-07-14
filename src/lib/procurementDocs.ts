@@ -9,6 +9,11 @@
 import { PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
 import { PAYMENT } from "@/lib/payment";
 import { DEFAULT_SIGNATURE } from "@/lib/defaultSignature";
+// Times New Roman метрикасымен БІРДЕЙ ашық қаріп (толық кириллицамен). PDF-те
+// қаріп ендіріледі — сонда кез келген құрылғыда (тіпті Times New Roman
+// орнатылмаған Android/Linux-та да) құжат дәл сол көрініспен шығады.
+import serifRegularUrl from "@/assets/fonts/LiberationSerif-Regular.ttf?url";
+import serifBoldUrl from "@/assets/fonts/LiberationSerif-Bold.ttf?url";
 
 export type DocLang = "kk" | "ru" | "en";
 
@@ -160,7 +165,7 @@ const MONTHS_WARR: Record<DocLang, Record<PlanId, string>> = {
 // padding береді. Осылай жүктелген PDF-те артық сайт сілтемесі/күні болмайды.
 const BASE_CSS = `
   @page { size: A4; margin: 0; }
-  body { font-family: "Times New Roman", "Liberation Serif", serif; font-size: 12pt; color: #000; line-height: 1.45; margin: 24px; }
+  body { font-family: "Times New Roman", "RaspisSerif", "Liberation Serif", "Tinos", serif; font-size: 12pt; color: #000; line-height: 1.45; margin: 24px; }
   @media print { body { margin: 0; padding: 18mm 15mm 18mm 22mm; } }
   table { border-collapse: collapse; width: 100%; font-size: 11.5pt; }
   ul { margin: 4px 0 6px 18px; padding: 0; }
@@ -594,9 +599,20 @@ export async function htmlToPdf(html: string, filename: string): Promise<void> {
   const idoc = iframe.contentDocument!;
   // Беттің жиегін html2canvas-та емес, PDF-те қосамыз — сондықтан body-дың
   // өз шет-жиегін нөлдеп, тек мазмұн енін ұстаймыз.
+  // Times New Roman-мен бірдей ендірілген қаріп — құрылғыда сол қаріп болмаса
+  // да PDF дәл сол көрініспен шығады (абсолют URL: iframe about:blank болса да
+  // қосымшаның шыққан жерінен жүктеледі).
+  const orig = location.origin;
+  const fontFace = `
+    @font-face{ font-family:"RaspisSerif"; font-weight:normal; font-style:normal;
+      src:url("${orig}${serifRegularUrl}") format("truetype"); font-display:swap; }
+    @font-face{ font-family:"RaspisSerif"; font-weight:bold; font-style:normal;
+      src:url("${orig}${serifBoldUrl}") format("truetype"); font-display:swap; }`;
   const override = `<style>
+    ${fontFace}
     html,body{ margin:0 !important; padding:0 !important; background:#fff !important; }
-    body{ width:${RENDER_W}px !important; box-sizing:border-box !important; }
+    body{ width:${RENDER_W}px !important; box-sizing:border-box !important;
+      font-family:"Times New Roman","RaspisSerif","Liberation Serif","Tinos",serif !important; }
   </style>`;
   idoc.open();
   idoc.write(html.includes("</head>") ? html.replace("</head>", override + "</head>") : override + html);
