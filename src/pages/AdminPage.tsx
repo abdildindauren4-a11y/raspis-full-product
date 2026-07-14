@@ -1,5 +1,5 @@
 // filepath: src/pages/AdminPage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle, FileText, Printer, FileDown, ChevronDown } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
@@ -18,6 +18,7 @@ import {
   type DocRequisites, type DocParams, type DocLang,
 } from "@/lib/procurementDocs";
 import { removeSignatureBackground } from "@/lib/signatureBg";
+import { loadDocRequisitesCloud, saveDocRequisitesCloud } from "@/lib/docRequisitesCloud";
 import { effectivePrice } from "@/lib/plans";
 
 const ROLE_INFO: Record<Role, { label: string; icon: typeof Crown; cls: string }> = {
@@ -99,11 +100,38 @@ export default function AdminPage() {
   const [docOutNo, setDocOutNo] = useState("");
   const [docLang, setDocLang] = useState<DocLang>("ru"); // құжат тілі
   const [sigBusy, setSigBusy] = useState(false); // қолтаңба фоны өңделуде
+  const [cloudSaved, setCloudSaved] = useState(false); // бұлтқа сақталды белгісі
   const setReqField = (k: keyof DocRequisites, v: string | boolean | number) => {
     const next = { ...req, [k]: v };
     setReq(next);
     saveRequisites(next);
   };
+
+  // Реквизиттер мен қолтаңбаларды БҰЛТПЕН синхрондау (кез келген құрылғыдан).
+  // Кіргенде бұлттан оқимыз; өзгерген сайын кідіріспен (debounce) сақтаймыз.
+  const reqCloudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqLoaded = useRef(false);
+  useEffect(() => {
+    (async () => {
+      const cloud = await loadDocRequisitesCloud();
+      if (cloud) {
+        const merged = { ...loadRequisites(), ...cloud } as DocRequisites;
+        setReq(merged);
+        saveRequisites(merged); // жергілікті кэшті де жаңартамыз
+      }
+      reqLoaded.current = true;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!reqLoaded.current) return; // алғашқы жүктеуден кейін ғана
+    if (reqCloudTimer.current) clearTimeout(reqCloudTimer.current);
+    reqCloudTimer.current = setTimeout(async () => {
+      const ok = await saveDocRequisitesCloud(req);
+      if (ok) { setCloudSaved(true); setTimeout(() => setCloudSaved(false), 2000); }
+    }, 1200);
+    return () => { if (reqCloudTimer.current) clearTimeout(reqCloudTimer.current); };
+  }, [req]);
   const docParams = (): DocParams => ({
     schoolName: docSchool, directorName: docDirector,
     plan: docPlan, price: docPrice, outNo: docOutNo, date: docDateStr(docLang),
@@ -171,11 +199,14 @@ export default function AdminPage() {
           <div className="mt-4 space-y-4">
             <p className="text-xs text-muted-c">
               Ресми үлгідегі <b>Техникалық спецификация</b> (ҚР Үкіметінің 06.05.2019 № 261 қаулысы) және{" "}
-              <b>Коммерциялық ұсыныс</b>. Реквизиттер бір рет толтырылып, осы браузерде сақталады.
+              <b>Коммерциялық ұсыныс</b>. Реквизиттер мен қолтаңбалар <b>бұлтта сақталады</b> — кез келген құрылғыдан қолжетімді.
             </p>
             {/* ЖК реквизиттері */}
             <div>
-              <p className="text-xs font-semibold text-strong-c mb-2">ЖК реквизиттері (бір рет)</p>
+              <p className="text-xs font-semibold text-strong-c mb-2 flex items-center gap-2">
+                ЖК реквизиттері (бір рет)
+                {cloudSaved && <span className="text-[10px] font-normal status-good">✓ бұлтқа сақталды</span>}
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input className={docInput} placeholder="ЖК атауы (ИП «...»)" value={req.ipName} onChange={(e) => setReqField("ipName", e.target.value)} />
                 <input className={docInput} placeholder="ЖСН/БИН" value={req.iinBin} onChange={(e) => setReqField("iinBin", e.target.value)} />
