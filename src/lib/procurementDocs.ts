@@ -13,21 +13,38 @@ export type DocLang = "kk" | "ru" | "en";
 
 // ── ЖК реквизиттері (бір рет толтырылып, сақталады) ──
 export interface DocRequisites {
-  ipName: string;   // ЖК атауы: Абдильдин Д.
+  ipName: string;   // ЖК атауы: ШАМБИЛОВ
   iinBin: string;   // ЖСН/БИН
   address: string;
   iik: string;      // KZ... шот
   bank: string;     // банк атауы
   bik: string;
+  kbe: string;      // КБе (бенефициар коды)
   signer: string;   // қол қоюшының аты-жөні
 }
+
+// Әдепкі реквизиттер — ЖК ШАМБИЛОВ (құжаттарда автоматты шығады; завуч
+// қаласа әкімші панелінен өзгерте алады, өзгеріс браузерде сақталады)
+const DEFAULT_REQ: DocRequisites = {
+  ipName: "ШАМБИЛОВ",
+  iinBin: "020601500628",
+  address: "Кызылординская обл., г. Кызылорда, ул. Абая Кунанбаева, дом 21/7",
+  iik: "KZ14722S000052398311",
+  bank: 'АО "Kaspi Bank"',
+  bik: "CASPKZKA",
+  kbe: "19",
+  signer: "",
+};
 
 const REQ_KEY = "raspis-doc-requisites";
 export function loadRequisites(): DocRequisites {
   try {
-    return { ipName: "", iinBin: "", address: "", iik: "", bank: "", bik: "", signer: "", ...JSON.parse(localStorage.getItem(REQ_KEY) || "{}") };
+    const saved = JSON.parse(localStorage.getItem(REQ_KEY) || "{}") as Partial<DocRequisites>;
+    // Бос жолдар әдепкіні баспайды — тек нақты толтырылған өрістер қолданылады
+    const nonEmpty = Object.fromEntries(Object.entries(saved).filter(([, v]) => typeof v === "string" && v.trim() !== ""));
+    return { ...DEFAULT_REQ, ...nonEmpty };
   } catch {
-    return { ipName: "", iinBin: "", address: "", iik: "", bank: "", bik: "", signer: "" };
+    return { ...DEFAULT_REQ };
   }
 }
 export function saveRequisites(r: DocRequisites) {
@@ -136,6 +153,7 @@ const TS_STR: Record<DocLang, TS> = {
       "режим «глубокого поиска»: построение до 300 вариантов расписания и автоматический выбор лучшего;",
       "режим «умного обновления»: при изменениях пересобираются только затронутые классы, расписание остальных сохраняется;",
       "адаптивный алгоритм «Хамелеон»: завуч сам включает, отключает и настраивает правила составления под свою школу, в том числе через ИИ-помощника голосом/текстом;",
+      "гибкие ограничения по времени: запрет постановки конкретного предмета или учителя на выбранные дни и уроки в один клик по недельной сетке;",
       "ручная корректировка готового расписания перетаскиванием с автоматической проверкой правил;",
       "поддержка деления классов на группы, сдвоенных уроков, двух смен, закреплённых кабинетов начальных классов, классного часа;",
       "модуль замен отсутствующих учителей с автоматическим подбором;",
@@ -194,6 +212,7 @@ const TS_STR: Record<DocLang, TS> = {
       "«терең іздеу» режимі: кестенің 300-ге дейін нұсқасын құрып, ең жақсысын автоматты таңдау;",
       "«ақылды жаңарту» режимі: өзгерістер болғанда тек өзгерген сыныптар қайта құрылады, қалғаны сақталады;",
       "бейімделгіш «Хамелеон» алгоритмі: завуч ережелерді өз мектебіне қарай өзі қосады, өшіреді, баптайды, оның ішінде ЖИ-көмекшісіне сөзбен/мәтінмен айтып;",
+      "икемді уақыт шектеулері: белгілі бір пәнді немесе мұғалімді таңдалған күн мен сабаққа қоюға тыйымды апта торынан бір басумен салу;",
       "дайын кестені қолмен жылжытып түзету, ережелер автоматты тексеріледі;",
       "сыныпты топқа бөлу, қос сабақ, екі ауысым, бастауыш сыныптардың бекітілген кабинеті, сынып сағатын қолдау;",
       "жоқ мұғалімдерді автоматты іріктейтін алмастыру модулі;",
@@ -252,6 +271,7 @@ const TS_STR: Record<DocLang, TS> = {
       "“deep search” mode: building up to 300 timetable variants and automatically selecting the best;",
       "“smart update” mode: on changes, only affected classes are rebuilt while the rest is preserved;",
       "adaptive “Chameleon” engine: the head teacher enables, disables and configures composition rules for their school, including via an AI assistant by voice/text;",
+      "flexible time restrictions: ban a specific subject or teacher from chosen days and lessons with one click on the weekly grid;",
       "manual adjustment of the finished timetable by drag-and-drop with automatic rule checking;",
       "support for splitting classes into groups, double lessons, two shifts, fixed primary-class rooms, and the homeroom period;",
       "substitute-teacher module with automatic matching;",
@@ -416,6 +436,7 @@ export function kpHtml(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): 
   const iikLbl = lang === "en" ? "Account" : "ИИК";
   const inLbl = lang === "en" ? "at" : lang === "kk" ? "—" : "в";
   const bikLbl = lang === "en" ? "BIC" : "БИК";
+  const kbeLbl = lang === "en" ? "BenCode" : "КБе";
   const telLbl = lang === "en" ? "Tel." : "Тел.";
   const siteLbl = lang === "en" ? "Web" : "Сайт";
   return `<!DOCTYPE html><html lang="${lang}"><head><meta charset="utf-8"><title>${s.docTitle}</title><style>${BASE_CSS}
@@ -432,7 +453,7 @@ export function kpHtml(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): 
   </style></head><body>
   <div class="head"><b>${s.supplier} «${fill(req.ipName)}»</b>
     <div class="req">${iinLbl}: ${fill(req.iinBin)} · ${addrLbl}: ${fill(req.address, 40)}<br>
-    ${iikLbl}: ${fill(req.iik, 24)} ${inLbl} ${fill(req.bank, 16)}, ${bikLbl}: ${fill(req.bik, 12)}<br>
+    ${iikLbl}: ${fill(req.iik, 24)} ${inLbl} ${fill(req.bank, 16)}, ${bikLbl}: ${fill(req.bik, 12)}, ${kbeLbl}: ${fill(req.kbe, 4)}<br>
     ${telLbl}: ${PAYMENT.kaspiPhone} · ${siteLbl}: ${SITE}</div></div>
   <p style="font-size:11pt">${s.outNo(fill(p.outNo, 6), fill(p.date, 26))}</p>
   <div class="to">${s.toDirector}<br>${fill(p.schoolName, 40)}<br>${fill(p.directorName, 32)}</div>

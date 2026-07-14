@@ -181,6 +181,7 @@ export default function AdminPage() {
                 <input className={docInput} placeholder="ИИК (KZ...)" value={req.iik} onChange={(e) => setReqField("iik", e.target.value)} />
                 <input className={docInput} placeholder="Банк (АО «...»)" value={req.bank} onChange={(e) => setReqField("bank", e.target.value)} />
                 <input className={docInput} placeholder="БИК" value={req.bik} onChange={(e) => setReqField("bik", e.target.value)} />
+                <input className={docInput} placeholder="КБе" value={req.kbe} onChange={(e) => setReqField("kbe", e.target.value)} />
                 <input className={docInput + " sm:col-span-2"} placeholder="Қол қоюшы (Ф.И.О.)" value={req.signer} onChange={(e) => setReqField("signer", e.target.value)} />
               </div>
             </div>
