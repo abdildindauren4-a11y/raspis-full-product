@@ -100,6 +100,7 @@ export default function AdminPage() {
   const [docOutNo, setDocOutNo] = useState("");
   const [docLang, setDocLang] = useState<DocLang>("ru"); // құжат тілі
   const [sigBusy, setSigBusy] = useState(false); // қолтаңба фоны өңделуде
+  const [sigMenuOpen, setSigMenuOpen] = useState(false); // қолтаңба таңдау тізімі ашық па
   const [cloudSaved, setCloudSaved] = useState(false); // бұлтқа сақталды белгісі
   const setReqField = (k: keyof DocRequisites, v: string | boolean | number) => {
     const next = { ...req, [k]: v };
@@ -231,49 +232,60 @@ export default function AdminPage() {
                   </p>
                 </div>
               )}
-              {/* Қолтаңба суреті (факсимиле) — өз қолтаңбаңыздың сканы/фотосы */}
+              {/* Қолтаңба (факсимиле) — ашылмалы тізімнен таңдау */}
               <div className="mt-3">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <p className="text-xs font-semibold text-strong-c">Қол қою — қолтаңба таңдаңыз</p>
-                  <label className="text-xs px-2 py-1 rounded-lg gradient-primary text-white cursor-pointer inline-flex items-center gap-1">
-                    {sigBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />} Қолтаңба қосу
-                    <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={sigBusy}
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        setSigBusy(true);
-                        try {
-                          const raw = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f); });
-                          const clean = await removeSignatureBackground(raw); // фонды автоматты жою
-                          const list = [...((req.signatures || [])), clean];
-                          const next = { ...req, signatures: list, signatureImg: clean };
-                          setReq(next); saveRequisites(next);
-                        } finally { setSigBusy(false); e.target.value = ""; }
-                      }} />
-                  </label>
+                <p className="text-xs font-semibold text-strong-c mb-1">Қол қою</p>
+                <div className="relative" style={{ maxWidth: 320 }}>
+                  {/* Таңдау батырмасы: ағымдағы қолтаңбаны көрсетеді, басқанда астыға ашылады */}
+                  <button onClick={() => setSigMenuOpen((o) => !o)}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-input-c border border-soft-c hover:border-[var(--accent)] transition-colors">
+                    {req.signatureImg
+                      ? <img src={req.signatureImg} alt="" className="h-8 bg-white rounded px-1" />
+                      : <span className="text-xs text-muted-c">Қолтаңба таңдаңыз</span>}
+                    <ChevronDown className={`w-4 h-4 text-muted-c ml-auto shrink-0 transition-transform ${sigMenuOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {/* Ашылмалы тізім */}
+                  {sigMenuOpen && (
+                    <div className="absolute z-20 mt-1 w-full rounded-lg border border-soft-c bg-surface-c shadow-lg p-2 space-y-1">
+                      {(req.signatures || []).length === 0 && (
+                        <p className="text-xs text-faint-c px-1 py-2">Қолтаңба жоқ — төменнен қосыңыз.</p>
+                      )}
+                      {(req.signatures || []).map((sig, i) => (
+                        <div key={i} onClick={() => { setReqField("signatureImg", sig); setSigMenuOpen(false); }}
+                          className={`flex items-center gap-2 rounded-lg px-2 py-1 cursor-pointer border ${
+                            req.signatureImg === sig ? "border-[var(--accent)] bg-input-c" : "border-transparent hover:bg-input-c"}`}>
+                          <img src={sig} alt={`қолтаңба ${i + 1}`} className="h-8 bg-white rounded px-1" />
+                          {req.signatureImg === sig && <span className="text-[10px] status-good">✓ таңдалды</span>}
+                          <button onClick={(ev) => {
+                            ev.stopPropagation();
+                            const list = (req.signatures || []).filter((_, j) => j !== i);
+                            const next = { ...req, signatures: list, signatureImg: req.signatureImg === sig ? (list[0] || "") : req.signatureImg };
+                            setReq(next); saveRequisites(next);
+                          }} className="ml-auto w-5 h-5 rounded-full bg-red-500/15 status-bad text-xs flex items-center justify-center hover:bg-red-500/30" title="Өшіру">×</button>
+                        </div>
+                      ))}
+                      {/* Жаңа қолтаңба қосу */}
+                      <label className="flex items-center justify-center gap-1.5 text-xs px-2 py-2 rounded-lg gradient-primary text-white cursor-pointer mt-1">
+                        {sigBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} Жаңа қолтаңба қосу
+                        <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={sigBusy}
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setSigBusy(true);
+                            try {
+                              const raw = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f); });
+                              const clean = await removeSignatureBackground(raw); // фонды автоматты жою
+                              const list = [...((req.signatures || [])), clean];
+                              const next = { ...req, signatures: list, signatureImg: clean };
+                              setReq(next); saveRequisites(next); setSigMenuOpen(false);
+                            } finally { setSigBusy(false); e.target.value = ""; }
+                          }} />
+                      </label>
+                    </div>
+                  )}
                 </div>
-                {(req.signatures || []).length === 0 ? (
-                  <p className="text-xs text-faint-c">Қолтаңба жоқ. «Қолтаңба қосу» — суретті таңдаңыз, фоны автоматты алынады.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {(req.signatures || []).map((sig, i) => (
-                      <div key={i} onClick={() => setReqField("signatureImg", sig)}
-                        className={`relative cursor-pointer rounded-lg border-2 bg-white px-2 py-1 transition-colors ${
-                          req.signatureImg === sig ? "border-[var(--accent)]" : "border-soft-c hover:border-[var(--accent)]"}`}
-                        title="Осы қолтаңбаны қою">
-                        <img src={sig} alt={`қолтаңба ${i + 1}`} className="h-10" />
-                        {req.signatureImg === sig && <span className="absolute -top-2 -left-2 w-4 h-4 rounded-full gradient-primary text-white text-[9px] flex items-center justify-center">✓</span>}
-                        <button onClick={(ev) => {
-                          ev.stopPropagation();
-                          const list = (req.signatures || []).filter((_, j) => j !== i);
-                          const next = { ...req, signatures: list, signatureImg: req.signatureImg === sig ? (list[0] || "") : req.signatureImg };
-                          setReq(next); saveRequisites(next);
-                        }} className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-faint-c mt-1">Тек өз қолтаңбаңыз. Сурет жүктегенде фоны автоматты жойылады, таңдалғаны құжатқа сызық үстіне қойылады.</p>
+                <p className="text-xs text-faint-c mt-1">Батырманы басып тізімнен таңдаңыз. Жаңа сурет қосқанда фоны автоматты жойылады, таңдалғаны құжатқа қойылады.</p>
 
                 {/* Қолтаңба орнын дәлдеу — құжаттағыдай алдын ала көрініс + жылжыту */}
                 {req.signatureImg && (
