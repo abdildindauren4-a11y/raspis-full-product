@@ -52,15 +52,13 @@ function withPlanDefaults(rec: UserRecord): UserRecord {
 }
 
 // Деректер енгізу панелі ашық па (сыныптар/мұғалімдер/кабинеттер/пәндер/импорт).
-// Тариф иесі бір мектептің кестесін өз бетімен қайта-қайта жасай береді,
-// бірақ ЖАҢА мектеп деректерін енгізу 7 күндік терезеден кейін жабылады —
-// ашуды WhatsApp арқылы сұрайды (қымбат тарифпен басқаларға кесте сатып
-// жүрмеуін бақылау тетігі).
-export function canEditData(role: Role, record: UserRecord | null): boolean {
-  if (role === "admin") return true;
+// Деректер енгізу шектеусіз: тегін де, тарифті де кез келген уақытта мектеп
+// деректерін енгізе/өзгерте алады (бұрынғы 7 күндік терезе алынды). Қайта
+// сатудан қорғау енді тек «деректер толық ауысқанда» ескерту (antiResale)
+// арқылы жасалады. Демо рөлі — сатушының көрсету құралы, тек код арқылы ашық.
+export function canEditData(role: Role, _record: UserRecord | null): boolean {
   if (role === "demo") return false;
-  if (!record || record.plan === "free") return true; // тегін/офлайн — енгізу ашық (генерация квотамен шектеулі)
-  return !record.dataEntryUntil || Date.now() <= record.dataEntryUntil;
+  return true;
 }
 
 // Пайдаланушыны тіркеу/жаңарту (кірген сайын шақырылады)
