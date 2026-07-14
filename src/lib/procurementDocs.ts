@@ -8,6 +8,7 @@
 // батырмамен басып шығаруға (PDF) немесе Word (.doc) күйінде жүктеуге болады.
 import { PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
 import { PAYMENT } from "@/lib/payment";
+import { DEFAULT_SIGNATURE } from "@/lib/defaultSignature";
 
 export type DocLang = "kk" | "ru" | "en";
 
@@ -25,7 +26,8 @@ export interface DocRequisites {
   byProxy?: boolean;
   proxyNo?: string;   // сенімхат №
   proxyDate?: string; // сенімхат күні
-  signatureImg?: string; // қол қоюшының қолтаңба суреті (data URL, факсимиле)
+  signatureImg?: string;   // ҚОЛДАНЫЛАТЫН қолтаңба (data URL, факсимиле)
+  signatures?: string[];   // сақталған қолтаңбалар галереясы (таңдауға)
 }
 
 // Әдепкі реквизиттер — ЖК ШАМБИЛОВ (құжаттарда автоматты шығады; завуч
@@ -42,7 +44,8 @@ const DEFAULT_REQ: DocRequisites = {
   byProxy: false,
   proxyNo: "",
   proxyDate: "",
-  signatureImg: "",
+  signatureImg: DEFAULT_SIGNATURE,
+  signatures: [DEFAULT_SIGNATURE],
 };
 
 const REQ_KEY = "raspis-doc-requisites";
@@ -52,7 +55,7 @@ export function loadRequisites(): DocRequisites {
     // Бос жолдар (мыс. толтырылмаған реквизит) әдепкіні баспайды; логикалық
     // (byProxy) және сурет (signatureImg) мәндері сақталады
     const keep = Object.fromEntries(Object.entries(saved).filter(([, v]) =>
-      typeof v === "boolean" || (typeof v === "string" && v.trim() !== "")));
+      typeof v === "boolean" || Array.isArray(v) || (typeof v === "string" && v.trim() !== "")));
     return { ...DEFAULT_REQ, ...keep };
   } catch {
     return { ...DEFAULT_REQ };
