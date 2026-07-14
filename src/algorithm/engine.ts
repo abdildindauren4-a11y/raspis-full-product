@@ -502,11 +502,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   /* ЭТАП 2 — приоритет кезегі */
   prog(15, 2);
   const tasks: Task[] = [];
+  // СанПиН (№ ҚР ДСМ-76): бастауыш сыныптарда қос сабақ өткізуге болмайды.
+  // Қатаң тыйым емес — ескерту (мыс. «Сауат ашу» 6 сағ/апта қос сабақсыз сыймайды),
+  // шешімді завуч қабылдайды: сағатты азайту не пәннің қос сабағын өшіру.
+  const sanpinWarnings: string[] = [];
   for (const c of targetClasses)
     for (const cu of c.curriculum) {
       const s = S[cu.subjectId];
       if (!s || !cu.hours) continue;
       const doubles = s.canDouble && cu.hours > 5 ? cu.hours - 5 : 0;
+      if (doubles > 0 && c.grade <= 4)
+        sanpinWarnings.push(`${c.name}: «${s.name}» қос сабақпен қойылады — СанПиН бастауышта қос сабаққа рұқсат бермейді (сағатын азайтыңыз немесе пәннің «қос сабақ» белгісін алыңыз)`);
       tasks.push({
         cls: c, cu, s,
         pr: (s.room ? 100 : 0) + (s.room === "gym" ? 90 : 0) + (cu.isSplit ? 80 : 0) + cu.hours * 10 + s.score,
@@ -1791,7 +1797,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const stressPct = (tests.filter((t) => t.passed).length / tests.length) * 100;
   const missedHours = unplaced.reduce((s, u) => s + (u.need - u.placed), 0);
   const quality = Math.max(0, Math.round(avgC * 0.35 + balance * 0.25 + comfort * 0.2 + stressPct * 0.2) - Math.min(25, missedHours));
-  const warnings = [...softWarnings, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
+  const warnings = [...sanpinWarnings, ...softWarnings, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
   // Сыйымдылық ескертулері: сынып тар кабинетке сыймаған жағдайлар
   for (const cw of capWarn) {
     const [clsName, students, cap] = cw.split("|");

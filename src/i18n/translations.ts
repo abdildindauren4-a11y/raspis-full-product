@@ -554,6 +554,13 @@ export const translations = {
   "subj.colBlacklist": { kk: "Қара тізім", ru: "Чёрный список", en: "Blacklist" },
   "subj.colDouble": { kk: "Қос сабақ", ru: "Сдвоенный", en: "Double" },
   "subj.colDigital": { kk: "Цифрлық", ru: "Цифровой", en: "Digital" },
+  "subj.sanpinFill": { kk: "СанПиН бойынша толтыру", ru: "Заполнить по СанПиН", en: "Fill from SanPiN" },
+  "subj.sanpinDoc": { kk: "Ресми құжат (4-қосымша)", ru: "Официальный документ (прил. 4)", en: "Official document (Annex 4)" },
+  "subj.sanpinHint": { kk: "Қиындық баллдары ҚР ДСМ-76 бұйрығының (05.08.2021) 4-қосымшасындағы ресми ранжирлеу кестесі бойынша қойылады: ресми реттілік дәл сақталып, мәндер жүйенің 1–10 шкаласына келтіріледі. Балл оқыту тіліне байланысты — алдымен мектеп тілін таңдаңыз.", ru: "Баллы трудности проставляются по официальной таблице ранжирования — приложение 4 к приказу № ҚР ДСМ-76 (05.08.2021): официальный порядок сохраняется точно, значения приводятся к шкале системы 1–10. Баллы зависят от языка обучения — сначала выберите язык школы.", en: "Difficulty scores follow the official ranking table — Annex 4 to Order No. QR DSM-76 (05.08.2021): the official order is preserved exactly, values are normalized to the system's 1–10 scale. Scores depend on the language of instruction — pick the school language first." },
+  "subj.sanpinLangKk": { kk: "Қазақ тілінде оқытатын мектеп", ru: "Школа с казахским языком обучения", en: "Kazakh-language school" },
+  "subj.sanpinLangRu": { kk: "Орыс тілінде оқытатын мектеп", ru: "Школа с русским языком обучения", en: "Russian-language school" },
+  "subj.sanpinDone": { kk: "пәнге ресми балл қойылды", ru: "предметам проставлен официальный балл", en: "subjects updated with official scores" },
+  "subj.sanpinUnmatched": { kk: "Құжат кестесінде жоқ (өзгертілмеді)", ru: "Нет в таблице документа (не изменены)", en: "Not in the document table (unchanged)" },
 
   // ── Algorithm ──
   "algo.optHint": { kk: "Мектеп уақыттары және оптимизация параметрлері — өзгерту нәтижеге тікелей әсер етеді", ru: "Время школы и параметры оптимизации — влияют на результат", en: "School times and optimization params — affect the result" },

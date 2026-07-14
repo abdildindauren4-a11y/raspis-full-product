@@ -5,14 +5,24 @@ import { inputCls, subjBg } from "@/components/shared/Form";
 import SlotMatrix from "@/components/shared/SlotMatrix";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
-import { CalendarX2, ChevronDown } from "lucide-react";
+import { applySanpinScores, SANPIN_DOC_URL, SANPIN_DOC_LABEL, type SchoolLang } from "@/lib/sanpinScale";
+import { CalendarX2, ChevronDown, ScrollText, ExternalLink } from "lucide-react";
 
 export default function SubjectsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { subjects, setSubjects } = useData();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [schoolLang, setSchoolLang] = useState<SchoolLang>("kk");
+  const [sanpinMsg, setSanpinMsg] = useState<{ n: number; unmatched: string[] } | null>(null);
   const upd = (id: string, patch: Partial<(typeof subjects)[number]>) =>
     setSubjects(subjects.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+
+  // Ресми баллдарды қою (СанПиН 4-қосымша) — құжатта жоқ пәндер өзгертілмейді
+  const fillSanpin = () => {
+    const r = applySanpinScores(subjects, schoolLang);
+    setSubjects(r.subjects);
+    setSanpinMsg({ n: r.matched.length, unmatched: r.unmatched });
+  };
 
   return (
     <div className="space-y-6">
@@ -20,6 +30,37 @@ export default function SubjectsPage() {
         <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("subjects.title")}</h1>
         <p className="text-muted-c mt-1">{t("subjects.subtitle")}</p>
       </div>
+      {/* СанПиН 4-қосымша: ресми қиындық баллдарын бір батырмамен қою + құжат сілтемесі */}
+      <GlassCard hover={false}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <ScrollText className="w-5 h-5 status-warn shrink-0" />
+          <p className="text-xs text-muted-c flex-1 min-w-0">{t("subj.sanpinHint")}</p>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <select value={schoolLang} onChange={(e) => setSchoolLang(e.target.value as SchoolLang)}
+              className={inputCls + " !w-auto !py-1.5 text-xs"}>
+              <option value="kk">{t("subj.sanpinLangKk")}</option>
+              <option value="ru">{t("subj.sanpinLangRu")}</option>
+            </select>
+            <button onClick={fillSanpin}
+              className="px-3 py-1.5 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+              {t("subj.sanpinFill")}
+            </button>
+            <a href={SANPIN_DOC_URL[lang] || SANPIN_DOC_URL.ru} target="_blank" rel="noopener noreferrer"
+              title={SANPIN_DOC_LABEL}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+              <ExternalLink className="w-3.5 h-3.5" /> {t("subj.sanpinDoc")}
+            </a>
+          </div>
+        </div>
+        {sanpinMsg && (
+          <div className="mt-2 text-xs">
+            <span className="status-good">✓ {sanpinMsg.n} {t("subj.sanpinDone")}</span>
+            {sanpinMsg.unmatched.length > 0 && (
+              <span className="text-muted-c"> · {t("subj.sanpinUnmatched")}: {sanpinMsg.unmatched.join(", ")}</span>
+            )}
+          </div>
+        )}
+      </GlassCard>
       <GlassCard hover={false}>
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
