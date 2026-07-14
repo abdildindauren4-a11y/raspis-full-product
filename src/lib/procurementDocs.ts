@@ -28,6 +28,10 @@ export interface DocRequisites {
   proxyDate?: string; // сенімхат күні
   signatureImg?: string;   // ҚОЛДАНЫЛАТЫН қолтаңба (data URL, факсимиле)
   signatures?: string[];   // сақталған қолтаңбалар галереясы (таңдауға)
+  // Қолтаңбаны сызыққа дәл орналастыру (әр қол әртүрлі — жылжыту/өлшеу)
+  sigDX?: number;  // көлденең ығысу (px)
+  sigDY?: number;  // тік ығысу (px, оң = төмен)
+  sigW?: number;   // қолтаңба ені (px)
 }
 
 // Әдепкі реквизиттер — ЖК ШАМБИЛОВ (құжаттарда автоматты шығады; завуч
@@ -46,6 +50,9 @@ const DEFAULT_REQ: DocRequisites = {
   proxyDate: "",
   signatureImg: DEFAULT_SIGNATURE,
   signatures: [DEFAULT_SIGNATURE],
+  sigDX: 0,
+  sigDY: 0,
+  sigW: 180,
 };
 
 const REQ_KEY = "raspis-doc-requisites";
@@ -55,7 +62,7 @@ export function loadRequisites(): DocRequisites {
     // Бос жолдар (мыс. толтырылмаған реквизит) әдепкіні баспайды; логикалық
     // (byProxy) және сурет (signatureImg) мәндері сақталады
     const keep = Object.fromEntries(Object.entries(saved).filter(([, v]) =>
-      typeof v === "boolean" || Array.isArray(v) || (typeof v === "string" && v.trim() !== "")));
+      typeof v === "boolean" || typeof v === "number" || Array.isArray(v) || (typeof v === "string" && v.trim() !== "")));
     return { ...DEFAULT_REQ, ...keep };
   } catch {
     return { ...DEFAULT_REQ };
@@ -93,15 +100,31 @@ function proxyPhrase(req: DocRequisites, lang: DocLang): string {
 function signBlock(req: DocRequisites, lang: DocLang, supplierWord: string, signatureWord: string, fioWord: string, dateStamp: string, stamp: string): string {
   const proxy = proxyPhrase(req, lang);
   const heading = `${supplierWord} «${fill(req.ipName)}»${proxy}`;
-  // Қолтаңба суреті — сызық енін толтырып, сызық ҮСТІНЕ отырады (сәл қабаттасып).
-  // Ені сызыққа тең (≈180px), төменгі жиегі сызыққа түседі, ортаға тураланады.
+  // Қолтаңба суреті — сызық үстіне отырады; орны/өлшемі баптаулардан
+  // (әр қол әртүрлі болғандықтан жылжытуға/өлшеуге болады).
+  const dx = req.sigDX ?? 0, dy = req.sigDY ?? 0, sw = req.sigW ?? 180;
   const sig = req.signatureImg
-    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:50%; transform:translateX(-50%); bottom:-11px; width:180px; height:auto; max-height:66px; object-fit:contain;">`
+    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:calc(50% + ${dx}px); transform:translateX(-50%); bottom:${-11 + dy}px; width:${sw}px; height:auto; max-height:80px; object-fit:contain;">`
     : "";
+  // Кесте: 1-баған — қолтаңба сызығы + «(подпись)»; 2-баған — «/ Ф.И.О. /» +
+  // «(Ф.И.О.)». Жапсырмалар өз сызықтарының дәл астында тұрады.
   return `<div class="sign">
     ${heading}<br><br>
-    <span style="position:relative; display:inline-block; width:200px; text-align:center; line-height:1;">${sig}______________________</span> / ${fill(req.signer, 28)} /<br>
-    <span style="font-size:10.5pt">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${signatureWord}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fioWord}</span><br><br>
+    <table style="border:none; width:auto; border-collapse:collapse;">
+      <tr>
+        <td style="border:none; padding:0; position:relative; width:210px; text-align:center; line-height:1;">${sig}______________________</td>
+        <td style="border:none; padding:0 8px; vertical-align:bottom;">/</td>
+        <td style="border:none; padding:0; min-width:210px; text-align:center; vertical-align:bottom;">${fill(req.signer, 28)}</td>
+        <td style="border:none; padding:0 0 0 8px; vertical-align:bottom;">/</td>
+      </tr>
+      <tr style="font-size:10.5pt; color:#000;">
+        <td style="border:none; padding:2px 0 0; text-align:center;">${signatureWord}</td>
+        <td style="border:none;"></td>
+        <td style="border:none; padding:2px 0 0; text-align:center;">${fioWord}</td>
+        <td style="border:none;"></td>
+      </tr>
+    </table>
+    <br>
     ${dateStamp}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${stamp}
   </div>`;
 }

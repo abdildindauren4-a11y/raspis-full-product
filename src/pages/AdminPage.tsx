@@ -99,7 +99,7 @@ export default function AdminPage() {
   const [docOutNo, setDocOutNo] = useState("");
   const [docLang, setDocLang] = useState<DocLang>("ru"); // құжат тілі
   const [sigBusy, setSigBusy] = useState(false); // қолтаңба фоны өңделуде
-  const setReqField = (k: keyof DocRequisites, v: string | boolean) => {
+  const setReqField = (k: keyof DocRequisites, v: string | boolean | number) => {
     const next = { ...req, [k]: v };
     setReq(next);
     saveRequisites(next);
@@ -243,6 +243,41 @@ export default function AdminPage() {
                   </div>
                 )}
                 <p className="text-xs text-faint-c mt-1">Тек өз қолтаңбаңыз. Сурет жүктегенде фоны автоматты жойылады, таңдалғаны құжатқа сызық үстіне қойылады.</p>
+
+                {/* Қолтаңба орнын дәлдеу — құжаттағыдай алдын ала көрініс + жылжыту */}
+                {req.signatureImg && (
+                  <div className="mt-3 rounded-lg border border-soft-c bg-app-c p-3">
+                    <p className="text-xs font-semibold text-strong-c mb-2">Қолтаңба орнын дәлдеу (жүктер алдында)</p>
+                    <div className="flex items-end gap-4 flex-wrap">
+                      {/* Құжаттағы сызықтың дәл көшірмесі */}
+                      <div style={{ position: "relative", width: 210, height: 56, flexShrink: 0 }}>
+                        <img src={req.signatureImg} alt="" style={{
+                          position: "absolute", left: `calc(50% + ${req.sigDX ?? 0}px)`, transform: "translateX(-50%)",
+                          bottom: `${(req.sigDY ?? 0) + 6}px`, width: (req.sigW ?? 180), height: "auto", maxHeight: 80, objectFit: "contain",
+                        }} />
+                        <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, borderBottom: "1px solid #000" }} />
+                        <span style={{ position: "absolute", bottom: -12, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "#64748b" }}>(подпись)</span>
+                      </div>
+                      {/* Басқару батырмалары */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-c w-14">Орны:</span>
+                          {([["←", "sigDX", -3], ["→", "sigDX", 3], ["↑", "sigDY", -3], ["↓", "sigDY", 3]] as [string, "sigDX"|"sigDY", number][]).map(([lbl, f, d]) => (
+                            <button key={lbl + f + d} onClick={() => setReqField(f, (req[f] ?? 0) + d)}
+                              className="w-7 h-7 rounded-lg bg-input-c border border-soft-c text-strong-c hover:border-[var(--accent)] text-sm">{lbl}</button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-c w-14">Өлшемі:</span>
+                          <button onClick={() => setReqField("sigW", Math.max(80, (req.sigW ?? 180) - 12))} className="w-7 h-7 rounded-lg bg-input-c border border-soft-c text-strong-c hover:border-[var(--accent)] text-sm">−</button>
+                          <button onClick={() => setReqField("sigW", Math.min(300, (req.sigW ?? 180) + 12))} className="w-7 h-7 rounded-lg bg-input-c border border-soft-c text-strong-c hover:border-[var(--accent)] text-sm">+</button>
+                          <button onClick={() => { const next = { ...req, sigDX: 0, sigDY: 0, sigW: 180 }; setReq(next); saveRequisites(next); }}
+                            className="ml-2 text-xs px-2 py-1 rounded-lg bg-input-c border border-soft-c text-muted-c hover:text-strong-c">Әдепкі</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {/* Мектеп деректері */}
