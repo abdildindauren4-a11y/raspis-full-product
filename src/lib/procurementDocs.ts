@@ -504,16 +504,20 @@ export function kpHtml(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): 
   const telLbl = lang === "en" ? "Tel." : "Тел.";
   const siteLbl = lang === "en" ? "Web" : "Сайт";
   return `<!DOCTYPE html><html lang="${lang}"><head><meta charset="utf-8"><title>${s.docTitle}</title><style>${BASE_CSS}
-  body { line-height: 1.5; }
-  .head { border-bottom: 2px solid #1e3a5f; padding-bottom: 10px; margin-bottom: 6px; }
+  body { line-height: 1.4; }
+  .head { border-bottom: 2px solid #1e3a5f; padding-bottom: 8px; margin-bottom: 6px; }
   .head b { font-size: 15pt; color: #1e3a5f; letter-spacing: 1px; }
-  .head .req { font-size: 10.5pt; line-height: 1.4; margin-top: 3px; }
-  .to { text-align: right; margin: 14px 0 20px; }
-  h1 { font-size: 14pt; text-align: center; font-weight: bold; margin: 8px 0 16px; letter-spacing: .5px; }
-  th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+  .head .req { font-size: 10.5pt; line-height: 1.35; margin-top: 3px; }
+  .to { text-align: right; margin: 12px 0 16px; }
+  h1 { font-size: 14pt; text-align: center; font-weight: bold; margin: 6px 0 12px; letter-spacing: .5px; }
+  th, td { border: 1px solid #000; padding: 5px 8px; vertical-align: top; }
   th { font-weight: bold; text-align: center; background: #f2f2f2; }
   td.c { text-align: center; } td.r { text-align: right; }
-  .cond p { margin: 4px 0; }
+  .cond p { margin: 3px 0; }
+  .cond ul { margin: 3px 0 5px 18px; }
+  p { margin: 8px 0; }
+  /* Қол қою блогы бір бетте бөлінбей тұрсын әрі аса төмен тұрмасын */
+  .sign { margin-top: 22px; page-break-inside: avoid; }
   </style></head><body>
   <div class="head"><b>${s.supplier} «${fill(req.ipName)}»</b>
     <div class="req">${iinLbl}: ${fill(req.iinBin)} · ${addrLbl}: ${fill(req.address, 40)}<br>
