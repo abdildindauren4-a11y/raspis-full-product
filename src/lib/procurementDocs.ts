@@ -9,8 +9,6 @@
 import { PLANS, LAUNCH_PROMO, formatKzt, effectivePrice, type PlanId } from "@/lib/plans";
 import { PAYMENT } from "@/lib/payment";
 import { DEFAULT_SIGNATURE } from "@/lib/defaultSignature";
-import notoRegularUrl from "@/assets/fonts/NotoSans-Regular.ttf?url";
-import notoBoldUrl from "@/assets/fonts/NotoSans-Bold.ttf?url";
 
 export type DocLang = "kk" | "ru" | "en";
 
@@ -570,288 +568,84 @@ export function downloadDoc(html: string, filename: string) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// НАҚТЫ PDF ГЕНЕРАТОРЫ (jsPDF) — браузердің баспа диалогынсыз.
+// НАҚТЫ PDF ЖҮКТЕУ — ЖОҒАРЫДАҒЫ HTML ҮЛГІНІ СОЛ КҮЙІНДЕ .pdf ЕТЕДІ.
 // Себебі: iOS Safari баспа/PDF-те бетке сайт сілтемесі, күн-уақыт және
-// «Стр. X из Y» колонтитулын мәжбүрлеп қосады, оны CSS (@page margin:0)
-// арқылы өшіру мүмкін емес. Сондықтан құжатты бірден .pdf файл етіп
-// құрастырамыз — ешқандай колонтитул болмайды, әрі бет ажырауын өзіміз
-// басқарамыз (қол қою блогы 3-бетке «жетім» болып ауыспайды).
+// «Стр. X из Y» колонтитулын мәжбүрлеп қосады — оны CSS (@page margin:0)
+// арқылы өшіру мүмкін емес. Сондықтан құжатты браузердің баспа диалогымен
+// емес, HTML-ді бірдей көрсетіп (Times New Roman, кестелер, түс — бәрі
+// сол қалпында) jsPDF арқылы .pdf файлға айналдырамыз: ешқандай колонтитул
+// болмайды, ал үлгінің әдемі көрінісі өзгермейді.
 // ═══════════════════════════════════════════════════════════════════
+export async function htmlToPdf(html: string, filename: string): Promise<void> {
+  const [{ jsPDF }, h2c] = await Promise.all([import("jspdf"), import("html2canvas")]);
+  const html2canvas = h2c.default;
 
-const PDF_FONT = "NotoSansRP";
+  // A4 бет геометриясы (мм) және әр беттің жиегі
+  const A4W = 210, A4H = 297;
+  const MX = 15, MTOP = 14, MBOT = 15;
+  const contentWmm = A4W - MX * 2;              // 180мм — мазмұн ені
+  const contentHmm = A4H - MTOP - MBOT;         // 268мм — беттегі мазмұн биіктігі
 
-async function bufToB64(buf: ArrayBuffer): Promise<string> {
-  let bin = "";
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  return btoa(bin);
-}
-let pdfFontCache: { regular: string; bold: string } | null = null;
-async function loadPdfFonts() {
-  if (pdfFontCache) return pdfFontCache;
-  const [r, b] = await Promise.all([
-    fetch(notoRegularUrl).then((x) => x.arrayBuffer()),
-    fetch(notoBoldUrl).then((x) => x.arrayBuffer()),
-  ]);
-  pdfFontCache = { regular: await bufToB64(r), bold: await bufToB64(b) };
-  return pdfFontCache;
-}
-// Суреттің табиғи ара-қатынасын алу (қолтаңбаны бұрмаламай орналастыру үшін)
-function imgAspect(dataUrl: string): Promise<number> {
-  return new Promise((res) => {
-    const im = new Image();
-    im.onload = () => res(im.naturalHeight / im.naturalWidth || 0.3);
-    im.onerror = () => res(0.3);
-    im.src = dataUrl;
+  // HTML-ді жасырын iframe-де нақ өз CSS-імен көрсетеміз (қаріп/кесте/түс дәл сол)
+  const RENDER_W = 760;                          // рендер ені (px) → 180мм-ге сәйкес
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = `position:fixed; left:-10000px; top:0; width:${RENDER_W}px; height:1200px; border:0; background:#fff;`;
+  document.body.appendChild(iframe);
+  const idoc = iframe.contentDocument!;
+  // Беттің жиегін html2canvas-та емес, PDF-те қосамыз — сондықтан body-дың
+  // өз шет-жиегін нөлдеп, тек мазмұн енін ұстаймыз.
+  const override = `<style>
+    html,body{ margin:0 !important; padding:0 !important; background:#fff !important; }
+    body{ width:${RENDER_W}px !important; box-sizing:border-box !important; }
+  </style>`;
+  idoc.open();
+  idoc.write(html.includes("</head>") ? html.replace("</head>", override + "</head>") : override + html);
+  idoc.close();
+  await new Promise((r) => setTimeout(r, 450));
+  try { await (idoc as unknown as { fonts?: { ready: Promise<unknown> } }).fonts?.ready; } catch { /* елеусіз */ }
+
+  const scale = 2;
+  const canvas = await html2canvas(idoc.body, {
+    scale, backgroundColor: "#ffffff", useCORS: true,
+    width: RENDER_W, height: idoc.body.scrollHeight, windowWidth: RENDER_W,
   });
-}
+  document.body.removeChild(iframe);
 
-// «<b>…</b>» белгісін сегменттерге бөлу (қалған тегтер алынып тасталады)
-function parseRich(html: string): { text: string; bold: boolean }[] {
-  const out: { text: string; bold: boolean }[] = [];
-  const re = /<b>([\s\S]*?)<\/b>/g;
-  let last = 0, m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    if (m.index > last) out.push({ text: html.slice(last, m.index), bold: false });
-    out.push({ text: m[1], bold: true });
-    last = m.index + m[0].length;
+  const pxPerMm = canvas.width / contentWmm;     // canvas ені → 180мм
+  const pageHpx = Math.floor(contentHmm * pxPerMm); // бір беттегі мазмұн (canvas px)
+  const ctx = canvas.getContext("2d")!;
+  const cw = canvas.width;
+
+  // Берілген y-тен жоғары қарай «таза» (ақ) көлденең жол іздейміз — сол
+  // жерден кессек, мәтін жолы не қол қою блогы қақ жарылмайды.
+  const findSafeCut = (bottom: number): number => {
+    const limit = Math.max(bottom - Math.floor(pageHpx * 0.22), 1); // 22%-ке дейін ғана шегінеміз
+    for (let y = bottom; y > limit; y--) {
+      const row = ctx.getImageData(0, y, cw, 1).data;
+      let white = true;
+      for (let x = 0; x < cw; x += 4) { // әр 4 пиксельді тексереміз (жылдамдық)
+        if (row[x * 4] < 250 || row[x * 4 + 1] < 250 || row[x * 4 + 2] < 250) { white = false; break; }
+      }
+      if (white) return y;
+    }
+    return bottom; // таза жол табылмаса — сол жерден кесеміз
+  };
+
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+  const totalH = canvas.height;
+  let srcY = 0, first = true;
+  while (srcY < totalH - 1) {
+    let sliceH = Math.min(pageHpx, totalH - srcY);
+    if (srcY + sliceH < totalH) sliceH = findSafeCut(srcY + sliceH) - srcY; // соңғы бет емес — таза жерден кесеміз
+    // Тілімді уақытша canvas-қа көшіріп, суретке айналдырамыз
+    const slice = document.createElement("canvas");
+    slice.width = cw; slice.height = sliceH;
+    slice.getContext("2d")!.drawImage(canvas, 0, srcY, cw, sliceH, 0, 0, cw, sliceH);
+    const img = slice.toDataURL("image/jpeg", 0.92);
+    if (!first) doc.addPage();
+    doc.addImage(img, "JPEG", MX, MTOP, contentWmm, sliceH / pxPerMm);
+    first = false;
+    srcY += sliceH;
   }
-  if (last < html.length) out.push({ text: html.slice(last), bold: false });
-  return out.map((s) => ({ text: s.text.replace(/<[^>]+>/g, ""), bold: s.bold }));
-}
-
-// jsPDF-те инлайн-қалың мәтінді жол-жолға тасымалдап жазу; жаңа y қайтарады
-type JsPdf = import("jspdf").jsPDF;
-function flowRich(doc: JsPdf, segs: { text: string; bold: boolean }[], x: number, y: number, maxW: number, fontSize: number, lh: number): number {
-  doc.setFontSize(fontSize);
-  const toks: { t: string; bold: boolean }[] = [];
-  segs.forEach((s) => s.text.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ t, bold: s.bold })));
-  doc.setFont(PDF_FONT, "normal");
-  const spaceW = doc.getTextWidth(" ");
-  let cx = x;
-  for (const tk of toks) {
-    doc.setFont(PDF_FONT, tk.bold ? "bold" : "normal");
-    const ww = doc.getTextWidth(tk.t);
-    const sw = cx === x ? 0 : spaceW;
-    if (cx + sw + ww > x + maxW && cx > x) { y += lh; cx = x; }
-    else cx += sw;
-    doc.text(tk.t, cx, y);
-    cx += ww;
-  }
-  return y + lh;
-}
-
-const RGB_ACCENT: [number, number, number] = [30, 58, 95]; // #1e3a5f
-
-// Ортақ бет параметрлері (A4 portrait, mm)
-const PG = { w: 210, h: 297, L: 20, R: 195, top: 16, bottom: 18, cw: 175 };
-
-async function newPdf() {
-  const { jsPDF } = await import("jspdf");
-  const fonts = await loadPdfFonts();
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  doc.addFileToVFS("NotoSans-Regular.ttf", fonts.regular);
-  doc.addFont("NotoSans-Regular.ttf", PDF_FONT, "normal");
-  doc.addFileToVFS("NotoSans-Bold.ttf", fonts.bold);
-  doc.addFont("NotoSans-Bold.ttf", PDF_FONT, "bold");
-  doc.setFont(PDF_FONT, "normal");
-  doc.setTextColor(0, 0, 0);
-  return doc;
-}
-
-// Қол қою блогын салу (иесінің/сенімхаты бар өкілдің қолы + факсимиле сурет)
-async function drawSignBlock(doc: JsPdf, y: number, req: DocRequisites, lang: DocLang, supplierWord: string, signatureWord: string, fioWord: string, dateStamp: string, stamp: string): Promise<number> {
-  // Блок биіктігін бағалап, сыймаса — жаңа бет (қол қою «жетім» болмасын)
-  const EST = 46;
-  if (y + EST > PG.h - PG.bottom) { doc.addPage(); y = PG.top; }
-  const { L, R } = PG;
-  // Тақырып: «Өнім беруші: ЖК «ШАМБИЛОВ»» + сенімхат тіркесі
-  const heading = `${supplierWord} «${fill(req.ipName)}»${proxyPhrase(req, lang)}`;
-  y = flowRich(doc, [{ text: heading, bold: false }], L, y, PG.cw, 11, 5) + 6;
-
-  const lineY = y + 6;               // қол қою сызығының деңгейі
-  const sigX2 = L + 62;              // сол баған (қолтаңба сызығы) L..sigX2
-  doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3);
-  doc.line(L, lineY, sigX2, lineY);
-  // Факсимиле сурет — сызық үстіне, ортаға (әр қол әртүрлі — жылжыту/өлшеу)
-  if (req.signatureImg) {
-    const asp = await imgAspect(req.signatureImg);
-    const wmm = Math.min(52, Math.max(24, (req.sigW ?? 180) * 0.24)); // px→mm шамамен
-    const hmm = Math.min(18, wmm * asp);
-    const cx = (L + sigX2) / 2 + (req.sigDX ?? 0) * 0.22;
-    const bottom = lineY - 0.5 + (req.sigDY ?? 0) * 0.22;
-    try { doc.addImage(req.signatureImg, "PNG", cx - wmm / 2, bottom - hmm, wmm, hmm, undefined, "FAST"); } catch { /* сурет қатесі — елеусіз */ }
-  }
-  // Т.А.Ә. бағаны: / signer /
-  doc.setFont(PDF_FONT, "normal"); doc.setFontSize(11);
-  const slashX = sigX2 + 4;
-  doc.text("/", slashX, lineY - 0.5);
-  const nameCX = (slashX + 6 + R) / 2;
-  doc.text(fill(req.signer, 28), nameCX, lineY - 0.5, { align: "center" });
-  doc.text("/", R, lineY - 0.5, { align: "right" });
-  // Жапсырмалар — өз сызықтарының астында
-  doc.setFontSize(9); doc.setTextColor(0, 0, 0);
-  doc.text(signatureWord, (L + sigX2) / 2, lineY + 4.5, { align: "center" });
-  doc.text(fioWord, nameCX, lineY + 4.5, { align: "center" });
-  // Күн + мөр
-  y = lineY + 13;
-  doc.setFontSize(11);
-  doc.text(dateStamp, L, y);
-  doc.text(stamp, L + 92, y);
-  return y;
-}
-
-// ── КП (коммерциялық ұсыныс) PDF ──
-export async function kpPdf(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): Promise<JsPdf> {
-  const { autoTable } = await import("jspdf-autotable");
-  const plan = PLANS[p.plan];
-  const s = KP_STR[lang];
-  const doc = await newPdf();
-  const { L, R, cw } = PG;
-  let y = PG.top + 4;
-
-  // Шапка: жеткізуші атауы + реквизиттер
-  doc.setFont(PDF_FONT, "bold"); doc.setFontSize(15); doc.setTextColor(...RGB_ACCENT);
-  doc.text(`${s.supplier} «${fill(req.ipName)}»`, L, y);
-  doc.setDrawColor(...RGB_ACCENT); doc.setLineWidth(0.6);
-  doc.line(L, y + 2.5, R, y + 2.5);
-  y += 7;
-  doc.setFont(PDF_FONT, "normal"); doc.setFontSize(9.5); doc.setTextColor(0, 0, 0);
-  const iinLbl = lang === "en" ? "BIN" : lang === "kk" ? "ЖСН/БСН" : "ИИН/БИН";
-  const addrLbl = lang === "en" ? "Address" : lang === "kk" ? "Мекенжай" : "Адрес";
-  const iikLbl = lang === "en" ? "Account" : "ИИК";
-  const inLbl = lang === "en" ? "at" : lang === "kk" ? "—" : "в";
-  const bikLbl = lang === "en" ? "BIC" : "БИК";
-  const kbeLbl = lang === "en" ? "BenCode" : "КБе";
-  const telLbl = lang === "en" ? "Tel." : "Тел.";
-  doc.text(`${iinLbl}: ${fill(req.iinBin)}   ·   ${addrLbl}: ${fill(req.address, 40)}`, L, y); y += 4.4;
-  doc.text(`${iikLbl}: ${fill(req.iik, 24)} ${inLbl} ${fill(req.bank, 16)}, ${bikLbl}: ${fill(req.bik, 12)}, ${kbeLbl}: ${fill(req.kbe, 4)}`, L, y); y += 4.4;
-  doc.text(`${telLbl}: ${PAYMENT.kaspiPhone}`, L, y); y += 8;
-
-  // Исх. № және күні
-  doc.setFontSize(10.5);
-  doc.text(s.outNo(fill(p.outNo, 6), fill(p.date, 26)), L, y); y += 7;
-  // Директорға (оң жақ)
-  doc.setFontSize(11);
-  doc.text(s.toDirector, R, y, { align: "right" }); y += 5;
-  doc.text(fill(p.schoolName, 40), R, y, { align: "right" }); y += 5;
-  doc.text(fill(p.directorName, 32), R, y, { align: "right" }); y += 8;
-  // Тақырып
-  doc.setFont(PDF_FONT, "bold"); doc.setFontSize(14);
-  doc.text(s.h1, PG.w / 2, y, { align: "center" }); y += 8;
-  doc.setFont(PDF_FONT, "normal");
-  // Кіріспе
-  y = flowRich(doc, parseRich(s.intro), L, y, cw, 11, 5) + 3;
-
-  // Кесте
-  const priceStr = formatKzt(p.price).replace(" ₸", "");
-  autoTable(doc, {
-    startY: y,
-    margin: { left: L, right: PG.w - R },
-    styles: { font: PDF_FONT, fontSize: 9.5, cellPadding: 1.8, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], overflow: "linebreak" },
-    headStyles: { font: PDF_FONT, fontStyle: "bold", fillColor: [242, 242, 242], textColor: [0, 0, 0], halign: "center" },
-    columnStyles: {
-      0: { halign: "center", cellWidth: 10 },
-      2: { halign: "center", cellWidth: 16 },
-      3: { halign: "center", cellWidth: 13 },
-      4: { halign: "right", cellWidth: 27 },
-      5: { halign: "right", cellWidth: 27 },
-    },
-    head: [[s.thNo, s.thName, s.thUnit, s.thQty, s.thPrice, s.thSum]],
-    body: [
-      ["1", s.rowName(plan.name, DURATION[lang][p.plan]), s.unitVal, "1", priceStr, priceStr],
-      [{ content: s.totalWord, colSpan: 5, styles: { halign: "right", fontStyle: "bold" } } as never, { content: priceStr, styles: { halign: "right", fontStyle: "bold" } } as never],
-    ],
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
-
-  // ҚҚС/акция ескертпесі
-  const isPromo = LAUNCH_PROMO.active && p.price === effectivePrice(plan.price, true) && plan.price > 0;
-  const note = isPromo ? s.promoNote(LAUNCH_PROMO.percent, formatKzt(plan.price).replace(" ₸", "")) : s.noVatNote;
-  y = flowRich(doc, [{ text: note, bold: false }], L, y, cw, 10.5, 4.7) + 3;
-
-  // Бағаға кіреді
-  const ensure = (h: number) => { if (y + h > PG.h - PG.bottom) { doc.addPage(); y = PG.top; } };
-  doc.setFont(PDF_FONT, "bold"); doc.setFontSize(11);
-  ensure(6); doc.text(s.includedTitle, L, y); y += 5.5;
-  doc.setFont(PDF_FONT, "normal");
-  for (const it of s.included) {
-    ensure(5);
-    doc.setFontSize(11); doc.text("•", L + 1, y);
-    y = flowRich(doc, [{ text: it, bold: false }], L + 6, y, cw - 6, 10.5, 4.7) + 1;
-  }
-  y += 2;
-  // Төлем / мерзім / жарамдылық
-  for (const [title, val] of [[s.payTitle, s.payVal], [s.termTitle, s.termVal], [s.validTitle, s.validVal]] as const) {
-    ensure(6);
-    y = flowRich(doc, [{ text: title, bold: true }, { text: " " + val, bold: false }], L, y, cw, 10.5, 4.7) + 1.5;
-  }
-  y += 6;
-
-  await drawSignBlock(doc, y, req, lang, s.supplier, s.signatureWord, s.fioWord, s.dateStamp, s.stamp);
-  return doc;
-}
-
-// ── Техникалық спецификация PDF ──
-export async function tehSpecPdf(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): Promise<JsPdf> {
-  const { autoTable } = await import("jspdf-autotable");
-  const plan = PLANS[p.plan];
-  const s = TS_STR[lang];
-  const doc = await newPdf();
-  const { L, R, cw } = PG;
-  let y = PG.top;
-
-  // Оң жақ бұрыш (қосымша сілтемесі)
-  doc.setFontSize(10); doc.setFont(PDF_FONT, "normal");
-  const corner = s.corner.replace(/<br>/g, "\n").split("\n");
-  for (const ln of corner) { doc.text(ln, R, y, { align: "right" }); y += 4.2; }
-  y += 4;
-  // Тақырып
-  doc.setFont(PDF_FONT, "bold"); doc.setFontSize(13);
-  doc.text(doc.splitTextToSize(s.h1, cw), PG.w / 2, y, { align: "center" }); y += 6;
-  doc.setFont(PDF_FONT, "normal"); doc.setFontSize(10.5);
-  doc.text(doc.splitTextToSize(s.sub, cw), PG.w / 2, y, { align: "center" }); y += 8;
-  // Сатып алу мәліметтері
-  doc.setFontSize(11);
-  y = flowRich(doc, [{ text: `${s.purchaseNo} ______________________`, bold: false }], L, y, cw, 11, 5);
-  y = flowRich(doc, [{ text: s.purchaseName + " ", bold: false }, { text: s.purchaseNameVal, bold: true }], L, y, cw, 11, 5);
-  y = flowRich(doc, [{ text: s.customer + " ", bold: false }, { text: fill(p.schoolName, 40), bold: true }], L, y, cw, 11, 5) + 3;
-
-  // Ұзын сипаттама ұясын мәтін етіп құрастыру (autoTable өзі беттерге бөледі)
-  const bullets = (title: string, arr: string[]) => title + "\n" + arr.map((x) => "•  " + x).join("\n");
-  const descParts = [
-    bullets(s.sec1, s.func), "", bullets(s.sec2, s.tech), "",
-    bullets(s.sec3, s.qual), "", bullets(s.sec4, s.expl(plan.name, plan.quickGenerations, plan.deepSearches, DURATION[lang][p.plan])), "",
-    bullets(s.sec5, s.accomp),
-  ].join("\n");
-  const iinLbl = lang === "en" ? "BIN" : lang === "kk" ? "ЖСН/БСН" : "ИИН/БИН";
-  const supName = s.supplier.split(":").pop()!.trim();
-  const rows: [string, string][] = [
-    [s.kLotNo, "____________"],
-    [s.kLotName, s.purchaseNameVal],
-    [s.kServiceName, s.serviceNameVal(plan.name, DURATION[lang][p.plan]).replace(/<[^>]+>/g, "")],
-    [s.kOrigin, s.originVal],
-    [s.kMaker, `${supName} «${fill(req.ipName)}», ${iinLbl} ${fill(req.iinBin)}`],
-    [s.kYear, s.yearVal],
-    [s.kWarranty, `${MONTHS_WARR[lang][p.plan]}${s.warrTail}`],
-    [s.kDesc, descParts],
-    [s.kOther, s.otherVal],
-  ];
-  autoTable(doc, {
-    startY: y,
-    margin: { left: L, right: PG.w - R, top: PG.top, bottom: PG.bottom },
-    styles: { font: PDF_FONT, fontSize: 9.5, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0], overflow: "linebreak", valign: "top" },
-    columnStyles: { 0: { cellWidth: 62, fontStyle: "bold" }, 1: { cellWidth: cw - 62 } },
-    body: rows,
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-  await drawSignBlock(doc, y, req, lang, s.supplier, s.signatureWord, s.fioWord, s.dateStamp, s.stamp);
-  return doc;
-}
-
-// Дайын PDF-ті жүктеу
-export function savePdf(doc: JsPdf, filename: string) {
   doc.save(filename);
 }

@@ -14,8 +14,7 @@ import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
 import { getPromoState, type PromoState } from "@/lib/promo";
 import { resolveSwapAlert } from "@/lib/antiResale";
 import {
-  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, downloadDoc, docDateStr,
-  kpPdf, tehSpecPdf, savePdf,
+  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, downloadDoc, docDateStr, htmlToPdf,
   type DocRequisites, type DocParams, type DocLang,
 } from "@/lib/procurementDocs";
 import { removeSignatureBackground } from "@/lib/signatureBg";
@@ -365,7 +364,7 @@ export default function AdminPage() {
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Техникалық спецификация</p>
                 <div className="flex gap-2">
-                  <button onClick={async () => savePdf(await tehSpecPdf(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                  <button onClick={() => htmlToPdf(tehSpecHtml(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
                     <FileDown className="w-3.5 h-3.5" /> PDF жүктеу
                   </button>
                   <button onClick={() => downloadDoc(tehSpecHtml(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
@@ -376,7 +375,7 @@ export default function AdminPage() {
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Коммерциялық ұсыныс</p>
                 <div className="flex gap-2">
-                  <button onClick={async () => savePdf(await kpPdf(req, docParams(), docLang), `RASPIS_Offer_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                  <button onClick={() => htmlToPdf(kpHtml(req, docParams(), docLang), `RASPIS_Offer_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
                     <FileDown className="w-3.5 h-3.5" /> PDF жүктеу
                   </button>
                   <button onClick={() => downloadDoc(kpHtml(req, docParams(), docLang), `RASPIS_Offer_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
