@@ -97,7 +97,7 @@ export default function AdminPage() {
   const [docPrice, setDocPrice] = useState<number>(effectivePrice(PLANS.premium.price));
   const [docOutNo, setDocOutNo] = useState("");
   const [docLang, setDocLang] = useState<DocLang>("ru"); // құжат тілі
-  const setReqField = (k: keyof DocRequisites, v: string) => {
+  const setReqField = (k: keyof DocRequisites, v: string | boolean) => {
     const next = { ...req, [k]: v };
     setReq(next);
     saveRequisites(next);
@@ -183,6 +183,41 @@ export default function AdminPage() {
                 <input className={docInput} placeholder="БИК" value={req.bik} onChange={(e) => setReqField("bik", e.target.value)} />
                 <input className={docInput} placeholder="КБе" value={req.kbe} onChange={(e) => setReqField("kbe", e.target.value)} />
                 <input className={docInput + " sm:col-span-2"} placeholder="Қол қоюшы (Ф.И.О.)" value={req.signer} onChange={(e) => setReqField("signer", e.target.value)} />
+              </div>
+              {/* Сенімхат негізінде қол қою (иесі емес адам қол қойса) */}
+              <label className="flex items-center gap-2 mt-3 text-sm text-soft-c cursor-pointer">
+                <input type="checkbox" checked={!!req.byProxy} onChange={(e) => setReqField("byProxy", e.target.checked)} />
+                Сенімхат (доверенность) негізінде қол қою
+              </label>
+              {req.byProxy && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  <input className={docInput} placeholder="Сенімхат №" value={req.proxyNo || ""} onChange={(e) => setReqField("proxyNo", e.target.value)} />
+                  <input className={docInput} placeholder="Сенімхат күні (мыс. 01.07.2026)" value={req.proxyDate || ""} onChange={(e) => setReqField("proxyDate", e.target.value)} />
+                  <p className="text-xs text-faint-c sm:col-span-2">
+                    Құжатта «ЖК ... атынан, № ... сенімхат негізінде әрекет етуші {req.signer || "[Ф.И.О.]"}» деп шығады. Сенімхаттың өзін құжатқа қоса тіркеңіз.
+                  </p>
+                </div>
+              )}
+              {/* Қолтаңба суреті (факсимиле) — өз қолтаңбаңыздың сканы/фотосы */}
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-strong-c mb-1">Қолтаңба суреті (қаласаңыз)</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input type="file" accept="image/png,image/jpeg" className="text-xs text-muted-c"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const r = new FileReader();
+                      r.onload = () => setReqField("signatureImg", String(r.result));
+                      r.readAsDataURL(f);
+                    }} />
+                  {req.signatureImg && (
+                    <div className="flex items-center gap-2">
+                      <img src={req.signatureImg} alt="қолтаңба" className="h-9 bg-white rounded border border-soft-c px-1" />
+                      <button onClick={() => setReqField("signatureImg", "")} className="text-xs status-bad hover:underline">өшіру</button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-faint-c mt-1">Тек өз қолтаңбаңыз — құжатқа сызық үстіне факсимиле болып қойылады.</p>
               </div>
             </div>
             {/* Мектеп деректері */}

@@ -21,6 +21,11 @@ export interface DocRequisites {
   bik: string;
   kbe: string;      // КБе (бенефициар коды)
   signer: string;   // қол қоюшының аты-жөні
+  // Сенімхат (доверенность) негізінде қол қою — иесі емес адам қол қойса
+  byProxy?: boolean;
+  proxyNo?: string;   // сенімхат №
+  proxyDate?: string; // сенімхат күні
+  signatureImg?: string; // қол қоюшының қолтаңба суреті (data URL, факсимиле)
 }
 
 // Әдепкі реквизиттер — ЖК ШАМБИЛОВ (құжаттарда автоматты шығады; завуч
@@ -34,15 +39,21 @@ const DEFAULT_REQ: DocRequisites = {
   bik: "CASPKZKA",
   kbe: "19",
   signer: "",
+  byProxy: false,
+  proxyNo: "",
+  proxyDate: "",
+  signatureImg: "",
 };
 
 const REQ_KEY = "raspis-doc-requisites";
 export function loadRequisites(): DocRequisites {
   try {
     const saved = JSON.parse(localStorage.getItem(REQ_KEY) || "{}") as Partial<DocRequisites>;
-    // Бос жолдар әдепкіні баспайды — тек нақты толтырылған өрістер қолданылады
-    const nonEmpty = Object.fromEntries(Object.entries(saved).filter(([, v]) => typeof v === "string" && v.trim() !== ""));
-    return { ...DEFAULT_REQ, ...nonEmpty };
+    // Бос жолдар (мыс. толтырылмаған реквизит) әдепкіні баспайды; логикалық
+    // (byProxy) және сурет (signatureImg) мәндері сақталады
+    const keep = Object.fromEntries(Object.entries(saved).filter(([, v]) =>
+      typeof v === "boolean" || (typeof v === "string" && v.trim() !== "")));
+    return { ...DEFAULT_REQ, ...keep };
   } catch {
     return { ...DEFAULT_REQ };
   }
@@ -62,6 +73,33 @@ export interface DocParams {
 }
 
 const fill = (v: string, w = 20) => (v && v.trim() ? v : "_".repeat(w));
+
+// «Сенімхат негізінде» деген тіркес — иесі емес адам қол қойғанда
+function proxyPhrase(req: DocRequisites, lang: DocLang): string {
+  if (!req.byProxy) return "";
+  const no = fill(req.proxyNo || "", 6);
+  const dt = fill(req.proxyDate || "", 14);
+  const who = fill(req.signer, 24);
+  if (lang === "en") return `, represented by ${who}, acting under power of attorney No. ${no} dated ${dt}`;
+  if (lang === "kk") return ` атынан ${who}, № ${no}, ${dt} сенімхат негізінде әрекет етуші`;
+  return ` в лице ${who}, действующего на основании доверенности № ${no} от ${dt}`;
+}
+
+// Қол қою блогы — иесінің немесе сенімхаты бар өкілдің; қолтаңба суреті болса,
+// оны сызық үстіне орналастырады (факсимиле). Барлық құжатқа ортақ.
+function signBlock(req: DocRequisites, lang: DocLang, supplierWord: string, signatureWord: string, fioWord: string, dateStamp: string, stamp: string): string {
+  const proxy = proxyPhrase(req, lang);
+  const heading = `${supplierWord} «${fill(req.ipName)}»${proxy}`;
+  const sig = req.signatureImg
+    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:20px; top:-30px; height:52px;">`
+    : "";
+  return `<div class="sign">
+    ${heading}<br><br>
+    <span style="position:relative; display:inline-block;">${sig}______________________</span> / ${fill(req.signer, 28)} /<br>
+    <span style="font-size:10.5pt">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${signatureWord}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fioWord}</span><br><br>
+    ${dateStamp}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${stamp}
+  </div>`;
+}
 
 // Ай атаулары (күн жолын құру) — AdminPage осы арқылы тілге сай күн жасайды
 const MONTH_NAMES: Record<DocLang, string[]> = {
@@ -415,12 +453,7 @@ export function tehSpecHtml(req: DocRequisites, p: DocParams, lang: DocLang = "r
     </td></tr>
     <tr><td class="k">${s.kOther}</td><td>${s.otherVal}</td></tr>
   </table>
-  <div class="sign">
-    ${s.supplier} «${fill(req.ipName)}»<br><br>
-    ______________________ / ${fill(req.signer, 28)} /<br>
-    <span style="font-size:10.5pt">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.signatureWord}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.fioWord}</span><br><br>
-    ${s.dateStamp}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.stamp}
-  </div>
+  ${signBlock(req, lang, s.supplier, s.signatureWord, s.fioWord, s.dateStamp, s.stamp)}
   </body></html>`;
 }
 
@@ -474,12 +507,7 @@ export function kpHtml(req: DocRequisites, p: DocParams, lang: DocLang = "ru"): 
     <p><b>${s.termTitle}</b> ${s.termVal}</p>
     <p><b>${s.validTitle}</b> ${s.validVal}</p>
   </div>
-  <div class="sign">
-    ${s.supplier} «${fill(req.ipName)}»<br><br>
-    ______________________ / ${fill(req.signer, 28)} /<br>
-    <span style="font-size:10.5pt">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.signatureWord}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.fioWord}</span><br><br>
-    ${s.dateStamp}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${s.stamp}
-  </div>
+  ${signBlock(req, lang, s.supplier, s.signatureWord, s.fioWord, s.dateStamp, s.stamp)}
   </body></html>`;
 }
 
