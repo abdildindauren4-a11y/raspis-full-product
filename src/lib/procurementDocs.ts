@@ -96,7 +96,7 @@ function signBlock(req: DocRequisites, lang: DocLang, supplierWord: string, sign
   // Қолтаңба суреті — сызық енін толтырып, сызық ҮСТІНЕ отырады (сәл қабаттасып).
   // Ені сызыққа тең (≈180px), төменгі жиегі сызыққа түседі, ортаға тураланады.
   const sig = req.signatureImg
-    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:50%; transform:translateX(-50%); bottom:-7px; width:180px; height:auto; max-height:66px; object-fit:contain;">`
+    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:50%; transform:translateX(-50%); bottom:-11px; width:180px; height:auto; max-height:66px; object-fit:contain;">`
     : "";
   return `<div class="sign">
     ${heading}<br><br>
