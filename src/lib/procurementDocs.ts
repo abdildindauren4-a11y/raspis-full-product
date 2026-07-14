@@ -93,14 +93,14 @@ function proxyPhrase(req: DocRequisites, lang: DocLang): string {
 function signBlock(req: DocRequisites, lang: DocLang, supplierWord: string, signatureWord: string, fioWord: string, dateStamp: string, stamp: string): string {
   const proxy = proxyPhrase(req, lang);
   const heading = `${supplierWord} «${fill(req.ipName)}»${proxy}`;
-  // Қолтаңба суреті — сызыққа «байланған» (bottom-anchored): суреттің төменгі
-  // жиегі сызық үстіне түседі, биіктігі/ені әртүрлі суретке де сай орналасады.
+  // Қолтаңба суреті — сызық енін толтырып, сызық ҮСТІНЕ отырады (сәл қабаттасып).
+  // Ені сызыққа тең (≈180px), төменгі жиегі сызыққа түседі, ортаға тураланады.
   const sig = req.signatureImg
-    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:8px; bottom:1px; height:46px; max-width:200px; object-fit:contain;">`
+    ? `<img src="${req.signatureImg}" alt="" style="position:absolute; left:50%; transform:translateX(-50%); bottom:-7px; width:180px; height:auto; max-height:66px; object-fit:contain;">`
     : "";
   return `<div class="sign">
     ${heading}<br><br>
-    <span style="position:relative; display:inline-block; line-height:1;">${sig}______________________</span> / ${fill(req.signer, 28)} /<br>
+    <span style="position:relative; display:inline-block; width:200px; text-align:center; line-height:1;">${sig}______________________</span> / ${fill(req.signer, 28)} /<br>
     <span style="font-size:10.5pt">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${signatureWord}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fioWord}</span><br><br>
     ${dateStamp}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${stamp}
   </div>`;
