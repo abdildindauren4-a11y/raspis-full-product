@@ -1,6 +1,6 @@
 // filepath: src/pages/AdminPage.tsx
 import { useState, useEffect, useRef } from "react";
-import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle, FileText, Printer, FileDown, ChevronDown } from "lucide-react";
+import { Shield, Users, Search, Crown, CreditCard, User as UserIcon, Loader2, Eye, CalendarPlus, Flame, AlertTriangle, FileText, FileDown, ChevronDown } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls } from "@/components/shared/Form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,8 @@ import { PLAN_ORDER, PLANS, LAUNCH_PROMO, type PlanId } from "@/lib/plans";
 import { getPromoState, type PromoState } from "@/lib/promo";
 import { resolveSwapAlert } from "@/lib/antiResale";
 import {
-  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, printDoc, downloadDoc, docDateStr,
+  loadRequisites, saveRequisites, tehSpecHtml, kpHtml, downloadDoc, docDateStr,
+  kpPdf, tehSpecPdf, savePdf,
   type DocRequisites, type DocParams, type DocLang,
 } from "@/lib/procurementDocs";
 import { removeSignatureBackground } from "@/lib/signatureBg";
@@ -364,8 +365,8 @@ export default function AdminPage() {
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Техникалық спецификация</p>
                 <div className="flex gap-2">
-                  <button onClick={() => printDoc(tehSpecHtml(req, docParams(), docLang))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
-                    <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
+                  <button onClick={async () => savePdf(await tehSpecPdf(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                    <FileDown className="w-3.5 h-3.5" /> PDF жүктеу
                   </button>
                   <button onClick={() => downloadDoc(tehSpecHtml(req, docParams(), docLang), `RASPIS_TechSpec_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
                     <FileDown className="w-3.5 h-3.5" /> Word (.doc)
@@ -375,8 +376,8 @@ export default function AdminPage() {
               <div className="rounded-xl border border-soft-c p-3">
                 <p className="text-sm font-medium text-strong-c mb-2">Коммерциялық ұсыныс</p>
                 <div className="flex gap-2">
-                  <button onClick={() => printDoc(kpHtml(req, docParams(), docLang))} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
-                    <Printer className="w-3.5 h-3.5" /> Басып шығару / PDF
+                  <button onClick={async () => savePdf(await kpPdf(req, docParams(), docLang), `RASPIS_Offer_${docLang}.pdf`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+                    <FileDown className="w-3.5 h-3.5" /> PDF жүктеу
                   </button>
                   <button onClick={() => downloadDoc(kpHtml(req, docParams(), docLang), `RASPIS_Offer_${docLang}.doc`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
                     <FileDown className="w-3.5 h-3.5" /> Word (.doc)
