@@ -120,7 +120,9 @@ export default function ExportPage() {
       : "";
 
     let html = `<html><head><meta charset="utf-8"><title>РАСПИС</title><style>
+      @page{margin:0}
       body{font-family:Arial,sans-serif;font-size:11px;margin:16px}
+      @media print{body{margin:0;padding:12mm}}
       h2{margin:14px 0 6px;page-break-before:always} h2:first-of-type{page-break-before:auto}
       table{border-collapse:collapse;width:100%} td,th{border:1px solid #999;padding:4px;text-align:center}
       th{background:#eef} .r{background:#fde8e8}.y{background:#fdf6dc}.g{background:#e3f6e8}

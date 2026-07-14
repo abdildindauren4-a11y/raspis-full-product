@@ -155,10 +155,13 @@ const MONTHS_WARR: Record<DocLang, Record<PlanId, string>> = {
 };
 
 // Ортақ CSS (Times New Roman, A4, ресми түр)
+// @page margin: 0 — браузер басып шығарғанда жиекке URL/күн/уақыт колонтитулын
+// қоспауы үшін (олар жиек аймағына салынады). Құжаттың нақты жиегін body
+// padding береді. Осылай жүктелген PDF-те артық сайт сілтемесі/күні болмайды.
 const BASE_CSS = `
-  @page { size: A4; margin: 20mm 15mm 20mm 25mm; }
+  @page { size: A4; margin: 0; }
   body { font-family: "Times New Roman", "Liberation Serif", serif; font-size: 12pt; color: #000; line-height: 1.45; margin: 24px; }
-  @media print { body { margin: 0; } }
+  @media print { body { margin: 0; padding: 18mm 15mm 18mm 22mm; } }
   table { border-collapse: collapse; width: 100%; font-size: 11.5pt; }
   ul { margin: 4px 0 6px 18px; padding: 0; }
   li { margin-bottom: 3px; }
