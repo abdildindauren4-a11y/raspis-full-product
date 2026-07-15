@@ -5,11 +5,13 @@ import GlassCard from "@/components/shared/GlassCard";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { inputCls } from "@/components/shared/Form";
-import { Sparkles, CheckCircle2, XCircle, Clock, AlertTriangle, Lightbulb, Wrench } from "lucide-react";
+import { Sparkles, CheckCircle2, XCircle, Clock, AlertTriangle, Lightbulb, Wrench, ShieldCheck, ExternalLink } from "lucide-react";
 import { diagnose, diagSummary } from "@/algorithm/diagnostics";
+import { normRefFor, SANPIN_URL, PLAN500_URL, type DocLangN } from "@/lib/normativeRefs";
 
 export default function QualityPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const docLang = (["kk", "ru", "en"].includes(lang) ? lang : "kk") as DocLangN;
   const { versions, activeVersionId, activateVersion, classes, teachers, rooms, subjects, school, settings } = useData();
   const active = useActiveVersion();
 
@@ -76,6 +78,58 @@ export default function QualityPage() {
           </div>
         </GlassCard>
       </div>
+
+      {/* Нормативтік сәйкестік — әр тексеріс қай ресми талапқа сай (сату мен
+          мемлекеттік жол үшін дәлел). Тек өткен тексерулер норма ретінде саналады. */}
+      {(() => {
+        const lang = docLang;
+        const refed = r.tests.map((tt) => ({ tt, ref: normRefFor(tt.name) })).filter((x) => x.ref);
+        const normed = refed.filter((x) => x.ref!.source === "sanpin" || x.ref!.source === "plan500");
+        const passedNorm = normed.filter((x) => x.tt.passed).length;
+        const sanpinOk = normed.some((x) => x.ref!.source === "sanpin") && normed.filter((x) => x.ref!.source === "sanpin").every((x) => x.tt.passed);
+        const planOk = normed.some((x) => x.ref!.source === "plan500") && normed.filter((x) => x.ref!.source === "plan500").every((x) => x.tt.passed);
+        return (
+          <GlassCard hover={false}>
+            <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 status-good" /> {t("qual.normTitle")}
+            </h3>
+            <p className="text-xs text-muted-c mb-3">
+              {sanpinOk && planOk
+                ? t("qual.normAllOk")
+                : `${t("qual.normPartial")} — ${passedNorm}/${normed.length}`}
+            </p>
+            <div className="space-y-1.5">
+              {refed.map(({ tt, ref }, i) => (
+                <div key={i} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${tt.passed ? "bg-emerald-500/8" : "bg-red-500/8"}`}>
+                  {tt.passed ? <CheckCircle2 className="w-4 h-4 status-good shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 status-bad shrink-0 mt-0.5" />}
+                  <div className="min-w-0 flex-1">
+                    <p className={`${tt.passed ? "text-strong-c" : "status-bad"}`}>{tt.name}</p>
+                    <p className="text-xs text-muted-c">{ref!.clause[lang]}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {ref!.url ? (
+                      <a href={ref!.url[lang]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs accent-c hover:underline">
+                        {ref!.doc[lang]} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-faint-c">{ref!.doc[lang]}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3 text-xs">
+              <a href={SANPIN_URL[lang]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 accent-c hover:underline">
+                <ExternalLink className="w-3.5 h-3.5" /> {t("qual.normSanpinDoc")}
+              </a>
+              <a href={PLAN500_URL[lang]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 accent-c hover:underline">
+                <ExternalLink className="w-3.5 h-3.5" /> {t("qual.normPlanDoc")}
+              </a>
+            </div>
+          </GlassCard>
+        );
+      })()}
+
       <GlassCard hover={false}>
         <h3 className="font-semibold text-strong-c mb-3">{t("qual.classRank")}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
