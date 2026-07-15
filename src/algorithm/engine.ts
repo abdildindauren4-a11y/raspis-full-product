@@ -48,6 +48,10 @@ export interface School {
 }
 export interface Settings {
   maximin: boolean; maxIterations: number;
+  // Пән баллдары РЕСМИ СанПиН шкаласында (1-11, ҚР ДСМ-76 4-қосымша) тұр ма.
+  // true болса: UI-да ресми баллдар көрінеді, ал генерация кезінде қозғалтқыш
+  // оларды ішкі калибрленген шкалаға автоматты келтіреді (lib/sanpinScale).
+  sanpinScale?: boolean;
   // Күндік балл лимиттері — параллель топтары бойынша [1-4, 5-6, 7-9, 10-11]
   dayLimits: { g14: number; g56: number; g79: number; g1011: number };
   // Күндік САБАҚ САНЫ лимиті (СанПиН) — сынып деңгейі бойынша.
@@ -137,6 +141,27 @@ export function buildTimeline(sc: School): Record<1 | 2, TL[]> {
 }
 
 /* ── СанПиН ережелері ── */
+// Ресми балл (ҚР ДСМ-76, 4-қосымша: 1..11) → ішкі калибрленген шкала.
+// ӘЛСІЗ МОНОТОНДЫ: ресми реттілік дәл сақталады. Эмпирикалық калибрленген —
+// эталон мектепте (46 сынып) генерация сапасы базалық деңгейде қалады
+// (баллды сол күйінде қолданса, лимиттер асып, 67 сабақ орналаспай қалатын).
+// settings.sanpinScale қосулы болғанда екі қозғалтқыш та осыны қолданады.
+export const OFFICIAL_TO_INTERNAL: Record<number, number> = {
+  11: 9, 10: 8, 9: 8, 8: 6, 7: 6, 6: 5, 5: 4, 4: 3, 3: 2, 2: 2, 1: 1,
+};
+export const officialToInternal = (p: number): number =>
+  OFFICIAL_TO_INTERNAL[Math.max(1, Math.min(11, Math.round(p)))] ?? 5;
+// settings.sanpinScale қосулы болса — пән баллдарын ішкі шкалаға келтіру
+// (генерация алдындағы бір-ақ қадам; UI-дағы ресми баллдар өзгермейді)
+export const calibrateSubjects = (subjects: Subject[], st?: Settings): Subject[] =>
+  st?.sanpinScale
+    ? subjects.map((s) => ({
+        ...s,
+        score: officialToInternal(s.score),
+        primaryScore: s.primaryScore != null ? officialToInternal(s.primaryScore) : s.primaryScore,
+      }))
+    : subjects;
+
 export const DEFAULT_DAY_LIMITS = { g14: 25, g56: 35, g79: 45, g1011: 55 };
 // Күндік сабақ саны лимиті (СанПиН). settings.maxLessons болса — соны, әйтпесе әдепкі.
 // Модуль деңгейіндегі _activeSettings generate() басында орнатылады, сонда барлық
@@ -192,7 +217,9 @@ interface Task {
 export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
   const prog = (p: number, st: number) => onProgress && onProgress(p, st);
-  const { school, classes, teachers, rooms, subjects, settings } = input;
+  const { school, classes, teachers, rooms, settings } = input;
+  // СанПиН режимі: ресми баллдар (1-11) ішкі калибрленген шкалаға келтіріледі
+  const subjects = calibrateSubjects(input.subjects, settings);
   _activeSettings = settings; // maxSlots күндік лимитті осыдан алады (СанПиН)
   // Детерминді кездейсоқ генератор (seed болса — әртүрлі нұсқа; болмаса — тұрақты)
   const seed = input.seed ?? 0;

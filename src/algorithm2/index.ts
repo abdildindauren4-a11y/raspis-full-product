@@ -4,7 +4,7 @@
 // M2: v1 ережелерінің толық köшірмесі + repair + softFill (жалғасуда)
 
 import type { AlgoInput, AlgoResult, ProgressFn, StressTest, GapInfo, Settings, Unplaced, Subject, Klass } from "../algorithm/engine";
-import { maxSlots, dayLimitS, fatThrS, pScore, buildTimeline, HOMEROOM_SUBJECT_ID } from "../algorithm/engine";
+import { maxSlots, dayLimitS, fatThrS, pScore, buildTimeline, HOMEROOM_SUBJECT_ID, calibrateSubjects } from "../algorithm/engine";
 import { buildTime } from "./time";
 import { ScheduleState } from "./model";
 import type { PlacedUnit } from "./model";
@@ -48,6 +48,9 @@ const betterThan = (a: AlgoResult, b: AlgoResult) => {
 // ЕҢ ЖАҚСЫ тұқымды таңдап, оған ҒАНА improve жүргіземіз (improve — ең
 // қымбат фаза, сондықтан бір-ақ рет орындалады).
 export function generate2(input: AlgoInput, config?: EngineV2Config, onProgress?: ProgressFn): AlgoResult {
+  // СанПиН режимі: ресми баллдар (1-11) ішкі калибрленген шкалаға келтіріледі
+  // (v1-мен бірдей, бір-ақ рет — runOnce қайталауларына дейін)
+  input = { ...input, subjects: calibrateSubjects(input.subjects, input.settings) };
   const t0 = Date.now();
   const MAX_LIGHT = 4;
   const rngOf = (a: number) => (a === 0 ? () => 0 : mulberry32(((input.seed || 1) * 31 + a) | 0));

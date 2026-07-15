@@ -10,7 +10,7 @@ import { CalendarX2, ChevronDown, ScrollText, ExternalLink, X } from "lucide-rea
 
 export default function SubjectsPage() {
   const { t, lang } = useLang();
-  const { subjects, setSubjects } = useData();
+  const { subjects, setSubjects, setSettings } = useData();
   const [openId, setOpenId] = useState<string | null>(null);
   const [schoolLang, setSchoolLang] = useState<SchoolLang>("kk");
   const [sanpinMsg, setSanpinMsg] = useState<{ n: number; unmatched: string[] } | null>(null);
@@ -18,10 +18,13 @@ export default function SubjectsPage() {
   const upd = (id: string, patch: Partial<(typeof subjects)[number]>) =>
     setSubjects(subjects.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
-  // Ресми баллдарды қою (СанПиН 4-қосымша) — құжатта жоқ пәндер өзгертілмейді
+  // Ресми баллдарды (1-11, құжаттағыдай) қою — құжатта жоқ пәндер өзгертілмейді.
+  // sanpinScale жалаушасы қосылады: генерацияда қозғалтқыш баллдарды ішкі
+  // калибрленген шкалаға өзі келтіреді (кестедегі ресми сандар өзгермейді).
   const fillSanpin = () => {
     const r = applySanpinScores(subjects, schoolLang);
     setSubjects(r.subjects);
+    setSettings({ sanpinScale: true });
     setSanpinMsg({ n: r.matched.length, unmatched: r.unmatched });
   };
 

@@ -111,14 +111,11 @@ export function sanpinPoints(name: string, lang: SchoolLang): number | null {
   return null;
 }
 
-// Ресми балл → алгоритмнің ішкі шкаласы. ӘЛСІЗ МОНОТОНДЫ (ресми реттілік
-// бұзылмайды, тең мәндерге рұқсат). Эмпирикалық калибрленген: эталон мектепте
-// (46 сынып, 2 ауысым) генерация сапасы мен орналасу базалық деңгейде қалады.
-export const OFFICIAL_TO_INTERNAL: Record<number, number> = {
-  11: 9, 10: 8, 9: 8, 8: 6, 7: 6, 6: 5, 5: 4, 4: 3, 3: 2, 2: 2, 1: 1,
-};
-export const officialToInternal = (p: number): number =>
-  OFFICIAL_TO_INTERNAL[Math.max(1, Math.min(11, Math.round(p)))] ?? 5;
+// Ресми балл → ішкі шкала кескіні ҚОЗҒАЛТҚЫШТА тұрады (algorithm/engine.ts:
+// OFFICIAL_TO_INTERNAL) — генерация кезінде settings.sanpinScale қосулы болса
+// екі қозғалтқыш та автоматты қолданады. Осы жерден қайта экспорттаймыз.
+export { OFFICIAL_TO_INTERNAL, officialToInternal } from "@/algorithm/engine";
+import { officialToInternal } from "@/algorithm/engine";
 
 export interface SanpinApplyResult {
   subjects: Subject[];
@@ -126,18 +123,19 @@ export interface SanpinApplyResult {
   unmatched: string[]; // құжатта жоқ — өзгертілмегендер
 }
 
-// Барлық пәнге баллды қою: ресми кестеден танылады, ішкі шкалаға келтіріліп
-// score-ға жазылады. Құжатта жоқ пәндер сол күйінде қалады. primaryScore
-// (бастауыштың бөлек баллы) да өзгертілмейді — завуч баптауы.
+// Барлық пәнге РЕСМИ баллды (1..11, құжаттағыдай) қою — кестеде завуч дәл
+// 4-қосымшадағы сандарды көреді. Ішкі калибрлеу генерация кезінде,
+// settings.sanpinScale жалаушасы арқылы қозғалтқыш ішінде автоматты жүреді
+// (officialToInternal) — көзге көрінбейді, реттілік өзгермейді.
+// Құжатта жоқ пәндер сол күйінде қалады. primaryScore да өзгертілмейді.
 export function applySanpinScores(subjects: Subject[], lang: SchoolLang): SanpinApplyResult {
   const matched: { name: string; official: number; internal: number }[] = [];
   const unmatched: string[] = [];
   const out = subjects.map((s) => {
     const p = sanpinPoints(s.name, lang);
     if (p === null) { unmatched.push(s.name); return s; }
-    const internal = officialToInternal(p);
-    matched.push({ name: s.name, official: p, internal });
-    return { ...s, score: internal };
+    matched.push({ name: s.name, official: p, internal: officialToInternal(p) });
+    return { ...s, score: p };
   });
   return { subjects: out, matched, unmatched };
 }
