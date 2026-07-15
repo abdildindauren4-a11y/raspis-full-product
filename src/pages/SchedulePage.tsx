@@ -7,16 +7,17 @@ import { useLang } from "@/contexts/LangContext";
 import { Sparkles, Printer, Hand, Save, X, Undo2, Info } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
-import type { Slot } from "@/algorithm/engine";
+import type { Slot, Komplekt } from "@/algorithm/engine";
 import { lessonBlock, isMovable, moveViolation, movedBlock, type EditCtx } from "@/lib/manualEdit";
 import folderUrl from "@/assets/deco-folder.png";
 
 
 export default function SchedulePage() {
-  const { classes, teachers, rooms, subjects, school, settings } = useData();
+  const { classes, teachers, rooms, subjects, school, settings, komplekts } = useData();
   const setActiveSlots = useData((s) => s.setActiveSlots);
   const active = useActiveVersion();
-  const [view, setView] = useState<"class" | "teacher" | "room">("class");
+  const isShzhm = school.type === "shzhm" && komplekts.length > 0;
+  const [view, setView] = useState<"class" | "teacher" | "room" | "komplekt">("class");
   const { t } = useLang();
   const [sel, setSel] = useState("");
   const tl = buildTimeline(school);
@@ -117,7 +118,8 @@ export default function SchedulePage() {
   const Rn = (id: string) => rooms.find((x) => x.id === id)?.number || "";
   const Cn = (id: string) => classes.find((x) => x.id === id)?.name || "";
 
-  const list = view === "class" ? classes.map((c) => ({ id: c.id, label: c.name }))
+  const list = view === "komplekt" ? komplekts.map((k) => ({ id: k.id, label: k.name }))
+    : view === "class" ? classes.map((c) => ({ id: c.id, label: c.name }))
     : view === "teacher" ? teachers.map((t) => ({ id: t.id, label: t.name }))
     : rooms.map((r) => ({ id: r.id, label: r.number }));
   const selId = sel && list.some((x) => x.id === sel) ? sel : list[0]?.id || "";
@@ -187,11 +189,11 @@ export default function SchedulePage() {
         </div>
       )}
       <div className="flex flex-wrap gap-3">
-        <div className="flex gap-2">
-          {(["class", "teacher", "room"] as const).map((m) => (
+        <div className="flex gap-2 flex-wrap">
+          {(isShzhm ? (["komplekt", "class", "teacher", "room"] as const) : (["class", "teacher", "room"] as const)).map((m) => (
             <button key={m} disabled={editMode && m !== "class"} onClick={() => { setView(m); setSel(""); }}
               className={`px-4 py-2 rounded-xl text-sm transition-all disabled:opacity-40 ${view === m ? "gradient-primary text-white" : "bg-input-c text-muted-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
-              {m === "class" ? t("common.class") : m === "teacher" ? t("common.teacher") : t("common.room")}
+              {m === "komplekt" ? t("sch.komplektView") : m === "class" ? t("common.class") : m === "teacher" ? t("common.teacher") : t("common.room")}
             </button>
           ))}
         </div>
@@ -199,6 +201,13 @@ export default function SchedulePage() {
           {list.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
         </select>
       </div>
+
+      {view === "komplekt" ? (
+        <KomplektView komplekt={komplekts.find((k) => k.id === selId) || komplekts[0]}
+          classes={classes} subjects={subjects} teachers={teachers} rooms={rooms}
+          slots={slots} tl={tl} settings={settings} t={t} />
+      ) : (<></>)}
+      {view !== "komplekt" && (
       <GlassCard hover={false}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-xs border-collapse">
@@ -288,6 +297,87 @@ export default function SchedulePage() {
           <span>{t("sch.legend")}</span>
         </div>
       </GlassCard>
+      )}
     </div>
+  );
+}
+
+// ── ШЖМ: комплект көрінісі (екі сынып қатар) ──
+function KomplektView({ komplekt, classes, subjects, teachers, rooms, slots, tl, settings, t }: {
+  komplekt?: Komplekt;
+  classes: ReturnType<typeof useData.getState>["classes"];
+  subjects: ReturnType<typeof useData.getState>["subjects"];
+  teachers: ReturnType<typeof useData.getState>["teachers"];
+  rooms: ReturnType<typeof useData.getState>["rooms"];
+  slots: Slot[];
+  tl: ReturnType<typeof buildTimeline>;
+  settings: ReturnType<typeof useData.getState>["settings"];
+  t: (k: string) => string;
+}) {
+  if (!komplekt) return null;
+  const C = new Map(classes.map((c) => [c.id, c]));
+  const S = new Map(subjects.map((s) => [s.id, s]));
+  const A = C.get(komplekt.classIds[0]);
+  const B = C.get(komplekt.classIds[1]);
+  const teacher = teachers.find((x) => x.id === komplekt.teacherId)?.name || "—";
+  const room = rooms.find((x) => x.id === komplekt.roomId)?.number || "—";
+  const sh = (A?.shift || 1) as 1 | 2;
+  const rows = Math.max(A ? maxSlots(A.grade, settings) : 0, B ? maxSlots(B.grade, settings) : 0) || 8;
+  const days = [t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
+  const bg = (score?: number) => score == null ? "" : score >= 9 ? "bg-red-500/12" : score >= 6 ? "bg-yellow-500/12" : "bg-emerald-500/12";
+  const cellFor = (classId: string, day: number, slot: number) => {
+    const o = slots.find((s) => s.classId === classId && s.day === day && s.slot === slot && s.shift === sh);
+    if (!o) return null;
+    const name = o.subjectId === HOMEROOM_SUBJECT_ID ? t("common.homeroom") : S.get(o.subjectId)?.name || "";
+    return { name, score: o.score };
+  };
+  const half = (classId: string | undefined, label: string, day: number, slot: number) => {
+    if (!classId) return null;
+    const c = cellFor(classId, day, slot);
+    return (
+      <div className={`rounded px-1.5 py-1 ${c ? bg(c.score) : ""}`}>
+        <span className="text-[10px] text-faint-c">{label}</span>
+        <p className={`text-xs ${c ? "text-strong-c font-medium" : "text-faint-c"}`}>{c ? c.name : "—"}</p>
+      </div>
+    );
+  };
+  return (
+    <GlassCard hover={false}>
+      <div className="flex items-center gap-2 mb-3 flex-wrap text-sm">
+        <span className="font-semibold text-strong-c">{komplekt.name}</span>
+        <span className="text-muted-c">· {A?.name} + {B?.name}</span>
+        <span className="text-muted-c">· {t("komp.teacher")}: {teacher}</span>
+        <span className="text-muted-c">· {t("komp.room")}: {room}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-xs border-collapse">
+          <thead>
+            <tr>
+              <th className="p-2 text-left text-muted-c w-24">№ / {t("sch.timeCol")}</th>
+              {days.map((d) => <th key={d} className="p-2 text-muted-c">{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }, (_, i) => i + 1).map((slot) => (
+              <tr key={slot} className="border-t border-soft-c">
+                <td className="p-2 align-top">
+                  <p className="font-bold text-strong-c">{slot}</p>
+                  <p className="text-faint-c">{tl[sh][slot].start}–{tl[sh][slot].end}</p>
+                </td>
+                {[1, 2, 3, 4, 5].map((day) => (
+                  <td key={day} className="p-1 align-top">
+                    <div className="space-y-1">
+                      {half(A?.id, A?.name || "A", day, slot)}
+                      {half(B?.id, B?.name || "B", day, slot)}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-faint-c mt-3">{t("sch.komplektNote")}</p>
+    </GlassCard>
   );
 }

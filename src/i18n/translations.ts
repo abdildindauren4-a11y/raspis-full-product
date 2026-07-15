@@ -384,6 +384,9 @@ export const translations = {
   "sch.shift1": { kk: "1-ауысым", ru: "1-я смена", en: "1st shift" },
   "sch.shift2": { kk: "2-ауысым", ru: "2-я смена", en: "2nd shift" },
   "sch.legend": { kk: "×2 — қос сабақ · Г1/Г2 — топтар", ru: "×2 — сдвоенный · Г1/Г2 — группы", en: "×2 — double · Г1/Г2 — groups" },
+  "sch.komplektView": { kk: "Комплект", ru: "Комплект", en: "Komplekt" },
+  "sch.timeCol": { kk: "Уақыт", ru: "Время", en: "Time" },
+  "sch.komplektNote": { kk: "Бір слотта екі сынып қатар: мұғалім бірімен тікелей жұмыс істейді, екіншісі өзіндік жұмыс орындайды (кезектесіп).", ru: "В одном слоте два класса рядом: учитель работает напрямую с одним, второй выполняет самостоятельную работу (по очереди).", en: "Two classes per slot: the teacher works directly with one while the other does independent work (alternating)." },
 
   // ── Import (stats, errors, buttons) ──
   "imp.statClasses": { kk: "Сынып", ru: "Классы", en: "Classes" },
