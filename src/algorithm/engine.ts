@@ -56,6 +56,9 @@ export interface Settings {
   // true болса: UI-да ресми баллдар көрінеді, ал генерация кезінде қозғалтқыш
   // оларды ішкі калибрленген шкалаға автоматты келтіреді (lib/sanpinScale).
   sanpinScale?: boolean;
+  // 1-сыныптың бейімделу («сатылы») режимі — СанПиН (ҚР ДСМ-76): қыркүйек-қазанда
+  // 1-сынып күніне 3 сабақ (35 минуттан). true болса maxSlots(1)=3 болады.
+  grade1Stepped?: boolean;
   // Күндік балл лимиттері — параллель топтары бойынша [1-4, 5-6, 7-9, 10-11]
   dayLimits: { g14: number; g56: number; g79: number; g1011: number };
   // Күндік САБАҚ САНЫ лимиті (СанПиН) — сынып деңгейі бойынша.
@@ -172,7 +175,10 @@ export const DEFAULT_DAY_LIMITS = { g14: 25, g56: 35, g79: 45, g1011: 55 };
 // maxSlots(g) шақырулары settings-сіз де дұрыс лимитті қолданады.
 let _activeSettings: Settings | undefined;
 export const maxSlots = (g: number, st?: Settings) => {
-  const m = (st || _activeSettings)?.maxLessons;
+  const s = st || _activeSettings;
+  // 1-сыныптың бейімделу режимі (СанПиН): күніне 3 сабақ — басқа баптаудан басым
+  if (g === 1 && s?.grade1Stepped) return 3;
+  const m = s?.maxLessons;
   if (m) {
     if (g === 1) return m.g1;
     if (g <= 4) return m.g24;
@@ -1709,6 +1715,19 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (mx && tl[1][mx].endMin > pT("12:00")) bad.push(c.name);
     }
     add("Бастауыш (1-ауысым) 12:00-ге дейін", bad.length === 0, bad.join(", "));
+  }
+  // 1-сыныптың бейімделу режимі (СанПиН) — тек режим қосулы болғанда тексеріледі
+  if (settings.grade1Stepped) {
+    const bad: string[] = [];
+    for (const c of classes.filter((c) => c.grade === 1)) {
+      let mx = 0;
+      for (let d = 1; d <= 5; d++) {
+        const cnt = slots.filter((o) => o.classId === c.id && o.day === d && (!o.groupId || o.groupId === "Г1")).length;
+        if (cnt > mx) mx = cnt;
+      }
+      if (mx > 3) bad.push(`${c.name} (${mx})`);
+    }
+    add("1-сынып бейімделу режимі (күніне ≤3 сабақ)", bad.length === 0, bad.join(", "));
   }
   {
     let n = 0; const M = ["Математика", "Алгебра", "Геометрия"];

@@ -604,6 +604,9 @@ export const translations = {
   "algo.slotLimit": { kk: "Күндік сабақ саны лимиті:", ru: "Лимит уроков в день:", en: "Daily lesson limit:" },
   "algo.slotLimitDesc": { kk: "Әр сынып деңгейіне күніне ең көп неше сабақ (СанПиН нормасы).", ru: "Макс. уроков в день для каждого уровня (норма СанПиН).", en: "Max lessons per day for each grade level (SanPiN norm)." },
   "algo.sanpinNote": { kk: "СанПиН ұсынысы: 1-сынып — 4, 2–4 — 5, 5–6 — 6, 7–9 — 7, 10–11 — 8.", ru: "Рекомендация СанПиН: 1 кл — 4, 2–4 — 5, 5–6 — 6, 7–9 — 7, 10–11 — 8.", en: "SanPiN recommendation: grade 1 — 4, 2–4 — 5, 5–6 — 6, 7–9 — 7, 10–11 — 8." },
+  "algo.stepped": { kk: "1-сынып бейімделу режимі (қыркүйек–қазан)", ru: "«Ступенчатый» режим 1 класса (сентябрь–октябрь)", en: "1st-grade stepped regime (Sep–Oct)" },
+  "algo.steppedDesc": { kk: "СанПиН (ҚР ДСМ-76): бейімделу кезеңінде 1-сынып күніне 3 сабақ (35 минуттан) оқиды. Қосылса — 1-сынып лимиті 3-ке бекітіледі. Қоңырау уақытын (35 мин) мектеп баптауынан, ал жеңілдетілген жоспарды (≤15 сағ) Сыныптар бетінен қойыңыз.", ru: "СанПиН (ҚР ДСМ-76): в адаптационный период 1 класс учится по 3 урока в день (по 35 минут). При включении лимит 1 класса фиксируется на 3. Время звонков (35 мин) задайте в настройках школы, а облегчённый план (≤15 ч) — на странице Классов.", en: "SanPiN (QR DSM-76): during adaptation, 1st grade has 3 lessons/day (35 min each). When on, the grade-1 limit is fixed at 3. Set the 35-min bell times in school settings, and a lighter plan (≤15 h) on the Classes page." },
+  "algo.steppedForced": { kk: "бейімделу: 3", ru: "адаптация: 3", en: "adaptation: 3" },
   "algo.maxLessons": { kk: "макс", ru: "макс", en: "max" },
   "algo.lessonsPerDay": { kk: "сабақ/күн", ru: "урок/день", en: "lessons/day" },
 

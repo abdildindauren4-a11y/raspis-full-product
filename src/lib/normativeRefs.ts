@@ -47,6 +47,10 @@ export const NORM_REFS: Record<string, NormRef> = {
     source: "sanpin", doc: SANPIN_DOC, url: SANPIN_URL,
     clause: { kk: "Оқу режимі: бастауыш сыныптар таңғы ауысымда оқиды", ru: "Режим обучения: начальные классы — в первую смену", en: "Study regime: primary grades in the first shift" },
   },
+  "1-сынып бейімделу режимі (күніне ≤3 сабақ)": {
+    source: "sanpin", doc: SANPIN_DOC, url: SANPIN_URL,
+    clause: { kk: "1-сыныптың «сатылы» режимі (қыркүйек-қазан): күніне 3 сабақ, 35 минуттан", ru: "«Ступенчатый» режим 1 класса (сентябрь-октябрь): 3 урока в день по 35 минут", en: "1st-grade 'stepped' regime (Sep–Oct): 3 lessons/day, 35 min each" },
+  },
   "Математика + Физика қатар емес": {
     source: "sanpin", doc: SANPIN_DOC, url: SANPIN_URL,
     clause: { kk: "Пәндердің қиындық шкаласы (4-қосымша): ауыр пәндерді дұрыс бөлу", ru: "Шкала трудности предметов (прил. 4): правильное распределение сложных предметов", en: "Subject difficulty scale (Annex 4): proper spacing of hard subjects" },

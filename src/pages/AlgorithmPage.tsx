@@ -121,11 +121,12 @@ export default function AlgorithmPage() {
                 ["g1011", "10–11", 11],
               ] as const).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-c">{label} {t("com.gradeShort")}</span>
+                  <span className="text-xs text-muted-c">{label} {t("com.gradeShort")}{key === "g1" && settings.grade1Stepped ? ` · ${t("algo.steppedForced")}` : ""}</span>
                   <input
                     type="number" min={1} max={8}
-                    className={inputCls + " w-16 text-center py-1"}
-                    value={ml[key]}
+                    disabled={key === "g1" && settings.grade1Stepped}
+                    className={inputCls + " w-16 text-center py-1" + (key === "g1" && settings.grade1Stepped ? " opacity-50" : "")}
+                    value={key === "g1" && settings.grade1Stepped ? 3 : ml[key]}
                     onChange={(e) => setML({ [key]: Math.max(1, Math.min(8, Number(e.target.value) || 1)) })}
                   />
                 </div>
@@ -133,6 +134,15 @@ export default function AlgorithmPage() {
             </div>
             <p className="text-[11px] text-faint-c mt-2">{t("algo.sanpinNote")}</p>
           </div>
+          {/* 1-сыныптың бейімделу («сатылы») режимі — СанПиН (ҚР ДСМ-76) */}
+          <label className="mt-3 p-3 rounded-xl bg-surface border border-soft-c flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" className="scale-125 mt-0.5 shrink-0" checked={!!settings.grade1Stepped}
+              onChange={(e) => setSettings({ grade1Stepped: e.target.checked })} />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-strong-c">{t("algo.stepped")}</p>
+              <p className="text-[11px] text-faint-c mt-0.5">{t("algo.steppedDesc")}</p>
+            </div>
+          </label>
           <button className={btnG + " mt-4 w-full flex items-center justify-center gap-2"} onClick={() => { if (confirm("Барлық деректер бастапқы демо-күйге қайтады. Жалғастыру?")) resetSeed(); }}>
             <RotateCcw className="w-4 h-4" /> Демо-деректерге қайтару
           </button>
