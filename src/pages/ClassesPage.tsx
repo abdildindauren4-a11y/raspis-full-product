@@ -1,25 +1,44 @@
 // filepath: src/pages/ClassesPage.tsx
 import { useState } from "react";
-import { Plus, Pencil, Trash2, BookOpen, AlertTriangle, Split } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen, AlertTriangle, Split, ClipboardList, ExternalLink, X } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { Modal, Field, inputCls, btnP, btnG, btnD } from "@/components/shared/Form";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { teacherBudgets, classBudget, freeTeachersFor } from "@/lib/dataBudget";
-import { buildFromTemplate, autoAssignTeachers } from "@/lib/curriculumTemplates";
+import { buildFromTemplate, autoAssignTeachers, templateFor, PLAN_500_DOC_URL, PLAN_500_DOC_LABEL, type SchoolLang } from "@/lib/curriculumTemplates";
 import type { Klass, CurItem } from "@/algorithm/engine";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function ClassesPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { classes, teachers, subjects, setClasses, settings } = useData();
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<Partial<Klass> | null>(null);
   const [curOf, setCurOf] = useState<string | null>(null);
+  const [schoolLang, setSchoolLang] = useState<SchoolLang>("kk");
+  const [showPlan, setShowPlan] = useState(false);
+  const [planMsg, setPlanMsg] = useState<{ filled: number; missing: string[] } | null>(null);
 
   const filtered = classes.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const curClass = classes.find((c) => c.id === curOf) || null;
+
+  // 500-бұйрық үлгісін БАРЛЫҚ сыныпқа қолдану (оқу жоспары бос сыныптарға —
+  // толыпларды қайта жазбаймыз; ол оқыс өшіп қалмас үшін)
+  const fillAll500 = () => {
+    const empty = classes.filter((c) => c.curriculum.length === 0);
+    if (empty.length === 0) { alert(t("cls.plan500AllFull")); return; }
+    const missing = new Set<string>();
+    const next = classes.map((c) => {
+      if (c.curriculum.length > 0) return c;
+      const { items, missing: m } = buildFromTemplate(c, subjects, schoolLang);
+      m.forEach((x) => missing.add(x));
+      return { ...c, curriculum: items };
+    });
+    setClasses(next);
+    setPlanMsg({ filled: empty.length, missing: [...missing] });
+  };
 
   const saveClass = () => {
     if (!form?.name || !form.grade) return;
@@ -41,6 +60,37 @@ export default function ClassesPage() {
           <Plus className="w-4 h-4" /> {t("classes.add")}
         </button>
       </div>
+      {/* 500-бұйрық: үлгілік оқу жоспарын бір басумен толтыру + ресми кесте */}
+      <GlassCard hover={false}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <ClipboardList className="w-5 h-5 accent-c shrink-0" />
+          <p className="text-xs text-muted-c flex-1 min-w-0">{t("cls.plan500Hint")}</p>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <select value={schoolLang} onChange={(e) => setSchoolLang(e.target.value as SchoolLang)}
+              className={inputCls + " !w-auto !py-1.5 text-xs"}>
+              <option value="kk">{t("cls.plan500LangKk")}</option>
+              <option value="ru">{t("cls.plan500LangRu")}</option>
+            </select>
+            <button onClick={fillAll500}
+              className="px-3 py-1.5 rounded-lg gradient-primary text-white text-xs font-medium hover:opacity-90">
+              {t("cls.plan500FillAll")}
+            </button>
+            <button onClick={() => setShowPlan(true)}
+              title={PLAN_500_DOC_LABEL}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-input-c border border-soft-c text-xs font-medium text-soft-c hover:border-[var(--accent)]">
+              <ClipboardList className="w-3.5 h-3.5" /> {t("cls.plan500Doc")}
+            </button>
+          </div>
+        </div>
+        {planMsg && (
+          <div className="mt-2 text-xs">
+            <span className="status-good">✓ {planMsg.filled} {t("cls.plan500Done")}</span>
+            {planMsg.missing.length > 0 && (
+              <span className="text-muted-c"> · {t("cls.plan500Missing")}: {planMsg.missing.join(", ")}</span>
+            )}
+          </div>
+        )}
+      </GlassCard>
       <input className={inputCls + " max-w-xs"} placeholder={t("com.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
       <GlassCard hover={false}>
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
@@ -92,15 +142,49 @@ export default function ClassesPage() {
       </Modal>
 
       <Modal open={!!curClass} onClose={() => setCurOf(null)} title={`Оқу жоспары — ${curClass?.name || ""}`} wide>
-        {curClass && <CurriculumEditor cls={curClass} subjects={subjects} teachers={teachers} update={(fn) => updateCur(curClass.id, fn)} />}
+        {curClass && <CurriculumEditor cls={curClass} subjects={subjects} teachers={teachers} schoolLang={schoolLang} update={(fn) => updateCur(curClass.id, fn)} />}
       </Modal>
+
+      {/* 500-бұйрықтың үлгілік жоспары — параллель бойынша сағаттар (модал) */}
+      {showPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowPlan(false)}>
+          <div className="bg-card-c border border-soft-c rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <h3 className="font-semibold text-strong-c text-base">{t("cls.plan500TableTitle")} — {schoolLang === "kk" ? t("cls.plan500LangKk") : t("cls.plan500LangRu")}</h3>
+              <button onClick={() => setShowPlan(false)} className="p-1.5 rounded-lg text-muted-c hover:bg-[rgba(127,127,127,0.15)] shrink-0"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-muted-c mb-3">{PLAN_500_DOC_LABEL}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Array.from({ length: 11 }, (_, i) => i + 1).map((g) => {
+                const rows = templateFor(g, schoolLang);
+                const sum = rows.reduce((a, [, h]) => a + h, 0);
+                return (
+                  <div key={g} className="rounded-xl border border-soft-c p-3">
+                    <p className="text-sm font-semibold text-strong-c mb-1.5">{g}-{t("com.gradeShort")} <span className="text-xs text-muted-c font-normal">· {sum} {t("cls.hoursShort")}</span></p>
+                    <ul className="text-xs text-soft-c space-y-0.5">
+                      {rows.map(([name, h]) => (
+                        <li key={name} className="flex justify-between gap-2"><span className="truncate">{name}</span><span className="text-muted-c shrink-0">{h}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-faint-c mt-3">{t("cls.plan500Note")}</p>
+            <a href={PLAN_500_DOC_URL[lang] || PLAN_500_DOC_URL.ru} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-xs accent-c hover:underline">
+              <ExternalLink className="w-3.5 h-3.5" /> {t("cls.plan500FullDoc")}
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function CurriculumEditor({ cls, subjects, teachers, update }: {
+function CurriculumEditor({ cls, subjects, teachers, schoolLang, update }: {
   cls: Klass; subjects: ReturnType<typeof useData.getState>["subjects"];
   teachers: ReturnType<typeof useData.getState>["teachers"];
+  schoolLang: SchoolLang;
   update: (fn: (cur: CurItem[]) => CurItem[]) => void;
 }) {
   const { t } = useLang();
@@ -138,7 +222,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
     setTeachers(teachers.map((x) => (x.id === tid ? { ...x, norm: to } : x)));
   // Үлгіден толтыру (ҚР үлгілік жоспары): пән + сағат дұрыс, тек мұғалім қалады
   const applyTemplate = () => {
-    const { items, missing } = buildFromTemplate(cls, subjects);
+    const { items, missing } = buildFromTemplate(cls, subjects, schoolLang);
     if (!items.length) { alert("Үлгідегі пәндер тізімде табылмады. Алдымен Пәндер бетін толтырыңыз."); return; }
     if (cls.curriculum.length > 0 && !confirm(`Ағымдағы ${cls.curriculum.length} пән үлгімен алмастырылады. Жалғастыру?`)) return;
     update(() => items);
