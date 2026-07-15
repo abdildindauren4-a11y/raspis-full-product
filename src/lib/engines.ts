@@ -3,7 +3,7 @@
 // Жаңа модель қосу = осы массивке бір жазба. UI ауыстырғышы (M2-де қосылады)
 // осы тізімнен оқиды; әр модельдің ӨЗ баптау кеңістігі бар (engineConfigs).
 
-export type EngineId = "v1" | "v2";
+export type EngineId = "v1" | "v2" | "v3";
 
 export interface EngineInfo {
   id: EngineId;
@@ -24,9 +24,17 @@ export const ENGINES: EngineInfo[] = [
     tagline: "Икемді — мектептің өз ережелерімен бапталады",
     beta: true,
   },
+  {
+    id: "v3",
+    name: "РАСПИС ШЖМ",
+    tagline: "Шағын жинақты мектеп — класс-комплект кестесі",
+    beta: true,
+  },
 ];
 
 export const DEFAULT_ENGINE: EngineId = "v1"; // M7-де "v2" болады
+// ШЖМ мектебінде тек осы қозғалтқыш қолданылады (комплект-кестелеу)
+export const SHZHM_ENGINE: EngineId = "v3";
 
 export const engineById = (id: string | undefined): EngineInfo =>
   ENGINES.find((e) => e.id === id) || ENGINES[0];

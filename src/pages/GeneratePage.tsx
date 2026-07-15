@@ -92,37 +92,57 @@ export default function GeneratePage() {
   const runError = mode === "deep" ? multi.error : error;
 
   /* Алдын-ала валидация */
+  const isShzhmMode = data.school.type === "shzhm";
   const issues: { level: "error" | "warn"; text: string }[] = [];
   if (!data.classes.length) issues.push({ level: "error", text: t("classes.empty").split(".")[0] });
   if (!data.teachers.length) issues.push({ level: "error", text: t("teachers.empty") });
   if (!data.rooms.length) issues.push({ level: "error", text: t("rooms.empty") });
-  data.classes.forEach((c) => {
-    if (!c.curriculum.length) issues.push({ level: "warn", text: `${c.name}: оқу жоспары бос` });
-    c.curriculum.forEach((cu) => {
-      const s = data.subjects.find((x) => x.id === cu.subjectId);
-      if (!s) return;
-      if (cu.hours > 5 && !s.canDouble) issues.push({ level: "error", text: `${c.name} / ${s.name}: ${cu.hours} сағ — қос сабақ рұқсаты жоқ` });
-      if (!cu.isSplit && !cu.teacherId) issues.push({ level: "error", text: `${c.name} / ${s.name}: мұғалім тағайындалмаған` });
-      if (s.room && !data.rooms.some((r) => r.type === s.room)) issues.push({ level: "error", text: `${s.name}: арнайы кабинет жоқ` });
+
+  if (isShzhmMode) {
+    // ── ШЖМ валидациясы (комплект логикасы) ──
+    const komplekts = data.komplekts;
+    const usedIds = new Set(komplekts.flatMap((k) => k.classIds));
+    if (!komplekts.length) issues.push({ level: "warn", text: "Комплект жоқ — «Комплектілер» бетінен қосыңыз (әзірге барлық сынып жеке жоспарланады)" });
+    for (const k of komplekts) {
+      if (k.classIds.length !== 2) issues.push({ level: "error", text: `${k.name}: комплектіде 2 сынып болуы керек` });
+      if (!k.teacherId) issues.push({ level: "error", text: `${k.name}: мұғалім тағайындалмаған` });
+      if (!k.roomId) issues.push({ level: "error", text: `${k.name}: кабинет тағайындалмаған` });
+    }
+    for (const c of data.classes) {
+      if (!c.curriculum.length) { issues.push({ level: "warn", text: `${c.name}: оқу жоспары бос` }); continue; }
+      const { total, capacity } = classBudget(c, data.settings);
+      if (total > capacity) issues.push({ level: "error", text: `${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ), ${total - capacity} сағ артық` });
+      for (const cu of c.curriculum) {
+        const s = data.subjects.find((x) => x.id === cu.subjectId);
+        if (!s) continue;
+        if (s.room && !data.rooms.some((r) => r.type === s.room)) issues.push({ level: "error", text: `${s.name}: арнайы кабинет жоқ` });
+        // Жеке сыныпта пәнге мұғалім керек; комплект сыныбында — комплект мұғалімі
+        if (!usedIds.has(c.id) && !cu.isSplit && !cu.teacherId) issues.push({ level: "error", text: `${c.name} / ${s.name}: мұғалім тағайындалмаған (жеке сынып)` });
+      }
+    }
+  } else {
+    // ── Қарапайым мектеп валидациясы ──
+    data.classes.forEach((c) => {
+      if (!c.curriculum.length) issues.push({ level: "warn", text: `${c.name}: оқу жоспары бос` });
+      c.curriculum.forEach((cu) => {
+        const s = data.subjects.find((x) => x.id === cu.subjectId);
+        if (!s) return;
+        if (cu.hours > 5 && !s.canDouble) issues.push({ level: "error", text: `${c.name} / ${s.name}: ${cu.hours} сағ — қос сабақ рұқсаты жоқ` });
+        if (!cu.isSplit && !cu.teacherId) issues.push({ level: "error", text: `${c.name} / ${s.name}: мұғалім тағайындалмаған` });
+        if (s.room && !data.rooms.some((r) => r.type === s.room)) issues.push({ level: "error", text: `${s.name}: арнайы кабинет жоқ` });
+      });
     });
-  });
-  // ТІРІ БЮДЖЕТ тексерулері — дерек мәселесін генерацияға дейін ұстау
-  {
-    // мұғалім нормадан асып тағайындалған ба
+    // ТІРІ БЮДЖЕТ тексерулері — дерек мәселесін генерацияға дейін ұстау
     for (const b of teacherBudgets(data.teachers, data.classes).values())
       if (b.free < 0) issues.push({ level: "warn", text: `${b.teacher.name}: ${b.assigned}/${b.teacher.norm} сағ — норма ${-b.free} сағатқа асып тұр (кейбір сабақ орналаспайды)` });
-    // сынып сағаты сыйымдылықтан асса
     for (const c of data.classes) {
       const { total, capacity } = classBudget(c, data.settings);
       if (total > capacity) issues.push({ level: "error", text: `${c.name}: ${total} сағ — сыйымдылық ${capacity} (5 күн × ${capacity / 5} сабақ), ${total - capacity} сағ артық` });
-      // балл қоры тығыз болса — 1-сағаттық пәндер сыймай қалады
       const sb = classScoreBudget(c, data.subjects, data.settings);
       if (sb.tight) issues.push({ level: "warn", text: `${c.name}: апталық балл ${sb.total}/${sb.capacity} — күндік балл лимиті тығыз, кейбір сабақ сыймауы мүмкін. Алгоритм бетінде лимитті көтеріңіз немесе ауыр пәндерді азайтыңыз` });
     }
-    // арнайы кабинет өткізу қабілеті
     for (const rt of roomThroughputs(data.classes, data.subjects, data.rooms))
       if (rt.needed > rt.capacity) issues.push({ level: "error", text: `${ROOM_TYPE_KK[rt.type]} кабинеті (${rt.shift}-ауысым): керегі ${rt.needed} сағ, сыйымдылығы ${rt.capacity} — кабинет жетпейді` });
-    // ауысым сыйымдылығы
     for (const sc of shiftCapacity(data.classes, data.rooms))
       if (sc.needed > sc.capacity) issues.push({ level: "error", text: `${sc.shift}-ауысым: ${sc.needed} сабаққа ${sc.capacity} орын ғана бар — кабинет қосыңыз` });
   }
@@ -147,12 +167,15 @@ export default function GeneratePage() {
       quotaPromise = consumeGeneration(user.uid, kind);
     }
     setSaved(false);
+    // ШЖМ мектебі — комплект деректерін қосамыз және v3 қозғалтқышын қолданамыз
+    const isShzhm = data.school.type === "shzhm";
     const input: AlgoInput = {
       school: data.school, subjects: data.subjects, classes: data.classes,
       teachers: data.teachers, rooms: data.rooms, settings: data.settings,
+      komplekts: isShzhm ? data.komplekts : undefined,
       softFill,
     };
-    if (mode === "deep") {
+    if (mode === "deep" && !isShzhm) {
       multi.start(input, deepCount);
     } else {
       if (mode === "partial" && scopeClass && active) {
@@ -162,8 +185,10 @@ export default function GeneratePage() {
         // anchor: қайта құрылатын сыныптарда да жарамды сабақтар ескі орнында қалады
         input.partial = { classIds: updateDiff.affectedClassIds, baseSlots: active.result.slots, anchor: true };
       }
-      // Таңдалған модель (Классик v1 / Хамелеон v2) және оның конфигі
-      start(input, activeEngine === "v2" ? { engine: "v2", config: engineConfigs.v2 } : undefined);
+      // ШЖМ → v3; әйтпесе таңдалған модель (Классик v1 / Хамелеон v2)
+      start(input, isShzhm
+        ? { engine: "v3" }
+        : activeEngine === "v2" ? { engine: "v2", config: engineConfigs.v2 } : undefined);
     }
     // Қатар жүрген квота жауабын күтеміз: жетпесе — бәрін тоқтатып, жоямыз
     if (quotaPromise) {
@@ -224,28 +249,35 @@ export default function GeneratePage() {
 
       {!isRunning && !activeResult && !runError && (
         <>
-          {/* Алгоритм-модель ауыстырғышы (ЖИ-чаттардағы модель таңдау сияқты) */}
+          {/* Алгоритм-модель ауыстырғышы. ШЖМ мектебінде — тек ШЖМ қозғалтқышы
+              (комплект-кестелеу), таңдау жабық. */}
           <GlassCard hover={false}>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm font-semibold text-muted-c flex items-center gap-1.5 shrink-0">
                 <Cpu className="w-4 h-4 accent-c" /> Алгоритм-модель:
               </span>
               <div className="flex gap-2 flex-wrap">
-                {ENGINES.map((eng) => (
-                  <button key={eng.id} onClick={() => setActiveEngine(eng.id)}
-                    className={`px-3 py-2 rounded-xl text-left transition-all border ${
-                      activeEngine === eng.id
-                        ? "gradient-primary text-white border-transparent glow-blue"
-                        : "bg-input-c text-muted-c border-soft-c hover:bg-[rgba(127,127,127,0.1)]"}`}>
-                    <span className="font-semibold text-sm flex items-center gap-1.5">
-                      {eng.name}
-                      {eng.beta && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeEngine === eng.id ? "bg-white/25" : "bg-[rgba(127,127,127,0.15)]"}`}>beta</span>
-                      )}
-                    </span>
-                    <span className="text-[11px] opacity-80 block">{eng.tagline}</span>
-                  </button>
-                ))}
+                {(data.school.type === "shzhm"
+                  ? ENGINES.filter((e) => e.id === "v3")
+                  : ENGINES.filter((e) => e.id !== "v3")
+                ).map((eng) => {
+                  const locked = data.school.type === "shzhm";
+                  const sel = locked ? eng.id === "v3" : activeEngine === eng.id;
+                  return (
+                    <button key={eng.id} onClick={() => !locked && setActiveEngine(eng.id)}
+                      className={`px-3 py-2 rounded-xl text-left transition-all border ${
+                        sel ? "gradient-primary text-white border-transparent glow-blue"
+                            : "bg-input-c text-muted-c border-soft-c hover:bg-[rgba(127,127,127,0.1)]"} ${locked ? "cursor-default" : ""}`}>
+                      <span className="font-semibold text-sm flex items-center gap-1.5">
+                        {eng.name}
+                        {eng.beta && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${sel ? "bg-white/25" : "bg-[rgba(127,127,127,0.15)]"}`}>beta</span>
+                        )}
+                      </span>
+                      <span className="text-[11px] opacity-80 block">{eng.tagline}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </GlassCard>

@@ -112,6 +112,7 @@ export interface Settings {
 export interface AlgoInput {
   school: School; subjects: Subject[]; classes: Klass[];
   teachers: Teacher[]; rooms: Room[]; settings: Settings;
+  komplekts?: Komplekt[]; // ШЖМ: біріктірілген класс-комплектілер (v3 қозғалтқышы)
   // Ішінара режим: тек classIds сыныптары қайта құрылады, baseSlots ішіндегі
   // қалған сыныптардың сабақтары құлыпталып сол күйінде қалады.
   // anchor=true (ақылды жаңарту): қайта құрылатын сыныптардың өзінде де ескі
