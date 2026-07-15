@@ -29,6 +29,43 @@ export const SANPIN_DOC_LABEL = "ҚР ДСМ-76 (05.08.2021), 4-қосымша";
 // Мектептің оқыту тілі — балл осыған байланысты (жоғарыдағы ескертпе)
 export type SchoolLang = "kk" | "ru";
 
+// ── 4-ҚОСЫМШАНЫҢ КӨРСЕТІЛІМ КЕСТЕСІ ──
+// Сайт ішінде жеке көрсетуге арналған (модал): завуч 100+ беттік бұйрықты
+// ақтармай, дәл осы кестені көреді. Орысша мәтін — құжаттан СӨЗБЕ-СӨЗ
+// (ресми эталон), қазақша/ағылшынша — аудармасы.
+export interface SanpinDisplayRow { no: number; points: number; kk: string; ru: string; en: string }
+export const SANPIN_DISPLAY_TABLE: SanpinDisplayRow[] = [
+  { no: 1, points: 11,
+    ru: "Математика, русский язык (для школ с казахским языком обучения), казахский язык (для школ с неказахским языком обучения)",
+    kk: "Математика; орыс тілі (қазақ тілінде оқытатын мектептер үшін); қазақ тілі (өзге тілде оқытатын мектептер үшін)",
+    en: "Mathematics; Russian (Kazakh-language schools); Kazakh (non-Kazakh-language schools)" },
+  { no: 2, points: 10,
+    ru: "Иностранный язык, изучение предметов на иностранном языке",
+    kk: "Шетел тілі, пәндерді шетел тілінде оқыту",
+    en: "Foreign language; subjects taught in a foreign language" },
+  { no: 3, points: 9,
+    ru: "Физика, химия, информатика, биология",
+    kk: "Физика, химия, информатика, биология",
+    en: "Physics, chemistry, informatics, biology" },
+  { no: 4, points: 8,
+    ru: "История, Человек. Общество. Право",
+    kk: "Тарих, «Адам. Қоғам. Құқық»",
+    en: "History; Person. Society. Law" },
+  { no: 5, points: 7,
+    ru: "Казахский язык, литература (для школ с казахским языком обучения). Русский язык, литература (для школ с неказахским языком обучения)",
+    kk: "Қазақ тілі, әдебиет (қазақ тілінде оқытатын мектептер үшін); орыс тілі, әдебиет (өзге тілде оқытатын мектептер үшін)",
+    en: "Kazakh language & literature (Kazakh-language schools); Russian language & literature (non-Kazakh-language schools)" },
+  { no: 6, points: 6,
+    ru: "Естествознание, география, самопознание, начальная военная подготовка",
+    kk: "Жаратылыстану, география, өзін-өзі тану, алғашқы әскери дайындық",
+    en: "Natural science, geography, self-knowledge, basic military training" },
+  { no: 7, points: 5, ru: "Физкультура", kk: "Дене шынықтыру", en: "Physical education" },
+  { no: 8, points: 4, ru: "Труд, технология", kk: "Еңбек, технология", en: "Handicraft, technology" },
+  { no: 9, points: 3, ru: "Черчение", kk: "Сызу", en: "Technical drawing" },
+  { no: 10, points: 2, ru: "Изобразительное искусство", kk: "Бейнелеу өнері", en: "Fine arts" },
+  { no: 11, points: 1, ru: "Музыка", kk: "Музыка", en: "Music" },
+];
+
 // Бір қатар: ресми балл + пән атауының танылатын түйін сөздері (кіші әріппен,
 // қазақша/орысша синонимдер; атаудың ішінен ізделеді)
 interface Row { points: number; keys: string[]; lang?: SchoolLang }

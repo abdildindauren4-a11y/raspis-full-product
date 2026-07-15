@@ -561,6 +561,10 @@ export const translations = {
   "subj.sanpinLangRu": { kk: "Орыс тілінде оқытатын мектеп", ru: "Школа с русским языком обучения", en: "Russian-language school" },
   "subj.sanpinDone": { kk: "пәнге ресми балл қойылды", ru: "предметам проставлен официальный балл", en: "subjects updated with official scores" },
   "subj.sanpinUnmatched": { kk: "Құжат кестесінде жоқ (өзгертілмеді)", ru: "Нет в таблице документа (не изменены)", en: "Not in the document table (unchanged)" },
+  "subj.sanpinTableTitle": { kk: "Пәндерді қиындығы бойынша ранжирлеу кестесі", ru: "Таблица ранжирования предметов по трудности", en: "Subject difficulty ranking table" },
+  "subj.sanpinTableSrc": { kk: "Дереккөз", ru: "Источник", en: "Source" },
+  "subj.sanpinRuNote": { kk: "Ресми эталон мәтін — орысша (сайт тілін «Русский» етіп ауыстырсаңыз, құжаттағы сөзбе-сөз нұсқасы көрінеді).", ru: "", en: "The official reference text is in Russian (switch the site language to «Русский» to see the verbatim wording)." },
+  "subj.sanpinFullDoc": { kk: "Толық құжат — adilet.zan.kz (ҚР ДСМ-76)", ru: "Полный документ — adilet.zan.kz (ҚР ДСМ-76)", en: "Full document — adilet.zan.kz (QR DSM-76)" },
 
   // ── Algorithm ──
   "algo.optHint": { kk: "Мектеп уақыттары және оптимизация параметрлері — өзгерту нәтижеге тікелей әсер етеді", ru: "Время школы и параметры оптимизации — влияют на результат", en: "School times and optimization params — affect the result" },
