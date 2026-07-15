@@ -1,6 +1,6 @@
 // filepath: src/pages/SettingsPage.tsx
 import { useState } from "react";
-import { Moon, Sun, Languages, Bot, Check, Eye, EyeOff, Trash2, Save, Database, RotateCcw, CalendarX, AlertTriangle } from "lucide-react";
+import { Moon, Sun, Languages, Bot, Check, Eye, EyeOff, Trash2, Save, Database, RotateCcw, CalendarX, AlertTriangle, School } from "lucide-react";
 import GlassCard from "@/components/shared/GlassCard";
 import { inputCls, btnP, btnG } from "@/components/shared/Form";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -100,6 +100,35 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
+      </GlassCard>
+
+      {/* Мектеп түрі: Қарапайым / ШЖМ */}
+      <GlassCard hover={false}>
+        <h3 className="font-semibold text-strong-c mb-1 flex items-center gap-2">
+          <School className="w-4 h-4 accent-c" /> {t("settings.schoolType")}
+        </h3>
+        <p className="text-xs text-muted-c mb-4">{t("settings.schoolTypeDesc")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {([
+            ["regular", t("settings.schoolTypeRegular"), t("settings.schoolTypeRegularDesc")],
+            ["shzhm", t("settings.schoolTypeShzhm"), t("settings.schoolTypeShzhmDesc")],
+          ] as const).map(([val, label, desc]) => {
+            const on = (data.school.type || "regular") === val;
+            return (
+              <button key={val} onClick={() => data.setSchool({ type: val })}
+                className={`flex flex-col items-start gap-1 p-4 rounded-xl border text-left transition-all ${on ? "border-[var(--accent)] bg-[rgba(var(--bg-card),0.5)]" : "border-soft-c bg-input-c"}`}>
+                <div className="flex items-center gap-2 w-full">
+                  <span className="text-sm font-semibold text-strong-c">{label}</span>
+                  {on && <Check className="w-4 h-4 accent-c ml-auto" />}
+                </div>
+                <span className="text-xs text-muted-c">{desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        {(data.school.type === "shzhm") && (
+          <p className="text-[11px] text-faint-c mt-3">{t("settings.schoolTypeShzhmHint")}</p>
+        )}
       </GlassCard>
 
       {/* Gemini API */}

@@ -1,7 +1,7 @@
 // filepath: src/store/dataStore.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { School, Settings, Subject, Teacher, Room, Klass, AlgoResult } from "@/algorithm/engine";
+import type { School, Settings, Subject, Teacher, Room, Klass, Komplekt, AlgoResult } from "@/algorithm/engine";
 import { seedSchool, seedSettings, seedSubjects, buildSeed } from "@/lib/seed";
 import { buildBigSeed, bigSchool, bigSettings, bigSubjects } from "@/lib/bigSeed";
 import { DEFAULT_ENGINE, type EngineId } from "@/lib/engines";
@@ -30,6 +30,7 @@ interface DataState {
   loggedIn: boolean; userName: string;
   school: School; settings: Settings;
   subjects: Subject[]; classes: Klass[]; teachers: Teacher[]; rooms: Room[];
+  komplekts: Komplekt[]; // ШЖМ: біріктірілген класс-комплектілер (аралас мектеп)
   versions: Version[]; activeVersionId: string | null;
   substitutions: SubstitutionRecord[];
   // Алгоритм-модель таңдауы (ЖИ-чаттардағы модель ауыстырғыш сияқты).
@@ -45,6 +46,7 @@ interface DataState {
   setClasses: (c: Klass[]) => void;
   setTeachers: (t: Teacher[]) => void;
   setRooms: (r: Room[]) => void;
+  setKomplekts: (k: Komplekt[]) => void;
   saveVersion: (result: AlgoResult, isPartial: boolean, scope?: string) => Version;
   activateVersion: (id: string) => void;
   deleteVersion: (id: string) => void;
@@ -66,7 +68,7 @@ export const useData = create<DataState>()(
       loggedIn: false, userName: "",
       school: seedSchool, settings: seedSettings,
       subjects: seedSubjects, classes: seed.classes,
-      teachers: seed.teachers, rooms: seed.rooms,
+      teachers: seed.teachers, rooms: seed.rooms, komplekts: [],
       versions: [], activeVersionId: null, substitutions: [],
       activeEngine: DEFAULT_ENGINE, engineConfigs: {},
       setActiveEngine: (activeEngine) => set({ activeEngine }),
@@ -79,6 +81,7 @@ export const useData = create<DataState>()(
       setClasses: (classes) => set({ classes }),
       setTeachers: (teachers) => set({ teachers }),
       setRooms: (rooms) => set({ rooms }),
+      setKomplekts: (komplekts) => set({ komplekts }),
       saveVersion: (result, isPartial, scope) => {
         const n = get().versions.length + 1;
         const v: Version = {
@@ -104,11 +107,11 @@ export const useData = create<DataState>()(
       },
       resetSeed: () => {
         const s = buildSeed();
-        set({ school: seedSchool, settings: seedSettings, subjects: seedSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, versions: [], activeVersionId: null });
+        set({ school: seedSchool, settings: seedSettings, subjects: seedSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], versions: [], activeVersionId: null });
       },
       resetBigSeed: () => {
         const s = buildBigSeed();
-        set({ school: bigSchool, settings: bigSettings, subjects: bigSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, versions: [], activeVersionId: null, substitutions: [] });
+        set({ school: bigSchool, settings: bigSettings, subjects: bigSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], versions: [], activeVersionId: null, substitutions: [] });
       },
       clearSchedules: () => {
         // тек құрылған кестелерді (нұсқаларды) және алмастыруларды өшіреді
@@ -117,7 +120,7 @@ export const useData = create<DataState>()(
       clearAllData: () => {
         // барлық деректі толық бос етеді (демо деректерсіз, таза бастау)
         set({
-          subjects: [], classes: [], teachers: [], rooms: [],
+          subjects: [], classes: [], teachers: [], rooms: [], komplekts: [],
           versions: [], activeVersionId: null, substitutions: [],
         });
       },

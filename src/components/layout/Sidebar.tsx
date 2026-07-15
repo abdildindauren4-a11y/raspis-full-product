@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Database,
   GraduationCap,
+  Layers,
   Users,
   DoorOpen,
   BookOpen,
@@ -85,9 +86,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMo
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useData((s) => s.logout);
+  const schoolType = useData((s) => s.school.type);
   const { logout: authLogout, role } = useAuth();
+  // ШЖМ режимінде «Комплектілер» бетін «Деректер» тобына қосамыз
+  const menu: NavItem[] = schoolType === "shzhm"
+    ? menuItems.map((it) => "children" in it && it.key === "nav.data"
+        ? { ...it, children: [...it.children, { icon: Layers, key: "nav.komplekts", path: "/komplekts" }] }
+        : it)
+    : menuItems;
   // Әкімшіге admin элементтерін қосамыз
-  const items = role === "admin" ? [...menuItems, ...adminItems] : menuItems;
+  const items = role === "admin" ? [...menu, ...adminItems] : menu;
 
   // Топтар (Деректер, Баптаулар): ішіндегі бет ашық болса — автоматты ашылады
   const activeGroupKey = items.find(

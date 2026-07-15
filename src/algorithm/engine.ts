@@ -45,10 +45,25 @@ export interface Klass {
   shift: 1 | 2; curriculum: CurItem[];
   homeRoomId?: string; // бастауыш сынып үшін бекітілген негізгі кабинет
 }
+
+// ── ШЖМ (шағын жинақты мектеп) ──
+// Класс-комплект: 2 сыныптың бір мұғалім, бір кабинетте, бір мезгілде оқитын
+// біріктірілген тобы (docs/SHZHM-RESEARCH-AND-DESIGN.md). Аралас мектеп:
+// комплектіге кірмеген сыныптар — жеке (қарапайымдай) оқиды.
+export interface Komplekt {
+  id: string;
+  name: string;         // мыс. «1-3 комплект»
+  classIds: string[];   // біріктірілген сыныптар (2 сынып)
+  teacherId?: string;   // комплектіні толық ұстайтын мұғалім
+  roomId?: string;      // бекітілген кабинет
+}
 export interface School {
   name: string; shift1Start: string; shift2Start: string;
   lessonDuration: number; shortBreak: number; longBreak: number;
   longBreakAfter: number; interShiftGap: number;
+  // Мектеп түрі: «regular» — қарапайым (әдепкі), «shzhm» — шағын жинақты
+  // (біріктірілген комплектілер). ШЖМ таңдалса сайт комплект логикасына көшеді.
+  type?: "regular" | "shzhm";
 }
 export interface Settings {
   maximin: boolean; maxIterations: number;

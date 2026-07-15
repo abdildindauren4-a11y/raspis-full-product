@@ -16,6 +16,7 @@ import TeachersPage from "@/pages/TeachersPage";
 import RoomsPage from "@/pages/RoomsPage";
 import SubjectsPage from "@/pages/SubjectsPage";
 import GroupsPage from "@/pages/GroupsPage";
+import KomplektsPage from "@/pages/KomplektsPage";
 import AlgorithmPage from "@/pages/AlgorithmPage";
 import GeneratePage from "@/pages/GeneratePage";
 import SchedulePage from "@/pages/SchedulePage";
@@ -127,6 +128,7 @@ const pages: [string, ReactNode][] = [
   ["/rooms", <DataGuard><RoomsPage /></DataGuard>],
   ["/subjects", <DataGuard><SubjectsPage /></DataGuard>],
   ["/groups", <DataGuard><GroupsPage /></DataGuard>],
+  ["/komplekts", <DataGuard><KomplektsPage /></DataGuard>],
   ["/import", <DataGuard><ImportPage /></DataGuard>],
   // Экспорт бәріне ашық — демо кезінде алушы дайын өнімді өз көзімен көріп,
   // қолына алып көргені сатылымға тиімді
