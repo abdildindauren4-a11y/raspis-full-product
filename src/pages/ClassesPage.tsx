@@ -112,11 +112,26 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
   const okTeachers = teachers
     .filter((t) => t.gradeMin <= cls.grade && t.gradeMax >= cls.grade && (t.shift === 3 || t.shift === cls.shift))
     .sort((a, b) => (budgets.get(b.id)?.free ?? 0) - (budgets.get(a.id)?.free ?? 0));
-  // Селект жазуы: аты + тағайындалған/норма, асып тұрса ⚠
-  const tLabel = (tid: string) => {
+  // Мұғалім осы пәнді бере ала ма (Мұғалімдер бетіндегі пән тізімі бойынша;
+  // тізімі бос мұғалім — шектеусіз, бәріне жарайды)
+  const canTeach = (t: (typeof teachers)[number], subjName?: string) =>
+    !subjName || !t.subjects?.length || t.subjects.includes(subjName);
+  // Осы пәнге лайық мұғалімдер тізімі; таңдалып қойған (сай емес) мұғалім де
+  // тізімде қалады — ⚠ белгісімен (ескі дерек бұзылмауы үшін)
+  const teachersFor = (subjName: string | undefined, currentId?: string) => {
+    const list = okTeachers.filter((t) => canTeach(t, subjName));
+    if (currentId && !list.some((t) => t.id === currentId)) {
+      const cur = teachers.find((t) => t.id === currentId);
+      if (cur) list.push(cur);
+    }
+    return list;
+  };
+  // Селект жазуы: аты + тағайындалған/норма, асып тұрса ⚠; пәні сай келмесе де ⚠
+  const tLabel = (tid: string, subjName?: string) => {
     const b = budgets.get(tid);
     if (!b) return "";
-    return `${b.teacher.name} — ${b.assigned}/${b.teacher.norm} сағ${b.free < 0 ? " ⚠ асып тұр" : ""}`;
+    const mismatch = !canTeach(b.teacher, subjName) ? " ⚠ пәні бөлек" : "";
+    return `${b.teacher.name} — ${b.assigned}/${b.teacher.norm} сағ${b.free < 0 ? " ⚠ асып тұр" : ""}${mismatch}`;
   };
   // Норманы бір басумен көтеру
   const raiseNorm = (tid: string, to: number) =>
@@ -131,7 +146,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
   };
   // Бос мұғалімдерді автотағайындау (мұғалімі жоқ жолдарға)
   const autoAssign = () => {
-    const res = autoAssignTeachers(cls, cls.curriculum, teachers, classes);
+    const res = autoAssignTeachers(cls, cls.curriculum, teachers, classes, subjects);
     if (res.assigned === 0) { alert(res.unassigned.length ? "Сай әрі сағаты бос мұғалім табылмады — Мұғалімдер бетінен нормаларды тексеріңіз." : "Барлық жолда мұғалім бар."); return; }
     update(() => res.items);
     if (res.unassigned.length) {
@@ -178,7 +193,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                   <select className={inputCls + " col-span-4 lg:col-span-4"} value={cu.teacherId || ""}
                     onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, teacherId: e.target.value } : x)))}>
                     <option value="">{t("fld.pickTeacher")}</option>
-                    {okTeachers.map((t) => <option key={t.id} value={t.id}>{tLabel(t.id)}</option>)}
+                    {teachersFor(subj?.name, cu.teacherId).map((t) => <option key={t.id} value={t.id}>{tLabel(t.id, subj?.name)}</option>)}
                   </select>
                 )}
                 {cu.isSplit && <span className="col-span-6 lg:col-span-4 text-xs accent-c flex items-center gap-1.5"><Split className="w-3.5 h-3.5" /> Топтарға бөлінген</span>}
@@ -225,7 +240,7 @@ function CurriculumEditor({ cls, subjects, teachers, update }: {
                       <select className={inputCls} value={g.teacherId}
                         onChange={(e) => update((c) => c.map((x) => (x.id === cu.id ? { ...x, groups: x.groups!.map((gg, i) => (i === gi ? { ...gg, teacherId: e.target.value } : gg)) } : x)))}>
                         <option value="">{t("fld.pickTeacher")}</option>
-                        {okTeachers.map((t) => <option key={t.id} value={t.id}>{tLabel(t.id)}</option>)}
+                        {teachersFor(subj?.name, g.teacherId).map((t) => <option key={t.id} value={t.id}>{tLabel(t.id, subj?.name)}</option>)}
                       </select>
                     </div>
                   ))}

@@ -114,14 +114,14 @@ export function buildSeed(): SeedResult {
         id: uid(), name: `${FAM[fi % FAM.length]} ${String.fromCharCode(65 + (fi % 26))}.`,
         norm: 20, gradeMin: s === "Дене шынықтыру" || s === "Музыка" ? 1 : 5, gradeMax: 11,
         shift: s === "Дене шынықтыру" || s === "Музыка" ? 3 : 1,
-        unavailable: [], noInterShift: false,
+        unavailable: [], noInterShift: false, subjects: [s],
       };
       fi++;
       teachers.push(t); pool[s].push(t);
     }
   }
   // ағылшын тілінен топ бөлуге қосымша мұғалім
-  const extraEng: Teacher = { id: uid(), name: "Смит Дж.", norm: 20, gradeMin: 5, gradeMax: 11, shift: 1, unavailable: [], noInterShift: false };
+  const extraEng: Teacher = { id: uid(), name: "Смит Дж.", norm: 20, gradeMin: 5, gradeMax: 11, shift: 1, unavailable: [], noInterShift: false, subjects: ["Ағылшын тілі"] };
   teachers.push(extraEng); pool["Ағылшын тілі"].push(extraEng);
 
   const load: Record<string, number> = {};
@@ -142,9 +142,9 @@ export function buildSeed(): SeedResult {
 
   // ── 1-4 сыныптар (2-ауысым), сынып жетекшісі моделі ──
   const peTeachers: Teacher[] = ["Ермеков Т.", "Сапаров Е.", "Жұманов Қ.", "Әбенов Д."].map((nm) =>
-    ({ id: uid(), name: `${nm} (дене, баст.)`, norm: 24, gradeMin: 1, gradeMax: 4, shift: 2, unavailable: [], noInterShift: false }));
+    ({ id: uid(), name: `${nm} (дене, баст.)`, norm: 24, gradeMin: 1, gradeMax: 4, shift: 2, unavailable: [], noInterShift: false, subjects: ["Дене шынықтыру"] }));
   const musTeachers: Teacher[] = ["Лебедева И.", "Қайырова А.", "Нұрлан Б."].map((nm) =>
-    ({ id: uid(), name: `${nm} (музыка, баст.)`, norm: 18, gradeMin: 1, gradeMax: 4, shift: 2, unavailable: [], noInterShift: false }));
+    ({ id: uid(), name: `${nm} (музыка, баст.)`, norm: 18, gradeMin: 1, gradeMax: 4, shift: 2, unavailable: [], noInterShift: false, subjects: ["Музыка"] }));
   teachers.push(...peTeachers, ...musTeachers);
   let peIdx = 0, musIdx = 0;
   // Бастауышқа арналған негізгі кабинеттер (1-этаж, тыныш бөлік)

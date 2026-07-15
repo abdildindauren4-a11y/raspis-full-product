@@ -51,15 +51,24 @@ export function buildFromTemplate(cls: Klass, subjects: Subject[]): { items: Cur
     Бюджет тағайындау барысында азайтылып отырады — бір мұғалімге бәрін
     үйіп тастамайды. Өзгертілген жолдар санын қайтарады. */
 export function autoAssignTeachers(
-  cls: Klass, curriculum: CurItem[], teachers: Teacher[], allClasses: Klass[]
+  cls: Klass, curriculum: CurItem[], teachers: Teacher[], allClasses: Klass[], subjects?: Subject[]
 ): { items: CurItem[]; assigned: number; unassigned: string[] } {
   // ағымдағы бюджет (осы сыныптың толтырылмағандары әлі есепте жоқ)
   const budgets = teacherBudgets(teachers, allClasses);
+  const nameOf = new Map((subjects || []).map((s) => [s.id, s.name]));
+  // Мұғалім осы пәнді бере ала ма (декларацияланған пән тізімі бойынша;
+  // тізімі бос — шектеусіз). Атау белгісіз болса — шектемейміз.
+  const canTeach = (t: Teacher, subjectId: string) => {
+    if (!t.subjects?.length) return true;
+    const nm = nameOf.get(subjectId);
+    return !nm || t.subjects.includes(nm);
+  };
   const eligible = (need: number, subjectId: string, exclude?: Set<string>): TeacherBudget | null => {
     const list = [...budgets.values()]
       .filter((b) =>
         b.teacher.gradeMin <= cls.grade && cls.grade <= b.teacher.gradeMax &&
         (b.teacher.shift === 3 || b.teacher.shift === cls.shift) &&
+        canTeach(b.teacher, subjectId) &&   // пәнін бермейтін мұғалім тағайындалмайды
         (!exclude || !exclude.has(b.teacher.id)))
       .sort((a, b) => b.free - a.free);
     // ПӘН БІЛІКТІЛІГІ басым: осы пәнді басқа жерде беретін мұғалім алдымен

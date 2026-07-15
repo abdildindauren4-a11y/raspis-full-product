@@ -26,6 +26,10 @@ export interface Teacher {
   shift: 1 | 2 | 3; // 3 = екі ауысымда да
   unavailable: string[]; // "day-slot"
   noInterShift: boolean;
+  // Мұғалім беретін ПӘН АТАУЛАРЫ. Бос/жоқ = шектеусіз (кез келген пән) —
+  // ескі деректермен үйлесімді. Сынып жоспарында мұғалім таңдағанда осы
+  // тізімге қарап сүзіледі; автотағайындау да ескереді.
+  subjects?: string[];
 }
 export interface Room {
   id: string; number: string; type: RoomType; capacity?: number;

@@ -542,6 +542,10 @@ export const translations = {
   // ── Teachers ──
   "tch.colName": { kk: "Аты-жөні", ru: "ФИО", en: "Full name" },
   "tch.colRange": { kk: "Диапазон", ru: "Диапазон", en: "Range" },
+  "tch.colSubjects": { kk: "Пәндері", ru: "Предметы", en: "Subjects" },
+  "tch.allSubjects": { kk: "барлық пән", ru: "все предметы", en: "all subjects" },
+  "tch.subjectsField": { kk: "Беретін пәндері (таңдалмаса — барлық пән)", ru: "Преподаваемые предметы (не выбрано — все предметы)", en: "Subjects taught (none selected — all subjects)" },
+  "tch.subjectsHint": { kk: "Сынып жоспарында мұғалім тізімі осы таңдау бойынша сүзіледі; автотағайындау да ескереді.", ru: "В учебном плане класса список учителей фильтруется по этому выбору; автоназначение тоже учитывает.", en: "In a class's curriculum the teacher list is filtered by this selection; auto-assign respects it too." },
   "tch.colLoad": { kk: "Жүктеме / Норма", ru: "Нагрузка / Норма", en: "Load / Norm" },
   "tch.colLimit": { kk: "Шектеу", ru: "Ограничение", en: "Limit" },
   "tch.gradeSuffix": { kk: "сын.", ru: "кл.", en: "gr." },

@@ -13,7 +13,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function TeachersPage() {
   const { t } = useLang();
-  const { teachers, setTeachers, classes } = useData();
+  const { teachers, setTeachers, classes, subjects } = useData();
   const active = useActiveVersion();
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<Partial<Teacher> | null>(null);
@@ -30,9 +30,15 @@ export default function TeachersPage() {
       gradeMin: form.gradeMin || 1, gradeMax: form.gradeMax || 11,
       shift: (form.shift || 1) as 1 | 2 | 3,
       unavailable: form.unavailable || [], noInterShift: !!form.noInterShift,
+      subjects: form.subjects || [],
     };
     setTeachers(form.id ? teachers.map((x) => (x.id === t.id ? t : x)) : [...teachers, t]);
     setForm(null);
+  };
+  // Модалдағы пән чипін қосу/алу
+  const toggleSubject = (name: string) => {
+    const cur = form?.subjects || [];
+    setForm({ ...form, subjects: cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name] });
   };
   const usedBy = (id: string) => classes.filter((c) => c.curriculum.some((cu) => cu.teacherId === id || cu.groups?.some((g) => g.teacherId === id))).length;
 
@@ -52,7 +58,7 @@ export default function TeachersPage() {
         <div className="overflow-x-auto -mx-1 px-1"><table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
-              <th className="py-2">{t("tch.colName")}</th><th>{t("tch.colRange")}</th><th>{t("com.shift")}</th><th>{t("tch.colLoad")}</th><th>{t("tch.colLimit")}</th><th>{t("com.actions")}</th>
+              <th className="py-2">{t("tch.colName")}</th><th>{t("tch.colSubjects")}</th><th>{t("tch.colRange")}</th><th>{t("com.shift")}</th><th>{t("tch.colLoad")}</th><th>{t("tch.colLimit")}</th><th>{t("com.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -65,6 +71,11 @@ export default function TeachersPage() {
               return (
                 <tr key={tr.id} className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
                   <td className="py-2.5 font-medium text-strong-c">{tr.name}</td>
+                  <td className="text-xs text-muted-c max-w-[180px]">
+                    {tr.subjects?.length
+                      ? <span title={tr.subjects.join(", ")}>{tr.subjects.slice(0, 2).join(", ")}{tr.subjects.length > 2 ? ` +${tr.subjects.length - 2}` : ""}</span>
+                      : <span className="text-faint-c">{t("tch.allSubjects")}</span>}
+                  </td>
                   <td><span className="px-2 py-0.5 rounded text-xs bg-[rgba(74,144,217,0.12)] accent-c">{tr.gradeMin}–{tr.gradeMax} {t("tch.gradeSuffix")}</span></td>
                   <td className="text-soft-c">{tr.shift === 3 ? "1+2" : tr.shift}</td>
                   <td>
@@ -122,6 +133,22 @@ export default function TeachersPage() {
             </label>
           </Field>
         </div>
+        <Field label={t("tch.subjectsField")}>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {subjects.map((s) => {
+              const on = (form?.subjects || []).includes(s.name);
+              return (
+                <button key={s.id} type="button" onClick={() => toggleSubject(s.name)}
+                  className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                    on ? "gradient-primary text-white border-transparent"
+                       : "bg-input-c border-soft-c text-muted-c hover:border-[var(--accent)]"}`}>
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-faint-c mt-1.5">{t("tch.subjectsHint")}</p>
+        </Field>
         <Field label="Қолжетімсіз уақыттар (басыңыз, күн атауын бассаңыз — бүкіл күн)">
           <SlotMatrix value={form?.unavailable || []}
             onChange={(unavailable) => setForm({ ...form, unavailable })} />

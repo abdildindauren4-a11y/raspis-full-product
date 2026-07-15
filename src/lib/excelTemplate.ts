@@ -108,22 +108,23 @@ export async function downloadTemplate() {
 
   // ═══ Парақ 2 — МҰҒАЛІМДЕР (тірі бюджет бағандарымен) ═══
   const ws2 = wb.addWorksheet("Мұғалімдер", { views: [{ state: "frozen", ySplit: 1 }] });
-  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 22 }, { width: 26 }, { width: 16 }, { width: 30 }];
-  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым", "Тағайындалған сағат (авто)", "Күйі (авто)", "Сынып саны (авто)", "Тарылу қаупі (авто)"]);
-  ws2.addRow(["Ахметова Айгүл Қызы", 20, 5, 11, "Таңғы"]);
-  ws2.addRow(["Серікбаева Нұргүл", 18, 5, 11, "Таңғы"]);
-  ws2.addRow(["Лебедева Ирина", 12, 1, 7, "Екеуінде де"]);
-  styleHeader(ws2, 9);
-  styleRows(ws2, 2, 4, 5, EXAMPLE_FILL);
+  ws2.columns = [{ width: 30 }, { width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }, { width: 34 }, { width: 22 }, { width: 26 }, { width: 16 }, { width: 30 }];
+  ws2.addRow(["Мұғалімнің аты-жөні", "Аптасына сағат", "Қай сыныптан", "Қай сыныпқа дейін", "Ауысым", "Пәндері (үтірмен; бос = барлық пән)", "Тағайындалған сағат (авто)", "Күйі (авто)", "Сынып саны (авто)", "Тарылу қаупі (авто)"]);
+  ws2.addRow(["Ахметова Айгүл Қызы", 20, 5, 11, "Таңғы", "Математика, Алгебра, Геометрия"]);
+  ws2.addRow(["Серікбаева Нұргүл", 18, 5, 11, "Таңғы", "Физика, Химия"]);
+  ws2.addRow(["Лебедева Ирина", 12, 1, 7, "Екеуінде де", "Музыка"]);
+  styleHeader(ws2, 10);
+  styleRows(ws2, 2, 4, 6, EXAMPLE_FILL);
   addNote(ws2, 1, 1, "Мұғалімнің толық аты-жөні. Оқу жоспарында ДӘЛ осылай жазылуы керек.");
   addNote(ws2, 1, 2, "Аптасына неше сағат сабақ беруі керек (жүктеме нормасы).");
   addNote(ws2, 1, 3, "Мұғалім сабақ беретін ЕҢ КІШІ сынып (мысалы 5).");
   addNote(ws2, 1, 4, "Мұғалім сабақ беретін ЕҢ ҮЛКЕН сынып (мысалы 11).");
   addNote(ws2, 1, 5, "Таңғы, Түстен кейінгі, немесе Екеуінде де.");
-  addNote(ws2, 1, 6, "АВТОМАТТЫ ЕСЕП — өзгертпеңіз! «Оқу жоспары» парағында осы мұғалімге тағайындалған барлық сағат.");
-  addNote(ws2, 1, 7, "АВТОМАТТЫ ТЕКСЕРУ: тағайындалған сағат нормадан асса ҚЫЗЫЛ ⚠ шығады — норманы көтеріңіз немесе сағатты басқа мұғалімге беріңіз.");
-  addNote(ws2, 1, 8, "АВТОМАТТЫ ЕСЕП — «Оқу жоспары» парағында осы мұғалімге тағайындалған БӨЛЕК сынып-жол саны (шамамен).");
-  addNote(ws2, 1, 9, "АВТОМАТТЫ ТЕКСЕРУ: мұғалім тым көп бөлек сыныпқа (9-дан көп) тағайындалса ҚЫЗЫЛ ⚠ шығады — сағаты дұрыс болса да, әр сыныптың бос слотын жалғыз адаммен үйлестіру қиынға соғып, кестеде бос слот (тесік) қалу қаупі артады. Шешім: жүктемені 2-мұғалімге бөліңіз.");
+  addNote(ws2, 1, 6, "Мұғалім беретін пәндер — үтірмен бөлініп жазылады (мыс. «Математика, Алгебра»). Бос қалдырсаңыз — барлық пәнді бере алады деп есептеледі. Атаулары «Пәндер» тізіміндегімен дәл сәйкес болғаны жөн. Сынып оқу жоспарында мұғалім тізімі осыған қарай сүзіледі.");
+  addNote(ws2, 1, 7, "АВТОМАТТЫ ЕСЕП — өзгертпеңіз! «Оқу жоспары» парағында осы мұғалімге тағайындалған барлық сағат.");
+  addNote(ws2, 1, 8, "АВТОМАТТЫ ТЕКСЕРУ: тағайындалған сағат нормадан асса ҚЫЗЫЛ ⚠ шығады — норманы көтеріңіз немесе сағатты басқа мұғалімге беріңіз.");
+  addNote(ws2, 1, 9, "АВТОМАТТЫ ЕСЕП — «Оқу жоспары» парағында осы мұғалімге тағайындалған БӨЛЕК сынып-жол саны (шамамен).");
+  addNote(ws2, 1, 10, "АВТОМАТТЫ ТЕКСЕРУ: мұғалім тым көп бөлек сыныпқа (9-дан көп) тағайындалса ҚЫЗЫЛ ⚠ шығады — сағаты дұрыс болса да, әр сыныптың бос слотын жалғыз адаммен үйлестіру қиынға соғып, кестеде бос слот (тесік) қалу қаупі артады. Шешім: жүктемені 2-мұғалімге бөліңіз.");
   for (let r = 2; r <= 100; r++) {
     if (r >= 5) {
       ws2.getCell(r, 2).dataValidation = { type: "whole", operator: "between", formulae: [1, 40], allowBlank: true };
@@ -131,29 +132,29 @@ export async function downloadTemplate() {
       ws2.getCell(r, 4).dataValidation = { type: "whole", operator: "between", formulae: [1, 11], allowBlank: true };
       ws2.getCell(r, 5).dataValidation = { type: "list", allowBlank: true, formulae: ['"Таңғы,Түстен кейінгі,Екеуінде де"'] };
     }
-    for (let c = 1; c <= 9; c++) ws2.getCell(r, c).border = BORDER;
+    for (let c = 1; c <= 10; c++) ws2.getCell(r, c).border = BORDER;
     // Тірі бюджет: «Оқу жоспарындағы» тағайындалған сағат және норма күйі
-    ws2.getCell(r, 6).value = { formula: `IF(A${r}="","",SUMIF('Оқу жоспары'!$C$2:$C$400,A${r},'Оқу жоспары'!$D$2:$D$400))` };
-    ws2.getCell(r, 7).value = { formula: `IF(OR(A${r}="",F${r}=""),"",IF(F${r}=0,"— сабақ жоқ",IF(F${r}>B${r},"⚠ НОРМАДАН АСТЫ (+"&(F${r}-B${r})&" сағ)","OK ✓")))` };
+    ws2.getCell(r, 7).value = { formula: `IF(A${r}="","",SUMIF('Оқу жоспары'!$C$2:$C$400,A${r},'Оқу жоспары'!$D$2:$D$400))` };
+    ws2.getCell(r, 8).value = { formula: `IF(OR(A${r}="",G${r}=""),"",IF(G${r}=0,"— сабақ жоқ",IF(G${r}>B${r},"⚠ НОРМАДАН АСТЫ (+"&(G${r}-B${r})&" сағ)","OK ✓")))` };
     // Тарылу тексерісі: бөлек сынып-жол саны (шамамен — сынып атауы бойынша COUNTIF)
-    ws2.getCell(r, 8).value = { formula: `IF(A${r}="","",COUNTIF('Оқу жоспары'!$C$2:$C$400,A${r}))` };
-    ws2.getCell(r, 9).value = { formula: `IF(OR(A${r}="",H${r}=""),"",IF(H${r}>9,"⚠ ТЫМ КӨП СЫНЫП ("&H${r}&") — 2-мұғалімге бөліңіз","OK ✓"))` };
-    for (const c of [6, 7, 8, 9]) {
+    ws2.getCell(r, 9).value = { formula: `IF(A${r}="","",COUNTIF('Оқу жоспары'!$C$2:$C$400,A${r}))` };
+    ws2.getCell(r, 10).value = { formula: `IF(OR(A${r}="",I${r}=""),"",IF(I${r}>9,"⚠ ТЫМ КӨП СЫНЫП ("&I${r}&") — 2-мұғалімге бөліңіз","OK ✓"))` };
+    for (const c of [7, 8, 9, 10]) {
       ws2.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
       ws2.getCell(r, c).font = { name: "Arial", size: 10, color: { argb: "FF64748B" } };
     }
   }
   ws2.addConditionalFormatting({
-    ref: "G2:G100",
+    ref: "H2:H100",
     rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
       style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
   });
   ws2.addConditionalFormatting({
-    ref: "I2:I100",
+    ref: "J2:J100",
     rules: [{ type: "containsText", operator: "containsText", text: "⚠", priority: 1,
       style: { font: { bold: true, color: { argb: "FF991B1B" } }, fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFDE8E8" } } } }],
   });
-  ws2.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 5 } };
+  ws2.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 6 } };
 
   // ═══ Парақ 3 — ОҚУ ЖОСПАРЫ (ең маңызды) ═══
   const ws3 = wb.addWorksheet("Оқу жоспары", { views: [{ state: "frozen", ySplit: 1 }] });
@@ -261,7 +262,7 @@ export async function downloadTemplate() {
     "   • Аптасына сағат — мұғалімнің жүктеме нормасы",
     "   • Қай сыныптан / қай сыныпқа дейін — мысалы 5-тен 11-ге",
     "   • Ауысым: Таңғы / Түстен кейінгі / Екеуінде де",
-    "   • МАҢЫЗДЫ: мұғалім қандай пән беретіні «Оқу жоспары» парағында жазылады",
+    "   • Пәндері — мұғалім беретін пәндер, үтірмен (бос = барлық пән). Сынып жоспарында мұғалім тізімі осыған қарай сүзіледі.",
     "",
     "3. «Оқу жоспары» парағы (ЕҢ МАҢЫЗДЫ):",
     "   • Әр сынып+пән тіркесімі — бір жол",
@@ -385,8 +386,9 @@ export function parseWorkbook(buf: ArrayBuffer): ParsedData {
   });
 
   // ── Мұғалімдер ──
-  // Бағандар: [Аты-жөні, Аптасына сағат, Қай сыныптан, Қай сыныпқа дейін, Ауысым]
-  // Пәндер енді бұл парақта емес — олар «Оқу жоспары» арқылы байланады.
+  // Бағандар: [Аты-жөні, Аптасына сағат, Қай сыныптан, Қай сыныпқа дейін, Ауысым, Пәндері]
+  // «Пәндері» — үтірмен бөлінген пән атаулары (бос болса — барлық пән). Нақты
+  // сағат байланысы «Оқу жоспары» парағында.
   const teachers: Teacher[] = [];
   const teacherByName = new Map<string, Teacher>();
   const teacherRows = sheetRows(wb, "Мұғалімдер");
@@ -397,10 +399,12 @@ export function parseWorkbook(buf: ArrayBuffer): ParsedData {
       errors.push({ sheet: "Мұғалімдер", row: i + 2, message: `«${name}» мұғалімі қайталанған` });
       return;
     }
+    const subjList = norm(r[5]).split(",").map((x) => x.trim()).filter(Boolean);
     const t: Teacher = {
       id: uid(), name, norm: Number(r[1]) || 18,
       gradeMin: Number(r[2]) || 1, gradeMax: Number(r[3]) || 11,
       shift: parseShift(r[4]), unavailable: [], noInterShift: false,
+      subjects: subjList.length ? subjList : undefined,
     };
     teachers.push(t); teacherByName.set(name.toLowerCase(), t);
   });

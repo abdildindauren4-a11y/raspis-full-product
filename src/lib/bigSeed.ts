@@ -298,6 +298,7 @@ export function buildBigSeed(): BigSeedResult {
     shift: t.shift,
     unavailable: [],
     noInterShift: false,
+    subjects: t.subjects,   // мұғалімнің беретін пәндері (сынып жоспарында сүзу үшін)
   }));
 
   // Пән → мұғалім(дер) сәйкестігі
