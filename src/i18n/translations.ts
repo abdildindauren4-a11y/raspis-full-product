@@ -610,6 +610,8 @@ export const translations = {
   "subj.colBlacklist": { kk: "Қара тізім", ru: "Чёрный список", en: "Blacklist" },
   "subj.colDouble": { kk: "Қос сабақ", ru: "Сдвоенный", en: "Double" },
   "subj.colDigital": { kk: "Цифрлық", ru: "Цифровой", en: "Digital" },
+  "subj.colSelfStudy": { kk: "Өзіндік жұмыс", ru: "Самост. работа", en: "Self-study" },
+  "subj.selfStudyHint": { kk: "ШЖМ: бала мұғалімсіз істей алатын пән (сурет, еңбек, оқу). Комплект слотында ауыр пәнмен қатар қоюға болады. Белгіленбесе — автоматты анықталады.", ru: "МКШ: предмет, который ученик может выполнять самостоятельно (рисование, труд, чтение). В слоте комплекта можно ставить рядом со сложным. Не отмечено — определяется автоматически.", en: "ШЖМ: a subject a pupil can do independently (art, labor, reading). Can be paired with a hard subject in a komplekt slot. If unset — auto-detected." },
   "subj.sanpinFill": { kk: "СанПиН бойынша толтыру", ru: "Заполнить по СанПиН", en: "Fill from SanPiN" },
   "subj.sanpinDoc": { kk: "Ресми құжат (4-қосымша)", ru: "Официальный документ (прил. 4)", en: "Official document (Annex 4)" },
   "subj.sanpinHint": { kk: "Қиындық баллдары ҚР ДСМ-76 бұйрығының (05.08.2021) 4-қосымшасындағы ресми кестеден ДӘЛ СОЛ КҮЙІНДЕ (1–11) қойылады. Балл оқыту тіліне байланысты — алдымен мектеп тілін таңдаңыз.", ru: "Баллы трудности проставляются ТОЧНО КАК В ДОКУМЕНТЕ (1–11) — из официальной таблицы ранжирования, приложение 4 к приказу № ҚР ДСМ-76 (05.08.2021). Баллы зависят от языка обучения — сначала выберите язык школы.", en: "Difficulty scores are filled EXACTLY AS IN THE DOCUMENT (1–11) — from the official ranking table, Annex 4 to Order No. QR DSM-76 (05.08.2021). Scores depend on the language of instruction — pick the school language first." },

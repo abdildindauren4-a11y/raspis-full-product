@@ -8,9 +8,17 @@ import { useLang } from "@/contexts/LangContext";
 import { applySanpinScores, SANPIN_DOC_URL, SANPIN_DOC_LABEL, SANPIN_DISPLAY_TABLE, type SchoolLang } from "@/lib/sanpinScale";
 import { CalendarX2, ChevronDown, ScrollText, ExternalLink, X } from "lucide-react";
 
+// Пәннің өзіндік жұмысқа қолайлылығын автоматты болжау (завуч белгілемесе —
+// checkbox осы әдепкіні көрсетеді; shzhm.ts-тегі логикамен бірдей).
+function autoSelfStudy(s: { score: number; name: string }): boolean {
+  if (s.score <= 3) return true;
+  return /сурет|бейнелеу|еңбек|технолог|дене|музык|черчен|изо|физкультур|труд|оқу\b|чтени/.test(s.name.toLowerCase());
+}
+
 export default function SubjectsPage() {
   const { t, lang } = useLang();
-  const { subjects, setSubjects, setSettings } = useData();
+  const { subjects, setSubjects, setSettings, school } = useData();
+  const isShzhm = school.type === "shzhm";
   const [openId, setOpenId] = useState<string | null>(null);
   const [schoolLang, setSchoolLang] = useState<SchoolLang>("kk");
   const [sanpinMsg, setSanpinMsg] = useState<{ n: number; unmatched: string[] } | null>(null);
@@ -70,6 +78,7 @@ export default function SubjectsPage() {
           <thead>
             <tr className="text-left text-muted-c border-b border-soft-c">
               <th className="py-2">{t("subj.colSubject")}</th><th>{t("subj.colScore")}</th><th>{t("subj.colIdeal")}</th><th>{t("subj.colSpecial")}</th><th>{t("subj.colBlacklist")}</th><th>{t("subj.colDouble")}</th><th>{t("subj.colDigital")}</th>
+              {isShzhm && <th title={t("subj.selfStudyHint")}>{t("subj.colSelfStudy")}</th>}
               <th className="text-center">Тыйым</th>
             </tr>
           </thead>
@@ -92,6 +101,13 @@ export default function SubjectsPage() {
                   <td className="text-muted-c text-xs">{s.black.join(", ") || "—"}</td>
                   <td><input type="checkbox" checked={s.canDouble} onChange={(e) => upd(s.id, { canDouble: e.target.checked })} /></td>
                   <td className="text-xs text-muted-c">{s.digital ? "✓" : s.corr ? "түзету" : ""}</td>
+                  {isShzhm && (
+                    <td className="text-center">
+                      <input type="checkbox" title={t("subj.selfStudyHint")}
+                        checked={s.selfStudy ?? autoSelfStudy(s)}
+                        onChange={(e) => upd(s.id, { selfStudy: e.target.checked })} />
+                    </td>
+                  )}
                   <td className="text-center">
                     <button onClick={() => setOpenId(openId === s.id ? null : s.id)}
                       title="Тыйым салынған уақыттарды баптау"
@@ -105,7 +121,7 @@ export default function SubjectsPage() {
                 </tr>
                 {openId === s.id && (
                   <tr className="border-b border-soft-c bg-input-c/40">
-                    <td colSpan={9} className="p-3">
+                    <td colSpan={isShzhm ? 10 : 9} className="p-3">
                       <p className="text-xs text-muted-c mb-2 flex items-center gap-1.5">
                         <CalendarX2 className="w-3.5 h-3.5 status-bad" />
                         «{s.name}» осы ұяшықтарға қойылмайды — басып Х қойыңыз (күн атауын бассаңыз — бүкіл күн):

@@ -20,13 +20,17 @@ function lateLimitOf(s: Subject): number | undefined {
   const n = s.name.toLowerCase();
   return n.includes("математика") || n.includes("алгебра") || n.includes("геометрия") ? 4 : undefined;
 }
-// Мұғалім тікелей керек пе (ауыр пән)
-const isHard = (s: Subject) => s.score >= 6;
-// Өзіндік жұмысқа қолайлы (жұптау ережесінде «күтетін» сынып осыны істейді)
+// Өзіндік жұмысқа қолайлы (жұптау ережесінде «күтетін» сынып осыны істейді).
+// ЗАВУЧ БЕЛГІЛЕСЕ — сол басым (selfStudy true/false); белгіленбесе —
+// баллдан/атаудан автоматты анықтаймыз.
 function selfStudyFriendly(s: Subject): boolean {
+  if (s.selfStudy != null) return s.selfStudy;
   if (s.score <= 3) return true;
   return /сурет|бейнелеу|еңбек|технолог|дене|музык|черчен|изо|физкультур|труд|оқу\b|чтени/.test(s.name.toLowerCase());
 }
+// Мұғалім тікелей керек пе (ауыр пән): завуч өзіндік жұмыс деп белгілегенді —
+// жеңіл санаймыз; әйтпесе баллдан.
+const isHard = (s: Subject) => (s.selfStudy === true ? false : s.score >= 6);
 
 interface Unit { subjectId: string; score: number; hard: boolean; soft: boolean; late?: number; ideal: number[]; }
 
