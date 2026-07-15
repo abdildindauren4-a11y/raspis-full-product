@@ -9,7 +9,7 @@
 //   • Ауысым сыйымдылығы: сабақ саны / (кабинет × слот)
 
 import type { Klass, Teacher, Room, Subject, Settings, RoomType } from "@/algorithm/engine";
-import { maxSlots, dayLimitS } from "@/algorithm/engine";
+import { maxSlots, dayLimitS, officialToInternal } from "@/algorithm/engine";
 
 const WEEK_DAYS = 5;
 
@@ -55,11 +55,16 @@ export function classScoreBudget(
   cls: Klass, subjects: Subject[], settings?: Settings
 ): { total: number; capacity: number; tight: boolean } {
   const S = new Map(subjects.map((s) => [s.id, s]));
+  // СанПиН режимінде пән баллдары ресми шкалада (1-11) тұр, ал генерация оларды
+  // ішкі шкалаға (күндік лимиттер калибрленген) келтіреді. Бюджет генерациямен
+  // сәйкес болуы үшін осы жерде де сол калибрлеуді қолданамыз — әйтпесе ресми
+  // баллдар лимиттен жалған асып, «тығыз» деген жалған ескерту шығады.
+  const cal = (v: number) => (settings?.sanpinScale ? officialToInternal(v) : v);
   let total = 0, maxScore = 0;
   for (const cu of cls.curriculum || []) {
     const su = S.get(cu.subjectId);
     if (!su) continue;
-    const eff = cls.grade <= 4 && su.primaryScore != null ? su.primaryScore : su.score;
+    const eff = cal(cls.grade <= 4 && su.primaryScore != null ? su.primaryScore : su.score);
     total += eff * cu.hours;
     if (eff > maxScore) maxScore = eff;
   }
