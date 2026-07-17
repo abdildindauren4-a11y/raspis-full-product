@@ -169,24 +169,35 @@ export function buildTimeline(sc: School): Record<1 | 2, TL[]> {
 }
 
 /* ── СанПиН ережелері ── */
-// Ресми балл (ҚР ДСМ-76, 4-қосымша: 1..11) → ішкі калибрленген шкала.
-// ӘЛСІЗ МОНОТОНДЫ: ресми реттілік дәл сақталады. Эмпирикалық калибрленген —
-// эталон мектепте (46 сынып) генерация сапасы базалық деңгейде қалады
-// (баллды сол күйінде қолданса, лимиттер асып, 67 сабақ орналаспай қалатын).
-// settings.sanpinScale қосулы болғанда екі қозғалтқыш та осыны қолданады.
+// Ресми балл (ҚР ДСМ-76, 4-қосымша: 1..11) — қозғалтқышта ДӘЛ құжаттағыдай
+// қолданылады (БІРЕГЕЙ кескін). Бұрын баллдар 1..9-ға қысылып, Физика(9) мен
+// Шетел(10) «8»-ге, Тарих(8) мен ана тілі(7) «6»-ға бірігіп, ауыр пәндер
+// позициялық тартымын жоғалтып, 1-сабаққа/5-7-ге ығысатын. Енді шикі 11-балл
+// шкаласы тікелей оқылады, ал күндік лимиттер sanpinScale режимінде
+// пропорционал үлкейтіледі (SANPIN_LIMIT_SCALE) — сол себепті ештеңе аспайды.
 export const OFFICIAL_TO_INTERNAL: Record<number, number> = {
-  11: 9, 10: 8, 9: 8, 8: 6, 7: 6, 6: 5, 5: 4, 4: 3, 3: 2, 2: 2, 1: 1,
+  11: 11, 10: 10, 9: 9, 8: 8, 7: 7, 6: 6, 5: 5, 4: 4, 3: 3, 2: 2, 1: 1,
 };
 export const officialToInternal = (p: number): number =>
   OFFICIAL_TO_INTERNAL[Math.max(1, Math.min(11, Math.round(p)))] ?? 5;
-// settings.sanpinScale қосулы болса — пән баллдарын ішкі шкалаға келтіру
-// (генерация алдындағы бір-ақ қадам; UI-дағы ресми баллдар өзгермейді)
+
+// Пәннің қалаулы сабақ терезесі («ideal») баллдан ТУЫНДАТЫЛАДЫ — завуч 200+
+// пәнге қолмен қоймайды, тек құжат баллын енгізсе жеткілікті. СанПиН қисығы:
+// жұмысқа қабілет 1-сабақта төмен, 2-4-те шыңында, 5-тен кейін құлдырайды.
+export const idealForScore = (score: number): number[] =>
+  score >= 9 ? [2, 3, 4] : score >= 6 ? [2, 3, 4, 5] : [5, 6, 7];
+
+// settings.sanpinScale қосулы болса — пән баллдарын ресми шкалада қалдырып
+// (өзгеріссіз), қалаулы сабақ терезесін баллдан туындатамыз. UI-дағы ресми
+// баллдар өзгермейді; бұл — генерация алдындағы бір-ақ қадам.
 export const calibrateSubjects = (subjects: Subject[], st?: Settings): Subject[] =>
   st?.sanpinScale
     ? subjects.map((s) => ({
         ...s,
         score: officialToInternal(s.score),
         primaryScore: s.primaryScore != null ? officialToInternal(s.primaryScore) : s.primaryScore,
+        // ideal бос немесе баллмен қайшы болса — құжат баллынан туындатамыз
+        ideal: s.ideal && s.ideal.length ? s.ideal : idealForScore(officialToInternal(s.score)),
       }))
     : subjects;
 
@@ -212,16 +223,23 @@ export const maxSlots = (g: number, st?: Settings) => {
 };
 // Әдепкі сабақ лимиттері (UI бастапқы мәні үшін)
 export const DEFAULT_MAX_LESSONS = { g1: 4, g24: 5, g56: 6, g79: 7, g1011: 8 };
+// Нақты СанПиН баллы (1..11) ішкі демо шкаладан (1..10, ауырлары ~9) жоғары
+// болғандықтан, sanpinScale режимінде күндік балл лимиті мен шаршау шегі осы
+// коэффициентке үлкейеді — сонда шикі баллдар лимиттен аспайды (эмпирикалық
+// тексерілген: орналаспаған сабақ саны өспейді).
+export const SANPIN_LIMIT_SCALE = 1.35;
 export const dayLimitS = (g: number, st?: Settings) => {
   const d = st?.dayLimits || DEFAULT_DAY_LIMITS;
-  return g <= 4 ? d.g14 : g <= 6 ? d.g56 : g <= 9 ? d.g79 : d.g1011;
+  const base = g <= 4 ? d.g14 : g <= 6 ? d.g56 : g <= 9 ? d.g79 : d.g1011;
+  return st?.sanpinScale ? base * SANPIN_LIMIT_SCALE : base;
 };
 // артқа үйлесімділік (UI-да көрсету үшін)
 export const dayLimit = (g: number) => dayLimitS(g);
 export const DEFAULT_FATIGUE = { g14: 25, g59: 35, g1011: 45 };
 export const fatThrS = (g: number, st?: Settings) => {
   const f = st?.fatigue || DEFAULT_FATIGUE;
-  return g <= 4 ? f.g14 : g <= 9 ? f.g59 : f.g1011;
+  const base = g <= 4 ? f.g14 : g <= 9 ? f.g59 : f.g1011;
+  return st?.sanpinScale ? base * SANPIN_LIMIT_SCALE : base;
 };
 export const fatThr = (g: number) => fatThrS(g);
 export const DEFAULT_COEFFS = { hard: 4, medium: 3, easy: 2 };
