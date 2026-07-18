@@ -1732,6 +1732,64 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   }
 
+  /* ЭТАП 7.6 — СОЛҒА ТАРТУ (қауіпсіз тесік тығыздау)
+     Жоғарыдағы фазалардан кейін қалған ішкі тесіктерді ТЕК бар слоттарды
+     жылжыту арқылы жабады — сабақ саны ӨЗГЕРМЕЙДІ (ешбір сабақ жойылмайды не
+     қосылмайды). Тесіктен кейінгі БІРІНШІ жеке сабақты тесік ұясына толық
+     тексеріп (hardCheck + findRoom — зал тобы да тексеріледі) көшіреді.
+     Қос сабақ/топ бөлінген/locked слоттар қозғалмайды (қауіпсіздік үшін);
+     ондай сабақ кездессе, сол күнді тыныш қалдырамыз. */
+  for (const c of targetClasses) {
+    for (let day = 1; day <= 5; day++) {
+      let guard = 0;
+      while (guard++ < 8) {
+        const g = dayGapSlot(c.id, day);
+        if (g === null) break;
+        // тесіктен кейінгі БІРІНШІ бос емес слот
+        let srcSlot = -1;
+        for (let s = g + 1; s <= 8; s++)
+          if (slots.some((o) => o.classId === c.id && o.day === day && o.slot === s && (!o.groupId || o.groupId === "Г1"))) { srcSlot = s; break; }
+        if (srcSlot < 0) break;
+        const at = slots.filter((o) => o.classId === c.id && o.day === day && o.slot === srcSlot);
+        // тек ЖЕКЕ сабақ жылжытылады (қос/топ/locked — тимейміз)
+        if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) break;
+        const src = at[0];
+        const subj = S[src.subjectId];
+        const snap = { ...src };
+        removeSlot(src);
+        // (1) СОЛ КҮН ІШІНДЕ тесік ұясына жылжыту (бір-күн-бір-пән елемейміз —
+        //     сол сабақ сол күн ішінде жылжып тұр)
+        if (!hardCheck(c, snap.teacherId, subj, day, g, true)) {
+          const room = findRoom(c, subj, day, g);
+          if (room) {
+            place({ classId: snap.classId, subjectId: snap.subjectId, teacherId: snap.teacherId, roomId: room, day, slot: g, shift: snap.shift, score: pScore(subj, g, settings) });
+            continue;
+          }
+        }
+        // (2) Сол күнде жылжымаса: src кеткенде осы КҮН ТЕСІКСІЗ болса (яғни src —
+        //     жалғыз кеш сабақ, тесіктің себебі), оны БАСҚА күннің соңына тіркеп
+        //     көшіреміз — екі күн де тесіксіз, сабақ саны сол қалпы.
+        if (dayGapSlot(c.id, day) === null) {
+          let relocated = false;
+          for (let d2 = 1; d2 <= 5 && !relocated; d2++) {
+            if (d2 === day || ds[c.id][d2].has(snap.subjectId)) continue;
+            let last2 = 0;
+            for (const o of slots) if (o.classId === c.id && o.day === d2 && (!o.groupId || o.groupId === "Г1") && o.slot > last2) last2 = o.slot;
+            const target = last2 + 1;
+            if (target > maxSlots(c.grade)) continue;
+            if (hardCheck(c, snap.teacherId, subj, d2, target)) continue;
+            const room = findRoom(c, subj, d2, target);
+            if (!room) continue;
+            place({ classId: snap.classId, subjectId: snap.subjectId, teacherId: snap.teacherId, roomId: room, day: d2, slot: target, shift: snap.shift, score: pScore(subj, target, settings) });
+            relocated = true;
+          }
+          if (relocated) continue;
+        }
+        place(snap); break; // ешбір қауіпсіз жылжыту болмады — кері қойып тоқтаймыз
+      }
+    }
+  }
+
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
   const tests: StressTest[] = [];
