@@ -15,7 +15,10 @@ export default function RoomsPage() {
   const TYPES: Record<RoomType, string> = { regular: t("room.typeRegular"), physics: t("room.typePhysics"), chemistry: t("room.typeChemistry"), computer: t("room.typeComputer"), gym: t("room.typeGym") };
   const { rooms, setRooms, subjects, setSubjects, classes, settings, setSettings } = useData();
   const [form, setForm] = useState<Partial<Room> | null>(null);
+  const [cabSubjectId, setCabSubjectId] = useState(""); // кабинеттік жүйеде: осы кабинет қай пәнге
   const isCabinet = !!settings.cabinetSystem;
+  // Кабинет қосу/өңдеу формасын ашу (кабинеттік жүйеде пәнін де алдын ала қоямыз)
+  const openForm = (f: Partial<Room> | null, subjId = "") => { setForm(f); setCabSubjectId(subjId); };
 
   // Кабинеттік жүйе: әр пәнге кабинет автотағайындау (арнайы пән — өз түріне,
   // қалғаны — қарапайым кабинеттерге кезекпен). Завуч кейін Пәндер бетінде реттейді.
@@ -49,7 +52,15 @@ export default function RoomsPage() {
       gymGroups: form.type === "gym" ? form.gymGroups || [[1, 4], [5, 7], [8, 11]] : undefined,
     };
     setRooms(form.id ? rooms.map((x) => (x.id === r.id ? r : x)) : [...rooms, r]);
+    // Кабинеттік жүйе: таңдалған пәнді осы кабинетке байлаймыз (басқа пән бұл
+    // кабинетте болса — босатамыз, «әр пән өз кабинеті» ұстанымы).
+    if (isCabinet) {
+      setSubjects(subjects.map((s) =>
+        s.id === cabSubjectId ? { ...s, roomId: r.id }
+          : s.roomId === r.id ? { ...s, roomId: undefined } : s));
+    }
     setForm(null);
+    setCabSubjectId("");
   };
 
   return (
@@ -59,7 +70,7 @@ export default function RoomsPage() {
           <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("rooms.title")}</h1>
           <p className="text-muted-c mt-1">{t("rooms.subtitle")}</p>
         </div>
-        <button className={btnP + " flex items-center gap-2"} onClick={() => setForm({ type: "regular", capacity: 30 })}>
+        <button className={btnP + " flex items-center gap-2"} onClick={() => openForm({ type: "regular", capacity: 30 })}>
           <Plus className="w-4 h-4" /> {t("rooms.add")}
         </button>
       </div>
@@ -115,7 +126,7 @@ export default function RoomsPage() {
                 <td className="text-soft-c">{r.capacity || 30}</td>
                 <td className="text-muted-c text-xs">{r.type === "gym" ? `макс ${r.gymMax}  · топтар: ${(r.gymGroups || []).map((g) => g.join("-")).join(", ")}` : "—"}</td>
                 <td className="flex gap-2 py-2">
-                  <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => setForm({ ...r })}><Pencil className="w-4 h-4" /></button>
+                  <button className={btnG + " !px-2.5 !py-1.5"} onClick={() => openForm({ ...r }, subjects.find((s) => s.roomId === r.id)?.id || "")}><Pencil className="w-4 h-4" /></button>
                   <button className={btnD} onClick={() => { if (confirm(`${r.number} ${t("com.delete")}`)) setRooms(rooms.filter((x) => x.id !== r.id)); }}><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
@@ -124,13 +135,22 @@ export default function RoomsPage() {
         </table></div>
       </GlassCard>
 
-      <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? t("fld.editRoom") : t("fld.newRoom")}>
+      <Modal open={!!form} onClose={() => openForm(null)} title={form?.id ? t("fld.editRoom") : t("fld.newRoom")}>
         <Field label="№ / Атауы"><input className={inputCls} value={form?.number || ""} onChange={(e) => setForm({ ...form, number: e.target.value })} /></Field>
         <Field label="Тип">
           <select className={inputCls} value={form?.type || "regular"} onChange={(e) => setForm({ ...form, type: e.target.value as RoomType })}>
             {(Object.keys(TYPES) as RoomType[]).map((t) => <option key={t} value={t}>{TYPES[t]}</option>)}
           </select>
         </Field>
+        {isCabinet && (
+          <Field label={t("room.cabSubjectLabel")}>
+            <select className={inputCls} value={cabSubjectId} onChange={(e) => setCabSubjectId(e.target.value)}>
+              <option value="">— {t("subj.cabinetNone")} —</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <p className="text-xs text-muted-c mt-1">{t("room.cabSubjectHint")}</p>
+          </Field>
+        )}
         <Field label={t("room.colCapacity")}><input type="number" className={inputCls} value={form?.capacity || 30} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} /></Field>
         {form?.type === "gym" && (
           <Field label="Бір уақытта макс сынып">
@@ -139,7 +159,7 @@ export default function RoomsPage() {
           </Field>
         )}
         <div className="flex gap-2 justify-end mt-4">
-          <button className={btnG} onClick={() => setForm(null)}>Болдырмау</button>
+          <button className={btnG} onClick={() => openForm(null)}>Болдырмау</button>
           <button className={btnP} onClick={save}>Сақтау</button>
         </div>
       </Modal>

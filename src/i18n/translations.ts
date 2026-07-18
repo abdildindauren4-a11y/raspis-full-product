@@ -594,6 +594,8 @@ export const translations = {
   "room.cabAssigned": { kk: "Кабинет тағайындалған пәндер", ru: "Предметов с кабинетом", en: "Subjects with a room" },
   "room.cabEditHint": { kk: "әр пәннің кабинетін «Пәндер» бетінде реттеуге болады", ru: "кабинет каждого предмета можно настроить на странице «Предметы»", en: "each subject's room can be set on the Subjects page" },
   "room.cabAuto": { kk: "Автотағайындау", ru: "Автоназначение", en: "Auto-assign" },
+  "room.cabSubjectLabel": { kk: "Пән (кабинет иесі)", ru: "Предмет (владелец кабинета)", en: "Subject (room owner)" },
+  "room.cabSubjectHint": { kk: "Осы кабинет қай пәнге арналған — сол пән әрдайым осында өтеді", ru: "Для какого предмета этот кабинет — этот предмет всегда проходит здесь", en: "Which subject this room is for — that subject is always taught here" },
   "room.missingWarn": { kk: "Оқу жоспарларында бар, бірақ кабинеті ЖОҚ:", ru: "Есть в планах, но НЕТ кабинета:", en: "In plans but NO room:" },
   "room.genStops": { kk: "Генерация осыған тоқтайды!", ru: "Генерация остановится!", en: "Generation will stop!" },
   "room.colNum": { kk: "№ Кабинет", ru: "№ Кабинета", en: "Room №" },
