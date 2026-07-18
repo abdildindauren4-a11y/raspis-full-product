@@ -13,8 +13,24 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 export default function RoomsPage() {
   const { t } = useLang();
   const TYPES: Record<RoomType, string> = { regular: t("room.typeRegular"), physics: t("room.typePhysics"), chemistry: t("room.typeChemistry"), computer: t("room.typeComputer"), gym: t("room.typeGym") };
-  const { rooms, setRooms, subjects, classes } = useData();
+  const { rooms, setRooms, subjects, setSubjects, classes, settings, setSettings } = useData();
   const [form, setForm] = useState<Partial<Room> | null>(null);
+  const isCabinet = !!settings.cabinetSystem;
+
+  // Кабинеттік жүйе: әр пәнге кабинет автотағайындау (арнайы пән — өз түріне,
+  // қалғаны — қарапайым кабинеттерге кезекпен). Завуч кейін Пәндер бетінде реттейді.
+  const autoAssignCabinets = () => {
+    if (!rooms.length) return;
+    const regular = rooms.filter((r) => r.type === "regular");
+    let ri = 0;
+    setSubjects(subjects.map((s) => {
+      let rid: string | undefined;
+      if (s.room && s.room !== "regular") rid = rooms.find((r) => r.type === s.room)?.id;
+      if (!rid) rid = (regular.length ? regular[ri++ % regular.length] : rooms[0]).id;
+      return { ...s, roomId: rid };
+    }));
+  };
+  const assignedCount = subjects.filter((s) => s.roomId).length;
 
   // арнайы кабинет жетіспеуін ескерту
   const neededTypes = new Set<RoomType>();
@@ -47,11 +63,35 @@ export default function RoomsPage() {
           <Plus className="w-4 h-4" /> {t("rooms.add")}
         </button>
       </div>
-      {missing.length > 0 && (
+      {missing.length > 0 && !isCabinet && (
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm status-bad">
           <AlertTriangle className="w-4 h-4 inline mr-1.5" /> {t("room.missingWarn")} {missing.map((rt) => t(`room.type${rt.charAt(0).toUpperCase()+rt.slice(1)}` as any)).join(", ")}. {t("room.genStops")}
         </div>
       )}
+      {/* КАБИНЕТТІК ЖҮЙЕ: әр пән өз бекітілген кабинетінде өтеді */}
+      <GlassCard hover={false}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-strong-c text-sm">{t("room.cabTitle")}</h3>
+            <p className="text-xs text-muted-c mt-0.5">{t("room.cabDesc")}</p>
+          </div>
+          <button onClick={() => setSettings({ cabinetSystem: !isCabinet })}
+            className={`shrink-0 relative w-12 h-7 rounded-full transition-all ${isCabinet ? "bg-[var(--accent)]" : "bg-[rgba(127,127,127,0.3)]"}`}
+            title={t("room.cabTitle")}>
+            <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white transition-all ${isCabinet ? "left-[22px]" : "left-0.5"}`} />
+          </button>
+        </div>
+        {isCabinet && (
+          <div className="mt-3 pt-3 border-t border-soft-c flex flex-col sm:flex-row sm:items-center gap-2">
+            <p className="text-xs text-muted-c flex-1">
+              {t("room.cabAssigned")}: <span className="font-semibold text-strong-c">{assignedCount}/{subjects.length}</span> · {t("room.cabEditHint")}
+            </p>
+            <button onClick={autoAssignCabinets} className={btnG + " text-xs !py-1.5 shrink-0"}>
+              {t("room.cabAuto")}
+            </button>
+          </div>
+        )}
+      </GlassCard>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         {(Object.keys(TYPES) as RoomType[]).map((t) => (
           <GlassCard key={t} hover={false}>

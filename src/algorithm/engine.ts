@@ -7,6 +7,11 @@ export type RoomType = "regular" | "physics" | "chemistry" | "computer" | "gym";
 export interface Subject {
   id: string; name: string; score: number; coeff: number;
   ideal: number[]; room: RoomType | null; primaryScore?: number;
+  // КАБИНЕТТІК ЖҮЙЕ (settings.cabinetSystem): пән әрдайым осы НАҚТЫ кабинетте
+  // өтеді (әр пәннің өз кабинеті). Берілсе әрі cabinetSystem қосулы болса,
+  // findRoom тек осы кабинетті қайтарады (бос болса). Болмаса — түр/қарапайым
+  // кабинет пулынан таңдалады (әдепкі «пәндік» жүйе).
+  roomId?: string;
   digital: boolean; corr: boolean; canDouble: boolean; black: string[];
   // Пәннің ЕҢ КЕШ сабақ нөмірі (қатаң шек). Берілмесе — математика/алгебра/
   // геометрия атауынан автоматты 4 деп танылады (педагогикалық норма:
@@ -79,6 +84,10 @@ export interface Settings {
   // 1-сыныптың бейімделу («сатылы») режимі — СанПиН (ҚР ДСМ-76): қыркүйек-қазанда
   // 1-сынып күніне 3 сабақ (35 минуттан). true болса maxSlots(1)=3 болады.
   grade1Stepped?: boolean;
+  // КАБИНЕТТІК ЖҮЙЕ: true болса әр пән өз бекітілген кабинетінде (Subject.roomId)
+  // өтеді — сынып кабинетке барады. false (әдепкі) — «пәндік» жүйе (кабинеттер
+  // түрі бойынша ортақ пулдан таңдалады).
+  cabinetSystem?: boolean;
   // Күндік балл лимиттері — параллель топтары бойынша [1-4, 5-6, 7-9, 10-11]
   dayLimits: { g14: number; g56: number; g79: number; g1011: number };
   // Күндік САБАҚ САНЫ лимиті (СанПиН) — сынып деңгейі бойынша.
@@ -487,6 +496,13 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (!grp) return null;
       for (const oc of occ) { const ocl = C[oc]; if (!(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null; }
       return gym.id;
+    }
+    // КАБИНЕТТІК ЖҮЙЕ: пәннің бекітілген кабинеті болса — тек соны қолданамыз
+    // (бос болса). Кабинет жарамсыз (өшірілген) болса — төмендегі әдепкі пулға
+    // түсіп кетеді (сабақ жоғалмас үшін).
+    if (settings.cabinetSystem && subj.roomId && R[subj.roomId]) {
+      const rid = subj.roomId;
+      return rm[rid][cls.shift][day][slot] === null && (!exclude || !exclude.has(rid)) ? rid : null;
     }
     if (subj.room) {
       const r = rooms.find((r) => r.type === subj.room && rm[r.id][cls.shift][day][slot] === null && (!exclude || !exclude.has(r.id)));
@@ -1097,6 +1113,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
               if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null;
             }
           room = gym.id;
+        } else if (settings.cabinetSystem && subj.roomId && R[subj.roomId]) {
+          // КАБИНЕТТІК ЖҮЙЕ: пән ТЕК өз кабинетінде — басқа кабинетке жылжытпаймыз
+          const rid = subj.roomId;
+          if (usedR.has(rid) || !slotsNeeded.every((sl) => rm[rid][c.shift][day][sl] === null)) return null;
+          room = rid;
         } else {
           // бастапқы кабинет барлық слотта бос па
           const origFree = slotsNeeded.every((sl) => rm[m.roomId][c.shift][day][sl] === null) && !usedR.has(m.roomId);

@@ -6,7 +6,9 @@ import SlotMatrix from "@/components/shared/SlotMatrix";
 import { useData } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { applySanpinScores, SANPIN_DOC_URL, SANPIN_DOC_LABEL, SANPIN_DISPLAY_TABLE, type SchoolLang } from "@/lib/sanpinScale";
-import { CalendarX2, ChevronDown, ScrollText, ExternalLink, X } from "lucide-react";
+import { CalendarX2, ChevronDown, ScrollText, ExternalLink, X, Plus, Trash2 } from "lucide-react";
+
+const newSubjId = () => "s" + Math.random().toString(36).slice(2, 9);
 
 // Пәннің өзіндік жұмысқа қолайлылығын автоматты болжау (завуч белгілемесе —
 // checkbox осы әдепкіні көрсетеді; shzhm.ts-тегі логикамен бірдей).
@@ -17,14 +19,26 @@ function autoSelfStudy(s: { score: number; name: string }): boolean {
 
 export default function SubjectsPage() {
   const { t, lang } = useLang();
-  const { subjects, setSubjects, setSettings, school } = useData();
+  const { subjects, setSubjects, setSettings, school, settings, rooms } = useData();
   const isShzhm = school.type === "shzhm";
+  const isCabinet = !!settings.cabinetSystem;
   const [openId, setOpenId] = useState<string | null>(null);
   const [schoolLang, setSchoolLang] = useState<SchoolLang>("kk");
   const [sanpinMsg, setSanpinMsg] = useState<{ n: number; unmatched: string[] } | null>(null);
   const [showSanpinTable, setShowSanpinTable] = useState(false);
   const upd = (id: string, patch: Partial<(typeof subjects)[number]>) =>
     setSubjects(subjects.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+
+  // Жаңа пән қосу (әдепкі: орташа балл, қалаулы сабақ 3-4)
+  const addSubject = () =>
+    setSubjects([
+      ...subjects,
+      { id: newSubjId(), name: t("subj.newName"), score: 5, coeff: 1, ideal: [3, 4], room: null,
+        digital: false, corr: false, canDouble: false, black: [] },
+    ]);
+  const delSubject = (id: string, name: string) => {
+    if (confirm(`«${name}» ${t("com.delete")}`)) setSubjects(subjects.filter((s) => s.id !== id));
+  };
 
   // Ресми баллдарды (1-11, құжаттағыдай) қою — құжатта жоқ пәндер өзгертілмейді.
   // sanpinScale жалаушасы қосылады: генерацияда қозғалтқыш баллдарды ішкі
@@ -38,9 +52,15 @@ export default function SubjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("subjects.title")}</h1>
-        <p className="text-muted-c mt-1">{t("subjects.subtitle")}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-bold text-strong-c">{t("subjects.title")}</h1>
+          <p className="text-muted-c mt-1">{t("subjects.subtitle")}</p>
+        </div>
+        <button onClick={addSubject}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg gradient-primary text-white text-sm font-medium hover:opacity-90">
+          <Plus className="w-4 h-4" /> {t("subj.add")}
+        </button>
       </div>
       {/* СанПиН 4-қосымша: ресми қиындық баллдарын бір батырмамен қою + құжат сілтемесі */}
       <GlassCard hover={false}>
@@ -79,14 +99,19 @@ export default function SubjectsPage() {
             <tr className="text-left text-muted-c border-b border-soft-c">
               <th className="py-2">{t("subj.colSubject")}</th><th>{t("subj.colScore")}</th><th>{t("subj.colIdeal")}</th><th>{t("subj.colSpecial")}</th><th>{t("subj.colBlacklist")}</th><th>{t("subj.colDouble")}</th><th>{t("subj.colDigital")}</th>
               {isShzhm && <th title={t("subj.selfStudyHint")}>{t("subj.colSelfStudy")}</th>}
+              {isCabinet && <th>{t("subj.colCabinet")}</th>}
               <th className="text-center">Тыйым</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {subjects.map((s) => (
               <Fragment key={s.id}>
                 <tr className="border-b border-soft-c hover:bg-[rgba(127,127,127,0.1)]">
-                  <td className="py-2 font-medium text-strong-c">{s.name}</td>
+                  <td className="py-2">
+                    <input value={s.name} onChange={(e) => upd(s.id, { name: e.target.value })}
+                      className={inputCls + " !py-1 text-sm font-medium !min-w-[9rem]"} />
+                  </td>
                   <td>
                     <input type="number" min={1} max={11} value={s.score}
                       onChange={(e) => upd(s.id, { score: Number(e.target.value) })}
@@ -108,6 +133,15 @@ export default function SubjectsPage() {
                         onChange={(e) => upd(s.id, { selfStudy: e.target.checked })} />
                     </td>
                   )}
+                  {isCabinet && (
+                    <td>
+                      <select value={s.roomId || ""} onChange={(e) => upd(s.id, { roomId: e.target.value || undefined })}
+                        className={inputCls + " !w-auto !py-1 text-xs"} title={t("subj.cabinetHint")}>
+                        <option value="">— {t("subj.cabinetNone")} —</option>
+                        {rooms.map((r) => <option key={r.id} value={r.id}>{r.number}</option>)}
+                      </select>
+                    </td>
+                  )}
                   <td className="text-center">
                     <button onClick={() => setOpenId(openId === s.id ? null : s.id)}
                       title="Тыйым салынған уақыттарды баптау"
@@ -118,10 +152,16 @@ export default function SubjectsPage() {
                       <ChevronDown className={`w-3 h-3 transition-transform ${openId === s.id ? "rotate-180" : ""}`} />
                     </button>
                   </td>
+                  <td className="text-center">
+                    <button onClick={() => delSubject(s.id, s.name)} title={t("com.delete")}
+                      className="p-1.5 rounded-lg text-muted-c hover:bg-red-500/15 hover:status-bad transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
                 {openId === s.id && (
                   <tr className="border-b border-soft-c bg-input-c/40">
-                    <td colSpan={isShzhm ? 10 : 9} className="p-3">
+                    <td colSpan={9 + (isShzhm ? 1 : 0) + (isCabinet ? 1 : 0)} className="p-3">
                       <p className="text-xs text-muted-c mb-2 flex items-center gap-1.5">
                         <CalendarX2 className="w-3.5 h-3.5 status-bad" />
                         «{s.name}» осы ұяшықтарға қойылмайды — басып Х қойыңыз (күн атауын бассаңыз — бүкіл күн):
