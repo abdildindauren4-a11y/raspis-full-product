@@ -7,8 +7,8 @@
 // комплектіге кірмеген сыныптар жеке (қарапайымдай) жоспарланады.
 // Дереккөз/дизайн: docs/SHZHM-RESEARCH-AND-DESIGN.md.
 import type {
-  AlgoInput, AlgoResult, Slot, Subject, Klass, Komplekt, StressTest,
-  Unplaced, GapInfo, ProgressFn, Settings,
+  AlgoInput, AlgoResult, Slot, Subject, Klass, StressTest,
+  Unplaced, GapInfo, ProgressFn,
 } from "./engine";
 import { maxSlots, dayLimitS, calibrateSubjects } from "./engine";
 
@@ -50,7 +50,7 @@ function expand(cls: Klass, S: Map<string, Subject>): Unit[] {
 
 export function generateShzhm(input: AlgoInput, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
-  const { school, classes, teachers, rooms, settings } = input;
+  const { classes, rooms, settings } = input;
   const komplekts = input.komplekts || [];
   const subjects = calibrateSubjects(input.subjects, settings); // СанПиН режимі ескеріледі
   const S = new Map(subjects.map((s) => [s.id, s]));
@@ -70,7 +70,6 @@ export function generateShzhm(input: AlgoInput, onProgress?: ProgressFn): AlgoRe
   let hardPairCount = 0; // жұптау ережесінің бұзылуы (екі сынып та ауыр пән)
   let hardPairTotal = 0;
 
-  const nm = (id: string) => C.get(id)?.name || "?";
   const skey = () => Math.random().toString(36).slice(2, 10);
 
   const place = (cls: Klass, u: Unit, d: number, p: number, tid: string, rid: string) => {

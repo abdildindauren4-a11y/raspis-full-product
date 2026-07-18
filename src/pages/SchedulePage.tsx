@@ -8,6 +8,7 @@ import { Sparkles, Printer, Hand, Save, X, Undo2, Info } from "lucide-react";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import type { Slot, Komplekt } from "@/algorithm/engine";
+import type { TransKey } from "@/i18n/translations";
 import { lessonBlock, isMovable, moveViolation, movedBlock, type EditCtx } from "@/lib/manualEdit";
 import folderUrl from "@/assets/deco-folder.png";
 
@@ -312,7 +313,7 @@ function KomplektView({ komplekt, classes, subjects, teachers, rooms, slots, tl,
   slots: Slot[];
   tl: ReturnType<typeof buildTimeline>;
   settings: ReturnType<typeof useData.getState>["settings"];
-  t: (k: string) => string;
+  t: (k: TransKey) => string;
 }) {
   if (!komplekt) return null;
   const C = new Map(classes.map((c) => [c.id, c]));
