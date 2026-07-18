@@ -1739,18 +1739,35 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
      тексеріп (hardCheck + findRoom — зал тобы да тексеріледі) көшіреді.
      Қос сабақ/топ бөлінген/locked слоттар қозғалмайды (қауіпсіздік үшін);
      ондай сабақ кездессе, сол күнді тыныш қалдырамыз. */
+  // ЖЫЛДАМ: тесік бар-жоғын cm матрицасынан O(1) оқимыз (глобалды slots
+  // сканерлемей). Тесіксіз күндер (көпшілігі) бірден өтеді; slots-ты тек нақты
+  // жылжыту қажет болғанда (тесік бар күнде) бір рет сүземіз. lastOccOf/gapOf —
+  // cm жолы бойынша (O(8)).
+  const cmRowLast = (cid: string, day: number): number => {
+    const rowd = cm[cid][day];
+    let last = 0;
+    for (let s = 1; s <= 8; s++) if (rowd[s] !== null) last = s;
+    return last;
+  };
+  const cmGap = (cid: string, day: number): number => {
+    const rowd = cm[cid][day];
+    const last = cmRowLast(cid, day);
+    for (let s = 1; s <= last; s++) if (rowd[s] === null) return s;
+    return -1;
+  };
   for (const c of targetClasses) {
+    const cid = c.id;
     for (let day = 1; day <= 5; day++) {
       let guard = 0;
       while (guard++ < 8) {
-        const g = dayGapSlot(c.id, day);
-        if (g === null) break;
-        // тесіктен кейінгі БІРІНШІ бос емес слот
+        const g = cmGap(cid, day);
+        if (g < 0) break;
+        // тесіктен кейінгі БІРІНШІ бос емес слот (cm жолынан)
         let srcSlot = -1;
-        for (let s = g + 1; s <= 8; s++)
-          if (slots.some((o) => o.classId === c.id && o.day === day && o.slot === s && (!o.groupId || o.groupId === "Г1"))) { srcSlot = s; break; }
+        for (let s = g + 1; s <= 8; s++) if (cm[cid][day][s] !== null) { srcSlot = s; break; }
         if (srcSlot < 0) break;
-        const at = slots.filter((o) => o.classId === c.id && o.day === day && o.slot === srcSlot);
+        // нақты слот объектісі (тек жылжыту қажет болғанда — сирек)
+        const at = slots.filter((o) => o.classId === cid && o.day === day && o.slot === srcSlot);
         // тек ЖЕКЕ сабақ жылжытылады (қос/топ/locked — тимейміз)
         if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) break;
         const src = at[0];
@@ -1769,13 +1786,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         // (2) Сол күнде жылжымаса: src кеткенде осы КҮН ТЕСІКСІЗ болса (яғни src —
         //     жалғыз кеш сабақ, тесіктің себебі), оны БАСҚА күннің соңына тіркеп
         //     көшіреміз — екі күн де тесіксіз, сабақ саны сол қалпы.
-        if (dayGapSlot(c.id, day) === null) {
+        if (cmGap(cid, day) < 0) {
           let relocated = false;
           for (let d2 = 1; d2 <= 5 && !relocated; d2++) {
-            if (d2 === day || ds[c.id][d2].has(snap.subjectId)) continue;
-            let last2 = 0;
-            for (const o of slots) if (o.classId === c.id && o.day === d2 && (!o.groupId || o.groupId === "Г1") && o.slot > last2) last2 = o.slot;
-            const target = last2 + 1;
+            if (d2 === day || ds[cid][d2].has(snap.subjectId)) continue;
+            const target = cmRowLast(cid, d2) + 1;
             if (target > maxSlots(c.grade)) continue;
             if (hardCheck(c, snap.teacherId, subj, d2, target)) continue;
             const room = findRoom(c, subj, d2, target);
@@ -2086,25 +2101,41 @@ export function generateMulti(
   let bestSeed = 0;
   let bestScore = -Infinity;
   let minQ = 101, maxQ = -1, cleanCount = 0;
+  let tried = 0;
+  let lastImprove = 0; // ең соңғы жақсарған итерация индексі
+
+  // ЕРТЕ ТОҚТАУ (жылдамдық). Екі шарт:
+  //  (а) ТАЗА кесте (0 тесік + 0 орналаспаған) — «терең» режимнің басты мақсаты
+  //      орындалса, floor-дан кейін тоқтаймыз;
+  //  (б) PLATEAU — ең жақсы нәтиже соңғы `patience` нұсқада жақсармаса
+  //      (ары қарай жүгірту сирек көмектеседі — диминишинг). Кез келген
+  //      мектепке жарайды (таза шешім мүлде болмаса да).
+  const floor = Math.min(count, Math.max(12, Math.ceil(count * 0.25))); // ең аз орындалатын сан
+  const patience = Math.max(10, Math.ceil(count * 0.25));
+  const cleanNeeded = 4;
 
   for (let i = 0; i < count; i++) {
     // seed=1..count (0 — әдепкі детерминді, оны да қосамыз бірінші)
     const seed = i === 0 ? 0 : i;
     const r = generate({ ...input, seed });
+    tried++;
     const sc = runScore(r);
     if (r.success) {
       minQ = Math.min(minQ, r.quality);
       maxQ = Math.max(maxQ, r.quality);
       if (r.gaps.length === 0 && r.unplaced.length === 0) cleanCount++;
     }
-    if (sc > bestScore) { bestScore = sc; best = r; bestSeed = seed; }
+    if (sc > bestScore) { bestScore = sc; best = r; bestSeed = seed; lastImprove = i; }
     if (onProgress) onProgress(i + 1, count, best?.quality ?? 0);
+    if (tried < floor) continue; // ең азын міндетті орындаймыз
+    if (cleanCount >= cleanNeeded) break;          // (а) жеткілікті таза
+    if (i - lastImprove >= patience) break;         // (б) жақсару тоқтады
   }
 
   return {
     best: best!,
     bestSeed,
-    triedCount: count,
+    triedCount: tried,
     qualityRange: { min: minQ === 101 ? 0 : minQ, max: maxQ === -1 ? 0 : maxQ },
     cleanCount,
   };
