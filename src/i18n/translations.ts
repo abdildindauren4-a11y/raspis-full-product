@@ -303,6 +303,10 @@ export const translations = {
   "exp.printTitle": { kk: "Басып шығару", ru: "Печать", en: "Print" },
   "exp.printDesc": { kk: "Браузердің баспа терезесін ашады — принтерге тікелей шығару немесе алдын ала қарау үшін.", ru: "Открывает диалог печати браузера — для прямой печати или предпросмотра.", en: "Opens the browser's print dialog — for direct printing or preview." },
   "exp.printButton": { kk: "Басып шығару", ru: "Печать", en: "Print" },
+  "exp.dataTitle": { kk: "Менің деректерім", ru: "Мои данные", en: "My data" },
+  "exp.dataSub": { kk: ".xlsx · енгізілген деректер", ru: ".xlsx · введённые данные", en: ".xlsx · entered data" },
+  "exp.dataDesc": { kk: "Өзіңіз енгізген барлық деректі Excel-ге жүктеу: мектеп, пәндер, мұғалімдер, кабинеттер және сыныптардың оқу жоспары. Сақтық көшірме әрі тексеру үшін ыңғайлы.", ru: "Скачать все введённые вами данные в Excel: школа, предметы, учителя, кабинеты и учебный план классов. Удобно для резервной копии и проверки.", en: "Download all the data you entered into Excel: school, subjects, teachers, rooms, and class curricula. Handy as a backup and for review." },
+  "exp.dataButton": { kk: "Деректерді жүктеу", ru: "Скачать данные", en: "Download data" },
 
   // ── Import ──
   "imp.title": { kk: "Excel импорт", ru: "Импорт Excel", en: "Excel Import" },

@@ -39,7 +39,7 @@ export default function GeneratePage() {
   // (жергілікті useState болса, бет қайта құрылғанда "full"-ға түсіп қалатын еді).
   const mode = useSchedulerStore((s) => s.mode);
   const setMode = useSchedulerStore((s) => s.setMode);
-  const [deepCount, setDeepCount] = useState(100);
+  const [deepCount, setDeepCount] = useState(50);
   const [scopeClass, setScopeClass] = useState("");
   const [saved, setSaved] = useState(false);
   const [softFill, setSoftFill] = useState(false);
@@ -354,7 +354,7 @@ export default function GeneratePage() {
                 </div>
                 <input type="range" min={20} max={300} step={10} value={deepCount}
                   onChange={(e) => setDeepCount(Number(e.target.value))} className="w-full accent-[var(--accent)]" />
-                <p className="text-xs text-faint-c mt-2">Болжалды уақыт: ~{Math.round(deepCount * 0.15)} сек (мектеп көлеміне байланысты). Көп нұсқа = жақсырақ нәтиже, бірақ ұзағырақ.</p>
+                <p className="text-xs text-faint-c mt-2">Болжалды уақыт: ~{Math.round(deepCount * 0.15)} сек дейін (мектеп көлеміне байланысты). Таза кесте (тесіксіз) ерте табылса — автоматты тоқтап, жылдамырақ бітеді.</p>
               </div>
             )}
           </GlassCard>

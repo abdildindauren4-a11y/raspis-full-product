@@ -169,24 +169,35 @@ export function buildTimeline(sc: School): Record<1 | 2, TL[]> {
 }
 
 /* ── СанПиН ережелері ── */
-// Ресми балл (ҚР ДСМ-76, 4-қосымша: 1..11) → ішкі калибрленген шкала.
-// ӘЛСІЗ МОНОТОНДЫ: ресми реттілік дәл сақталады. Эмпирикалық калибрленген —
-// эталон мектепте (46 сынып) генерация сапасы базалық деңгейде қалады
-// (баллды сол күйінде қолданса, лимиттер асып, 67 сабақ орналаспай қалатын).
-// settings.sanpinScale қосулы болғанда екі қозғалтқыш та осыны қолданады.
+// Ресми балл (ҚР ДСМ-76, 4-қосымша: 1..11) — қозғалтқышта ДӘЛ құжаттағыдай
+// қолданылады (БІРЕГЕЙ кескін). Бұрын баллдар 1..9-ға қысылып, Физика(9) мен
+// Шетел(10) «8»-ге, Тарих(8) мен ана тілі(7) «6»-ға бірігіп, ауыр пәндер
+// позициялық тартымын жоғалтып, 1-сабаққа/5-7-ге ығысатын. Енді шикі 11-балл
+// шкаласы тікелей оқылады, ал күндік лимиттер sanpinScale режимінде
+// пропорционал үлкейтіледі (SANPIN_LIMIT_SCALE) — сол себепті ештеңе аспайды.
 export const OFFICIAL_TO_INTERNAL: Record<number, number> = {
-  11: 9, 10: 8, 9: 8, 8: 6, 7: 6, 6: 5, 5: 4, 4: 3, 3: 2, 2: 2, 1: 1,
+  11: 11, 10: 10, 9: 9, 8: 8, 7: 7, 6: 6, 5: 5, 4: 4, 3: 3, 2: 2, 1: 1,
 };
 export const officialToInternal = (p: number): number =>
   OFFICIAL_TO_INTERNAL[Math.max(1, Math.min(11, Math.round(p)))] ?? 5;
-// settings.sanpinScale қосулы болса — пән баллдарын ішкі шкалаға келтіру
-// (генерация алдындағы бір-ақ қадам; UI-дағы ресми баллдар өзгермейді)
+
+// Пәннің қалаулы сабақ терезесі («ideal») баллдан ТУЫНДАТЫЛАДЫ — завуч 200+
+// пәнге қолмен қоймайды, тек құжат баллын енгізсе жеткілікті. СанПиН қисығы:
+// жұмысқа қабілет 1-сабақта төмен, 2-4-те шыңында, 5-тен кейін құлдырайды.
+export const idealForScore = (score: number): number[] =>
+  score >= 9 ? [2, 3, 4] : score >= 6 ? [2, 3, 4, 5] : [5, 6, 7];
+
+// settings.sanpinScale қосулы болса — пән баллдарын ресми шкалада қалдырып
+// (өзгеріссіз), қалаулы сабақ терезесін баллдан туындатамыз. UI-дағы ресми
+// баллдар өзгермейді; бұл — генерация алдындағы бір-ақ қадам.
 export const calibrateSubjects = (subjects: Subject[], st?: Settings): Subject[] =>
   st?.sanpinScale
     ? subjects.map((s) => ({
         ...s,
         score: officialToInternal(s.score),
         primaryScore: s.primaryScore != null ? officialToInternal(s.primaryScore) : s.primaryScore,
+        // ideal бос немесе баллмен қайшы болса — құжат баллынан туындатамыз
+        ideal: s.ideal && s.ideal.length ? s.ideal : idealForScore(officialToInternal(s.score)),
       }))
     : subjects;
 
@@ -212,16 +223,23 @@ export const maxSlots = (g: number, st?: Settings) => {
 };
 // Әдепкі сабақ лимиттері (UI бастапқы мәні үшін)
 export const DEFAULT_MAX_LESSONS = { g1: 4, g24: 5, g56: 6, g79: 7, g1011: 8 };
+// Нақты СанПиН баллы (1..11) ішкі демо шкаладан (1..10, ауырлары ~9) жоғары
+// болғандықтан, sanpinScale режимінде күндік балл лимиті мен шаршау шегі осы
+// коэффициентке үлкейеді — сонда шикі баллдар лимиттен аспайды (эмпирикалық
+// тексерілген: орналаспаған сабақ саны өспейді).
+export const SANPIN_LIMIT_SCALE = 1.35;
 export const dayLimitS = (g: number, st?: Settings) => {
   const d = st?.dayLimits || DEFAULT_DAY_LIMITS;
-  return g <= 4 ? d.g14 : g <= 6 ? d.g56 : g <= 9 ? d.g79 : d.g1011;
+  const base = g <= 4 ? d.g14 : g <= 6 ? d.g56 : g <= 9 ? d.g79 : d.g1011;
+  return st?.sanpinScale ? base * SANPIN_LIMIT_SCALE : base;
 };
 // артқа үйлесімділік (UI-да көрсету үшін)
 export const dayLimit = (g: number) => dayLimitS(g);
 export const DEFAULT_FATIGUE = { g14: 25, g59: 35, g1011: 45 };
 export const fatThrS = (g: number, st?: Settings) => {
   const f = st?.fatigue || DEFAULT_FATIGUE;
-  return g <= 4 ? f.g14 : g <= 9 ? f.g59 : f.g1011;
+  const base = g <= 4 ? f.g14 : g <= 9 ? f.g59 : f.g1011;
+  return st?.sanpinScale ? base * SANPIN_LIMIT_SCALE : base;
 };
 export const fatThr = (g: number) => fatThrS(g);
 export const DEFAULT_COEFFS = { hard: 4, medium: 3, easy: 2 };
@@ -1067,10 +1085,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         let room: string | null = null;
         if (gym && m.roomId === gym.id) {
           for (const sl of slotsNeeded) if (gymOcc[c.shift][day][sl].length >= (gym.gymMax || 1)) return null;
-          // спортзал топ үйлесімі
+          // спортзал топ үйлесімі (findRoom-мен бірдей): залды бөлісетін сыныптар
+          // бір жас-тобында болуы керек — әйтпесе тесік жабу «Спортзал ережелерін»
+          // бұзады. Бұрын grp тек ТАБЫЛАТЫН, бірақ бар сыныптармен САЛЫСТЫРЫЛМАЙТЫН.
           const groups = gym.gymGroups && gym.gymGroups.length ? gym.gymGroups : [[1, 11]];
           const grp = groups.find((g) => g[0] <= c.grade && c.grade <= g[1]);
           if (!grp) return null;
+          for (const sl of slotsNeeded)
+            for (const oc of gymOcc[c.shift][day][sl]) {
+              const ocl = C[oc];
+              if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null;
+            }
           room = gym.id;
         } else {
           // бастапқы кабинет барлық слотта бос па
@@ -1300,8 +1325,14 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (clsOcc) return false;
       // кабинет бос па (спортзал әдепкісі — 1, findRoom-мен бірдей)
       if (gym && roomId === gym.id) {
-        const cnt = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId).length;
-        if (cnt >= (gym.gymMax || 1)) return false;
+        const others = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId);
+        if (others.length >= (gym.gymMax || 1)) return false;
+        // ЖАС-ТОБЫ (findRoom-мен бірдей): залды бөлісетін сыныптар бір топта болуы
+        // керек — әйтпесе своп «Спортзал ережелерін» бұзады.
+        const groups = gym.gymGroups && gym.gymGroups.length ? gym.gymGroups : [[1, 11]];
+        const grp = groups.find((g) => g[0] <= cls.grade && cls.grade <= g[1]);
+        if (!grp) return false;
+        for (const oc of others) { const ocl = C[oc]; if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return false; }
       } else {
         const rCell = rm[roomId][sh][day][slot];
         if (rCell && rCell !== ignoreA.classId && rCell !== ignoreB.classId) {
@@ -1701,6 +1732,79 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   }
 
+  /* ЭТАП 7.6 — СОЛҒА ТАРТУ (қауіпсіз тесік тығыздау)
+     Жоғарыдағы фазалардан кейін қалған ішкі тесіктерді ТЕК бар слоттарды
+     жылжыту арқылы жабады — сабақ саны ӨЗГЕРМЕЙДІ (ешбір сабақ жойылмайды не
+     қосылмайды). Тесіктен кейінгі БІРІНШІ жеке сабақты тесік ұясына толық
+     тексеріп (hardCheck + findRoom — зал тобы да тексеріледі) көшіреді.
+     Қос сабақ/топ бөлінген/locked слоттар қозғалмайды (қауіпсіздік үшін);
+     ондай сабақ кездессе, сол күнді тыныш қалдырамыз. */
+  // ЖЫЛДАМ: тесік бар-жоғын cm матрицасынан O(1) оқимыз (глобалды slots
+  // сканерлемей). Тесіксіз күндер (көпшілігі) бірден өтеді; slots-ты тек нақты
+  // жылжыту қажет болғанда (тесік бар күнде) бір рет сүземіз. lastOccOf/gapOf —
+  // cm жолы бойынша (O(8)).
+  const cmRowLast = (cid: string, day: number): number => {
+    const rowd = cm[cid][day];
+    let last = 0;
+    for (let s = 1; s <= 8; s++) if (rowd[s] !== null) last = s;
+    return last;
+  };
+  const cmGap = (cid: string, day: number): number => {
+    const rowd = cm[cid][day];
+    const last = cmRowLast(cid, day);
+    for (let s = 1; s <= last; s++) if (rowd[s] === null) return s;
+    return -1;
+  };
+  for (const c of targetClasses) {
+    const cid = c.id;
+    for (let day = 1; day <= 5; day++) {
+      let guard = 0;
+      while (guard++ < 8) {
+        const g = cmGap(cid, day);
+        if (g < 0) break;
+        // тесіктен кейінгі БІРІНШІ бос емес слот (cm жолынан)
+        let srcSlot = -1;
+        for (let s = g + 1; s <= 8; s++) if (cm[cid][day][s] !== null) { srcSlot = s; break; }
+        if (srcSlot < 0) break;
+        // нақты слот объектісі (тек жылжыту қажет болғанда — сирек)
+        const at = slots.filter((o) => o.classId === cid && o.day === day && o.slot === srcSlot);
+        // тек ЖЕКЕ сабақ жылжытылады (қос/топ/locked — тимейміз)
+        if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) break;
+        const src = at[0];
+        const subj = S[src.subjectId];
+        const snap = { ...src };
+        removeSlot(src);
+        // (1) СОЛ КҮН ІШІНДЕ тесік ұясына жылжыту (бір-күн-бір-пән елемейміз —
+        //     сол сабақ сол күн ішінде жылжып тұр)
+        if (!hardCheck(c, snap.teacherId, subj, day, g, true)) {
+          const room = findRoom(c, subj, day, g);
+          if (room) {
+            place({ classId: snap.classId, subjectId: snap.subjectId, teacherId: snap.teacherId, roomId: room, day, slot: g, shift: snap.shift, score: pScore(subj, g, settings) });
+            continue;
+          }
+        }
+        // (2) Сол күнде жылжымаса: src кеткенде осы КҮН ТЕСІКСІЗ болса (яғни src —
+        //     жалғыз кеш сабақ, тесіктің себебі), оны БАСҚА күннің соңына тіркеп
+        //     көшіреміз — екі күн де тесіксіз, сабақ саны сол қалпы.
+        if (cmGap(cid, day) < 0) {
+          let relocated = false;
+          for (let d2 = 1; d2 <= 5 && !relocated; d2++) {
+            if (d2 === day || ds[cid][d2].has(snap.subjectId)) continue;
+            const target = cmRowLast(cid, d2) + 1;
+            if (target > maxSlots(c.grade)) continue;
+            if (hardCheck(c, snap.teacherId, subj, d2, target)) continue;
+            const room = findRoom(c, subj, d2, target);
+            if (!room) continue;
+            place({ classId: snap.classId, subjectId: snap.subjectId, teacherId: snap.teacherId, roomId: room, day: d2, slot: target, shift: snap.shift, score: pScore(subj, target, settings) });
+            relocated = true;
+          }
+          if (relocated) continue;
+        }
+        place(snap); break; // ешбір қауіпсіз жылжыту болмады — кері қойып тоқтаймыз
+      }
+    }
+  }
+
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
   const tests: StressTest[] = [];
@@ -1997,25 +2101,41 @@ export function generateMulti(
   let bestSeed = 0;
   let bestScore = -Infinity;
   let minQ = 101, maxQ = -1, cleanCount = 0;
+  let tried = 0;
+  let lastImprove = 0; // ең соңғы жақсарған итерация индексі
+
+  // ЕРТЕ ТОҚТАУ (жылдамдық). Екі шарт:
+  //  (а) ТАЗА кесте (0 тесік + 0 орналаспаған) — «терең» режимнің басты мақсаты
+  //      орындалса, floor-дан кейін тоқтаймыз;
+  //  (б) PLATEAU — ең жақсы нәтиже соңғы `patience` нұсқада жақсармаса
+  //      (ары қарай жүгірту сирек көмектеседі — диминишинг). Кез келген
+  //      мектепке жарайды (таза шешім мүлде болмаса да).
+  const floor = Math.min(count, Math.max(12, Math.ceil(count * 0.25))); // ең аз орындалатын сан
+  const patience = Math.max(10, Math.ceil(count * 0.25));
+  const cleanNeeded = 4;
 
   for (let i = 0; i < count; i++) {
     // seed=1..count (0 — әдепкі детерминді, оны да қосамыз бірінші)
     const seed = i === 0 ? 0 : i;
     const r = generate({ ...input, seed });
+    tried++;
     const sc = runScore(r);
     if (r.success) {
       minQ = Math.min(minQ, r.quality);
       maxQ = Math.max(maxQ, r.quality);
       if (r.gaps.length === 0 && r.unplaced.length === 0) cleanCount++;
     }
-    if (sc > bestScore) { bestScore = sc; best = r; bestSeed = seed; }
+    if (sc > bestScore) { bestScore = sc; best = r; bestSeed = seed; lastImprove = i; }
     if (onProgress) onProgress(i + 1, count, best?.quality ?? 0);
+    if (tried < floor) continue; // ең азын міндетті орындаймыз
+    if (cleanCount >= cleanNeeded) break;          // (а) жеткілікті таза
+    if (i - lastImprove >= patience) break;         // (б) жақсару тоқтады
   }
 
   return {
     best: best!,
     bestSeed,
-    triedCount: count,
+    triedCount: tried,
     qualityRange: { min: minQ === 101 ? 0 : minQ, max: maxQ === -1 ? 0 : maxQ },
     cleanCount,
   };

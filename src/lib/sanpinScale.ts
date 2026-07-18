@@ -115,7 +115,7 @@ export function sanpinPoints(name: string, lang: SchoolLang): number | null {
 // OFFICIAL_TO_INTERNAL) — генерация кезінде settings.sanpinScale қосулы болса
 // екі қозғалтқыш та автоматты қолданады. Осы жерден қайта экспорттаймыз.
 export { OFFICIAL_TO_INTERNAL, officialToInternal } from "@/algorithm/engine";
-import { officialToInternal } from "@/algorithm/engine";
+import { officialToInternal, idealForScore } from "@/algorithm/engine";
 
 export interface SanpinApplyResult {
   subjects: Subject[];
@@ -124,9 +124,12 @@ export interface SanpinApplyResult {
 }
 
 // Барлық пәнге РЕСМИ баллды (1..11, құжаттағыдай) қою — кестеде завуч дәл
-// 4-қосымшадағы сандарды көреді. Ішкі калибрлеу генерация кезінде,
-// settings.sanpinScale жалаушасы арқылы қозғалтқыш ішінде автоматты жүреді
-// (officialToInternal) — көзге көрінбейді, реттілік өзгермейді.
+// 4-қосымшадағы сандарды көреді. Балл қозғалтқышта ДӘЛ осы күйінде оқылады
+// (officialToInternal — бірегей кескін), ал күндік лимиттер sanpinScale
+// режимінде пропорционал үлкейеді. Қоса, пәннің қалаулы сабақ терезесі
+// («ideal») құжат баллынан ТУЫНДАТЫЛАДЫ (ауыр пән → 2-4 сабақ шыңы), сонда
+// завуч оны қолмен қоймай-ақ, ауыр пәндер 1-сабаққа/5-7-ге ығыспайды.
+// Кестеде туындаған терезе көрінеді — завуч қаласа кейін реттей алады.
 // Құжатта жоқ пәндер сол күйінде қалады. primaryScore да өзгертілмейді.
 export function applySanpinScores(subjects: Subject[], lang: SchoolLang): SanpinApplyResult {
   const matched: { name: string; official: number; internal: number }[] = [];
@@ -135,7 +138,7 @@ export function applySanpinScores(subjects: Subject[], lang: SchoolLang): Sanpin
     const p = sanpinPoints(s.name, lang);
     if (p === null) { unmatched.push(s.name); return s; }
     matched.push({ name: s.name, official: p, internal: officialToInternal(p) });
-    return { ...s, score: p };
+    return { ...s, score: p, ideal: idealForScore(p) };
   });
   return { subjects: out, matched, unmatched };
 }
