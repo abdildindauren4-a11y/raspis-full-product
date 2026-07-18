@@ -10,7 +10,7 @@ import { btnP, btnG } from "@/components/shared/Form";
 import { useData, useActiveVersion } from "@/store/dataStore";
 import { useLang } from "@/contexts/LangContext";
 import { buildTimeline, maxSlots, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
-import { exportProfessionalExcel } from "@/lib/excelExport";
+import { exportProfessionalExcel, exportInputDataExcel } from "@/lib/excelExport";
 import { exportSchedulePDF } from "@/lib/pdfExport";
 import { getExportLabels } from "@/lib/exportLabels";
 import { buildCertData, certUrl } from "@/lib/certificate";
@@ -19,12 +19,41 @@ import docDecoUrl from "@/assets/deco-document.png";
 
 
 export default function ExportPage() {
-  const { classes, teachers, rooms, subjects, school, settings } = useData();
+  const { classes, teachers, rooms, subjects, school, settings, komplekts } = useData();
   const active = useActiveVersion();
   const { t, lang } = useLang();
   const labels = getExportLabels(lang);
   const DAYS = ["", t("day.mon"), t("day.tue"), t("day.wed"), t("day.thu"), t("day.fri")];
-  const [busyType, setBusyType] = useState<"excel" | "pdf" | null>(null);
+  const [busyType, setBusyType] = useState<"excel" | "pdf" | "data" | null>(null);
+
+  // Енгізілген деректерді Excel-ге жүктеу (кесте құрылмаса да қолжетімді)
+  const exportData = async () => {
+    setBusyType("data");
+    try {
+      await exportInputDataExcel({ school, classes, teachers, rooms, subjects, settings, komplekts, labels });
+    } catch (e) {
+      console.error("Деректер экспорты қатесі:", e);
+    } finally {
+      setBusyType(null);
+    }
+  };
+
+  // «Менің деректерім» картасы — кестеден тәуелсіз (екі көріністе де көрсетіледі)
+  const dataCard = (
+    <GlassCard hover={false}>
+      <div className="flex items-center gap-3 mb-3">
+        <img src={excelIconUrl} alt="Excel" className="w-11 h-11 object-contain shrink-0" />
+        <div>
+          <h3 className="font-semibold text-strong-c">{t("exp.dataTitle")}</h3>
+          <p className="text-xs text-muted-c">{t("exp.dataSub")}</p>
+        </div>
+      </div>
+      <p className="text-xs text-muted-c mb-4">{t("exp.dataDesc")}</p>
+      <button className={btnG + " w-full flex items-center justify-center gap-2"} onClick={exportData} disabled={busyType !== null}>
+        {busyType === "data" ? <>{t("exp.preparing")}</> : <><Download className="w-4 h-4" /> {t("exp.dataButton")}</>}
+      </button>
+    </GlassCard>
+  );
   const [qrImg, setQrImg] = useState<string>("");
   const [certLink, setCertLink] = useState<string>("");
   const tl = buildTimeline(school);
@@ -158,9 +187,13 @@ export default function ExportPage() {
 
   if (!active)
     return (
-      <div className="flex flex-col items-center justify-center h-72 gap-3">
-        <p className="text-muted-c">{t("exp.noSchedule")}</p>
-        <Link to="/generate" className="accent-c text-sm inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> {t("exp.toGenerate")} →</Link>
+      <div className="space-y-6 max-w-3xl">
+        <div className="flex flex-col items-center justify-center gap-3 py-8">
+          <p className="text-muted-c">{t("exp.noSchedule")}</p>
+          <Link to="/generate" className="accent-c text-sm inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> {t("exp.toGenerate")} →</Link>
+        </div>
+        {/* Кесте болмаса да, енгізілген деректерді жүктеуге болады */}
+        <div className="max-w-sm mx-auto">{dataCard}</div>
       </div>
     );
 
@@ -216,6 +249,7 @@ export default function ExportPage() {
             <Printer className="w-4 h-4" /> {t("exp.openPrint")}
           </button>
         </GlassCard>
+        {dataCard}
       </div>
 
       {/* ── QR сапа сертификаты ── */}

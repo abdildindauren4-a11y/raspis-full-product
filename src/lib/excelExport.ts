@@ -4,7 +4,7 @@
 // Әр парақ мұқабаға сілтеме арқылы оралады, баспа үшін колонтитул мен
 // бет нөмірі бар.
 import ExcelJS from "exceljs";
-import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings } from "@/algorithm/engine";
+import type { AlgoResult, Klass, Teacher, Room, Subject, School, Settings, Komplekt } from "@/algorithm/engine";
 import { maxSlots, buildTimeline, HOMEROOM_SUBJECT_ID } from "@/algorithm/engine";
 import { getExportLabels, type ExportLabels } from "@/lib/exportLabels";
 
@@ -432,6 +432,223 @@ export async function exportProfessionalExcel(ctx: ExportCtx): Promise<void> {
   const a = document.createElement("a");
   a.href = url;
   a.download = `${L.brand}_${school.name.slice(0, 25)}_${year}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ЕНГІЗІЛГЕН ДЕРЕКТЕРДІ ЭКСПОРТТАУ (кесте құрылмаса да жұмыс істейді)
+// Завуч өзі енгізген барлық деректі Excel-ге түсіреді: мектеп параметрлері,
+// пәндер, мұғалімдер, кабинеттер, сыныптардың оқу жоспары және ШЖМ комплектілері.
+// Сақтық көшірме әрі тексеру үшін — генерациядан тәуелсіз.
+// ─────────────────────────────────────────────────────────────────────────────
+interface InputExportCtx {
+  school: School; classes: Klass[]; teachers: Teacher[]; rooms: Room[];
+  subjects: Subject[]; settings?: Settings; komplekts?: Komplekt[];
+  labels?: ExportLabels;
+}
+
+export async function exportInputDataExcel(ctx: InputExportCtx): Promise<void> {
+  L = ctx.labels || getExportLabels("kk");
+  const { school, classes, teachers, rooms, subjects, komplekts } = ctx;
+  const isShzhm = school.type === "shzhm";
+  const tr = (kk: string, ru: string, en: string) => (L.lang === "ru" ? ru : L.lang === "en" ? en : kk);
+  const year = academicYear();
+
+  const roomTypeLabel: Record<string, string> = {
+    regular: tr("Қарапайым", "Обычный", "Regular"),
+    physics: tr("Физика", "Физика", "Physics"),
+    chemistry: tr("Химия", "Химия", "Chemistry"),
+    computer: tr("Информатика", "Информатика", "Computer"),
+    gym: tr("Спортзал", "Спортзал", "Gym"),
+  };
+  const yes = tr("иә", "да", "yes"), dash = "—";
+  const sName = (id: string) => subjects.find((s) => s.id === id)?.name || dash;
+  const tName = (id?: string) => (id ? teachers.find((t) => t.id === id)?.name || dash : dash);
+  const rName = (id?: string) => (id ? rooms.find((r) => r.id === id)?.number || dash : dash);
+  const cName = (id: string) => classes.find((c) => c.id === id)?.name || dash;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = L.brand;
+  wb.created = new Date();
+
+  // Кестені жазатын әмбебап көмекші: тақырып жолағы + бас жол + деректер жолдары
+  const writeTable = (
+    ws: ExcelJS.Worksheet, startRow: number, title: string,
+    headers: string[], rows: (string | number)[][], widths: number[], tabColor: string,
+  ): number => {
+    ws.properties.tabColor = { argb: tabColor };
+    const last = headers.length;
+    ws.mergeCells(startRow, 1, startRow, last);
+    const tc = ws.getCell(startRow, 1);
+    tc.value = title;
+    tc.font = { name: "Arial", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+    tc.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    tc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+    ws.getRow(startRow).height = 22;
+    let row = startRow + 1;
+    headers.forEach((h, i) => {
+      const cell = ws.getCell(row, i + 1);
+      cell.value = h;
+      cell.font = { name: "Arial", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF374151" } };
+      cell.border = BORDER;
+      if (widths[i]) ws.getColumn(i + 1).width = widths[i];
+    });
+    ws.getRow(row).height = 20;
+    row++;
+    for (const r of rows) {
+      r.forEach((v, i) => {
+        const cell = ws.getCell(row, i + 1);
+        cell.value = v;
+        cell.font = { name: "Arial", size: 9, color: { argb: "FF1F2937" } };
+        cell.alignment = { horizontal: i === 0 ? "left" : "center", vertical: "middle", wrapText: true, indent: i === 0 ? 1 : 0 };
+        cell.border = BORDER;
+        if (row % 2 === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F6FB" } };
+      });
+      row++;
+    }
+    return row + 1; // келесі блокқа бос жол
+  };
+
+  // ── 1. Мектеп параметрлері ──
+  const wsSchool = wb.addWorksheet(tr("Мектеп", "Школа", "School"));
+  wsSchool.getColumn(1).width = 34;
+  wsSchool.getColumn(2).width = 30;
+  {
+    const rows: [string, string | number][] = [
+      [tr("Мектеп атауы", "Название школы", "School name"), school.name],
+      [tr("Оқу жылы", "Учебный год", "Academic year"), year],
+      [tr("Мектеп түрі", "Тип школы", "School type"), isShzhm ? tr("Шағын жинақты (ШЖМ)", "Малокомплектная", "Small (ungraded)") : tr("Қарапайым", "Обычная", "Regular")],
+      [tr("1-ауысым басы", "Начало 1 смены", "Shift 1 start"), school.shift1Start],
+      [tr("2-ауысым басы", "Начало 2 смены", "Shift 2 start"), school.shift2Start],
+      [tr("Сабақ ұзақтығы (мин)", "Длит. урока (мин)", "Lesson length (min)"), school.lessonDuration],
+      [tr("Қысқа үзіліс (мин)", "Малая перемена (мин)", "Short break (min)"), school.shortBreak],
+      [tr("Ұзақ үзіліс (мин)", "Большая перемена (мин)", "Long break (min)"), school.longBreak],
+      [tr("Ұзақ үзіліс қай сабақтан кейін", "Большая перемена после урока", "Long break after lesson"), school.longBreakAfter],
+      [tr("Ауысым аралық үзіліс (мин)", "Перерыв между сменами (мин)", "Inter-shift gap (min)"), school.interShiftGap],
+    ];
+    writeTable(wsSchool, 1, tr("МЕКТЕП ПАРАМЕТРЛЕРІ", "ПАРАМЕТРЫ ШКОЛЫ", "SCHOOL SETTINGS"),
+      [tr("Параметр", "Параметр", "Parameter"), tr("Мән", "Значение", "Value")],
+      rows, [34, 30], "FFD4AF37");
+  }
+
+  // ── 2. Пәндер ──
+  const wsSubj = wb.addWorksheet(tr("Пәндер", "Предметы", "Subjects"));
+  {
+    const headers = [
+      tr("Пән", "Предмет", "Subject"),
+      tr("Балл (СанПиН)", "Балл (СанПиН)", "Score (SanPiN)"),
+      tr("Кабинет", "Кабинет", "Room"),
+      tr("Қос сабақ", "Сдвоенный", "Double"),
+      tr("Цифрлық", "Цифровой", "Digital"),
+    ];
+    if (isShzhm) headers.push(tr("Өзіндік жұмыс", "Самост. работа", "Self-study"));
+    const rows = subjects.map((s) => {
+      const r: (string | number)[] = [
+        s.name, s.score, s.room ? roomTypeLabel[s.room] : dash,
+        s.canDouble ? yes : dash, s.digital ? yes : dash,
+      ];
+      if (isShzhm) r.push(s.selfStudy ? yes : dash);
+      return r;
+    });
+    const widths = isShzhm ? [26, 12, 14, 10, 10, 13] : [28, 12, 15, 11, 11];
+    writeTable(wsSubj, 1, tr("ПӘНДЕР ЖӘНЕ ҚИЫНДЫҚ БАЛЛЫ", "ПРЕДМЕТЫ И БАЛЛ СЛОЖНОСТИ", "SUBJECTS & DIFFICULTY"),
+      headers, rows, widths, "FF2563EB");
+  }
+
+  // ── 3. Мұғалімдер ──
+  const wsTea = wb.addWorksheet(tr("Мұғалімдер", "Учителя", "Teachers"));
+  {
+    const headers = [
+      tr("Мұғалім", "Учитель", "Teacher"),
+      tr("Пәндері", "Предметы", "Subjects"),
+      tr("Норма (сағ)", "Норма (ч)", "Norm (h)"),
+      tr("Сыныптар", "Классы", "Grades"),
+      tr("Ауысым", "Смена", "Shift"),
+    ];
+    const rows = teachers.map((t) => [
+      t.name,
+      t.subjects && t.subjects.length ? t.subjects.join(", ") : tr("барлығы", "все", "all"),
+      t.norm,
+      `${t.gradeMin}–${t.gradeMax}`,
+      t.shift === 3 ? tr("екеуі", "обе", "both") : String(t.shift),
+    ]);
+    writeTable(wsTea, 1, tr("МҰҒАЛІМДЕР", "УЧИТЕЛЯ", "TEACHERS"),
+      headers, rows, [24, 34, 11, 12, 10], "FF16A34A");
+  }
+
+  // ── 4. Кабинеттер ──
+  const wsRoom = wb.addWorksheet(tr("Кабинеттер", "Кабинеты", "Rooms"));
+  {
+    const headers = [
+      tr("Кабинет", "Кабинет", "Room"),
+      tr("Түрі", "Тип", "Type"),
+      tr("Сыйымдылық", "Вместимость", "Capacity"),
+    ];
+    const rows = rooms.map((r) => [r.number, roomTypeLabel[r.type] || r.type, r.capacity ?? dash]);
+    writeTable(wsRoom, 1, tr("КАБИНЕТТЕР", "КАБИНЕТЫ", "ROOMS"),
+      headers, rows, [24, 18, 14], "FF9333EA");
+  }
+
+  // ── 5. Сыныптар және оқу жоспары ──
+  const wsCls = wb.addWorksheet(tr("Оқу жоспары", "Учебный план", "Curriculum"));
+  {
+    const headers = [
+      tr("Сынып", "Класс", "Class"),
+      tr("Пән", "Предмет", "Subject"),
+      tr("Сағат/апта", "Часов/нед", "Hours/wk"),
+      tr("Мұғалім", "Учитель", "Teacher"),
+      tr("Кабинет", "Кабинет", "Room"),
+    ];
+    const rows: (string | number)[][] = [];
+    for (const c of [...classes].sort((a, b) => a.grade - b.grade || a.name.localeCompare(b.name))) {
+      const cur = c.curriculum || [];
+      if (!cur.length) { rows.push([`${c.name} (${c.shift}${tr("-ауысым", "-я см.", " sh.")})`, dash, dash, dash, dash]); continue; }
+      cur.forEach((cu, i) => {
+        const subj = subjects.find((s) => s.id === cu.subjectId);
+        const teacher = cu.isSplit && cu.groups?.length
+          ? cu.groups.map((g) => tName(g.teacherId)).join(" / ")
+          : tName(cu.teacherId);
+        rows.push([
+          i === 0 ? `${c.name} (${c.shift}${tr("-ауысым", "-я см.", " sh.")})` : "",
+          sName(cu.subjectId),
+          cu.hours,
+          teacher,
+          subj?.room ? roomTypeLabel[subj.room] : dash,
+        ]);
+      });
+    }
+    writeTable(wsCls, 1, tr("СЫНЫПТАРДЫҢ ОҚУ ЖОСПАРЫ", "УЧЕБНЫЙ ПЛАН КЛАССОВ", "CLASS CURRICULA"),
+      headers, rows, [16, 26, 11, 24, 14], "FFEA580C");
+  }
+
+  // ── 6. Комплектілер (тек ШЖМ) ──
+  if (isShzhm && komplekts && komplekts.length) {
+    const wsK = wb.addWorksheet(tr("Комплектілер", "Комплекты", "Komplekts"));
+    const headers = [
+      tr("Комплект", "Комплект", "Komplekt"),
+      tr("Сыныптар", "Классы", "Classes"),
+      tr("Мұғалім", "Учитель", "Teacher"),
+      tr("Кабинет", "Кабинет", "Room"),
+    ];
+    const rows = komplekts.map((k) => [
+      k.name, k.classIds.map((id) => cName(id)).join(" + "), tName(k.teacherId), rName(k.roomId),
+    ]);
+    writeTable(wsK, 1, tr("КЛАСС-КОМПЛЕКТІЛЕР (ШЖМ)", "КЛАСС-КОМПЛЕКТЫ", "CLASS KOMPLEKTS"),
+      headers, rows, [20, 24, 24, 16], "FF0891B2");
+  }
+
+  // Әр параққа баспа колонтитулы
+  wb.eachSheet((ws) => setHeaderFooter(ws, school.name));
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${L.brand}_${tr("деректер", "данные", "data")}_${school.name.slice(0, 20)}_${year}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
