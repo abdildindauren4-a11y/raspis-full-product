@@ -1085,10 +1085,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         let room: string | null = null;
         if (gym && m.roomId === gym.id) {
           for (const sl of slotsNeeded) if (gymOcc[c.shift][day][sl].length >= (gym.gymMax || 1)) return null;
-          // спортзал топ үйлесімі
+          // спортзал топ үйлесімі (findRoom-мен бірдей): залды бөлісетін сыныптар
+          // бір жас-тобында болуы керек — әйтпесе тесік жабу «Спортзал ережелерін»
+          // бұзады. Бұрын grp тек ТАБЫЛАТЫН, бірақ бар сыныптармен САЛЫСТЫРЫЛМАЙТЫН.
           const groups = gym.gymGroups && gym.gymGroups.length ? gym.gymGroups : [[1, 11]];
           const grp = groups.find((g) => g[0] <= c.grade && c.grade <= g[1]);
           if (!grp) return null;
+          for (const sl of slotsNeeded)
+            for (const oc of gymOcc[c.shift][day][sl]) {
+              const ocl = C[oc];
+              if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null;
+            }
           room = gym.id;
         } else {
           // бастапқы кабинет барлық слотта бос па
@@ -1318,8 +1325,14 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (clsOcc) return false;
       // кабинет бос па (спортзал әдепкісі — 1, findRoom-мен бірдей)
       if (gym && roomId === gym.id) {
-        const cnt = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId).length;
-        if (cnt >= (gym.gymMax || 1)) return false;
+        const others = gymOcc[sh][day][slot].filter((cid) => cid !== ignoreA.classId && cid !== ignoreB.classId);
+        if (others.length >= (gym.gymMax || 1)) return false;
+        // ЖАС-ТОБЫ (findRoom-мен бірдей): залды бөлісетін сыныптар бір топта болуы
+        // керек — әйтпесе своп «Спортзал ережелерін» бұзады.
+        const groups = gym.gymGroups && gym.gymGroups.length ? gym.gymGroups : [[1, 11]];
+        const grp = groups.find((g) => g[0] <= cls.grade && cls.grade <= g[1]);
+        if (!grp) return false;
+        for (const oc of others) { const ocl = C[oc]; if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return false; }
       } else {
         const rCell = rm[roomId][sh][day][slot];
         if (rCell && rCell !== ignoreA.classId && rCell !== ignoreB.classId) {
