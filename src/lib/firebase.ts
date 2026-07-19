@@ -5,7 +5,7 @@
 // Firebase apiKey ашық болуға арналған — қауіпсіздік Firestore ережелерімен.
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeFirestore, type Firestore } from "firebase/firestore";
 
 // Тікелей кілттер (fallback) — .env болмаса осылар қолданылады.
 const FALLBACK = {
@@ -41,7 +41,13 @@ function ensureInit(): boolean {
   if (!app) {
     app = initializeApp(config);
     authInstance = getAuth(app);
-    dbInstance = getFirestore(app);
+    // ignoreUndefinedProperties: деректе көп опционал өріс бар (мұғалімсіз
+    // сабақтың teacherId-і, пәннің primaryScore/roomId/selfStudy-і т.б.).
+    // Бұл жалаушасыз Firestore undefined мәнді ҚАБЫЛДАМАЙ, setDoc() қате
+    // лақтырып, сақтау үнсіз құлайтын — деректер жоғалып/өзгеріп кететін.
+    // Енді undefined өрістер жазуда ескерілмейді (оқығанда да жоқ = undefined,
+    // опционал типтерге сай) — round-trip дәл сақталады.
+    dbInstance = initializeFirestore(app, { ignoreUndefinedProperties: true });
   }
   return true;
 }
