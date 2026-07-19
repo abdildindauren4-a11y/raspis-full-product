@@ -571,12 +571,16 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       for (const oc of occ) { const ocl = C[oc]; if (!(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null; }
       return gym.id;
     }
-    // КАБИНЕТТІК ЖҮЙЕ: пәннің бекітілген кабинеті болса — тек соны қолданамыз
-    // (бос болса). Кабинет жарамсыз (өшірілген) болса — төмендегі әдепкі пулға
-    // түсіп кетеді (сабақ жоғалмас үшін).
+    // КАБИНЕТТІК ЖҮЙЕ: пәннің бекітілген кабинеті БІРІНШІ кезекте. Кабинет бос
+    // болса — сол. Бос болмаса — НАҚТЫ МЕКТЕПТЕГІДЕЙ жалпы пулдан бос кабинет
+    // алынады (overflow): жоғары сұранысты пән (мыс. Қазақ тілі 1-ауысымда
+    // ~90% тығыздық) жалғыз кабинетке физикалық сыймайды — қатаң тыйым сабақты
+    // мүлде орналастырмай тастайтын. Топ бөлінген сабақтың 2-тобы да (exclude)
+    // осы жолмен басқа бөлме алады.
     if (settings.cabinetSystem && subj.roomId && R[subj.roomId]) {
       const rid = subj.roomId;
-      return rm[rid][cls.shift][day][slot] === null && (!exclude || !exclude.has(rid)) ? rid : null;
+      if (rm[rid][cls.shift][day][slot] === null && (!exclude || !exclude.has(rid))) return rid;
+      // кабинет бос емес — төмендегі жалпы пулға түсеміз (overflow)
     }
     if (subj.room) {
       const r = rooms.find((r) => r.type === subj.room && rm[r.id][cls.shift][day][slot] === null && (!exclude || !exclude.has(r.id)));
@@ -1254,11 +1258,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
               if (ocl && !(grp[0] <= ocl.grade && ocl.grade <= grp[1])) return null;
             }
           room = gym.id;
-        } else if (settings.cabinetSystem && subj.roomId && R[subj.roomId]) {
-          // КАБИНЕТТІК ЖҮЙЕ: пән ТЕК өз кабинетінде — басқа кабинетке жылжытпаймыз
-          const rid = subj.roomId;
-          if (usedR.has(rid) || !slotsNeeded.every((sl) => rm[rid][c.shift][day][sl] === null)) return null;
-          room = rid;
+        } else if (settings.cabinetSystem && subj.roomId && R[subj.roomId]
+          && !usedR.has(subj.roomId) && slotsNeeded.every((sl) => rm[subj.roomId!][c.shift][day][sl] === null)) {
+          // КАБИНЕТТІК ЖҮЙЕ: өз кабинеті бос болса — сол; әйтпесе төмендегі
+          // жалпы іздеуге түседі (findRoom overflow-мен бірдей мінез)
+          room = subj.roomId;
         } else {
           // бастапқы кабинет барлық слотта бос па
           const origFree = slotsNeeded.every((sl) => rm[m.roomId][c.shift][day][sl] === null) && !usedR.has(m.roomId);
@@ -1965,6 +1969,51 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         place(snap); break; // ешбір қауіпсіз жылжыту болмады — кері қойып тоқтаймыз
       }
     }
+  }
+
+  /* ЭТАП 7.8 — ТҮГЕНДЕУ: кестедегі нақты сабақ санын оқу жоспарымен салыстыру.
+     Кейінгі фазалардың (rebuild/құтқару/тығыздау) сирек шеткі жағдайында сабақ
+     үнсіз түсіп қалуы мүмкін — мұнда әрқайсысы қайта орналастырылады (тек
+     физика заңымен), болмаса unplaced-ке АДАЛ тіркеледі. Осылай «Оқу жоспары
+     орындалды» тесі мен unplaced тізімі әрқашан өзара сәйкес. */
+  {
+    const placedCnt = new Map<string, number>();
+    for (const o of slots) {
+      if (o.subjectId === HOMEROOM_SUBJECT_ID) continue;
+      if (o.groupId && o.groupId !== "Г1") continue;
+      const k = o.classId + "|" + o.subjectId;
+      placedCnt.set(k, (placedCnt.get(k) || 0) + 1);
+    }
+    const oldReason = new Map(unplaced.map((u) => [u.className + "|" + u.subject, u.reason]));
+    unplaced.length = 0;
+    for (const c of targetClasses)
+      for (const cu of c.curriculum) {
+        const subj = S[cu.subjectId];
+        if (!subj || !cu.hours) continue;
+        let missing = cu.hours - (placedCnt.get(c.id + "|" + cu.subjectId) || 0);
+        if (missing <= 0) continue;
+        // жеке (топсыз) сабақты тек-конфликт режимінде қайта орналастыру
+        const tid = !cu.isSplit ? cu.teacherId : undefined;
+        const tt = tid ? T[tid] : undefined;
+        if (tt && c.grade >= tt.gradeMin && c.grade <= tt.gradeMax && (tt.shift === 3 || tt.shift === c.shift)) {
+          for (let day = 1; day <= 5 && missing > 0; day++) {
+            if (ds[c.id][day].has(cu.subjectId)) continue;
+            for (let slot = 1; slot <= maxSlots(c.grade) && missing > 0; slot++) {
+              if (cm[c.id][day][slot] !== null) continue;
+              if (tm[tid!][c.shift][day][slot] !== null) continue;
+              if (tt.unavailable.includes(`${day}-${slot}`)) continue;
+              if (!interShiftOk(tt, c.shift, day)) continue;
+              if (subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`)) continue;
+              const room = findRoom(c, subj, day, slot);
+              if (!room) continue;
+              place({ classId: c.id, subjectId: cu.subjectId, teacherId: tid!, roomId: room, day, slot, shift: c.shift, score: pScore(subj, slot, settings) });
+              missing--;
+            }
+          }
+        }
+        if (missing > 0)
+          unplaced.push({ className: c.name, subject: subj.name, placed: cu.hours - missing, need: cu.hours, reason: oldReason.get(c.name + "|" + subj.name) || "қорытынды түгендеу: орын табылмады" });
+      }
   }
 
   /* ЭТАП 8 — стресс-тесттер */
