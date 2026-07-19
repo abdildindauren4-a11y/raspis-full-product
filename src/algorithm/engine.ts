@@ -2355,14 +2355,26 @@ function runScore(r: AlgoResult): number {
 // нақты seed берсе (нұсқа генерациясы) — қайталамай, сол күйінде қайтарамыз.
 export function generateAuto(input: AlgoInput, onProgress?: ProgressFn, maxTries = 8): AlgoResult {
   if (input.seed != null) return generate(input, onProgress);
+  const t0 = Date.now();
+  // Уақыт бюджеті: үлкен мектепте 8 әрекет тым ұзаққа кетпеуі үшін — бюджет
+  // біткен соң қолда бардың ең жақсысын қайтарамыз (кіші мектеп бәрібір
+  // 8-ін де үлгереді). Прогресс: 1-әрекет 0-90%, қалғандары 91-99% — бар
+  // ешқашан 100%-да «қатып» тұрмайды (100% тек нәтижемен бірге).
+  const BUDGET_MS = 2500;
   let best: AlgoResult | null = null;
   let bestScore = -Infinity;
   for (let i = 0; i < maxTries; i++) {
-    const r = generate({ ...input, seed: i === 0 ? 0 : i }, i === 0 ? onProgress : undefined);
+    const wrapped: ProgressFn | undefined = onProgress
+      ? i === 0
+        ? (p, st) => onProgress(Math.min(p, 90), st)
+        : () => onProgress(Math.min(90 + i, 99), 6)
+      : undefined;
+    const r = generate({ ...input, seed: i === 0 ? 0 : i }, wrapped);
     const sc = runScore(r);
     if (sc > bestScore) { bestScore = sc; best = r; }
     // мінсіз (тесіксіз, толық, педагогикалық бұзусыз) — бірден тоқтаймыз
     if (r.success && r.gaps.length === 0 && r.unplaced.length === 0 && !r.stats.pedViol) break;
+    if (Date.now() - t0 > BUDGET_MS) break; // бюджет бітті — ең жақсысын береміз
   }
   return best!;
 }

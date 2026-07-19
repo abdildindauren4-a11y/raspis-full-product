@@ -22,7 +22,21 @@ async function serverVersion(): Promise<string | null> {
   }
 }
 
+// Google-кіру redirect-і ЖҮРІП ЖАТЫР ма: Firebase signInWithRedirect бастағанда
+// sessionStorage-та pendingRedirect белгісін қалдырады. Дәл сол сәтте reload
+// жасасақ — кіру нәтижесі жоғалып, пайдаланушы кіру бетіне лақтырылады.
+const authRedirectPending = (): boolean => {
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i) || "";
+      if (k.includes("pendingRedirect")) return true;
+    }
+  } catch { /* sessionStorage қолжетімсіз — елемейміз */ }
+  return false;
+};
+
 async function check(): Promise<void> {
+  if (authRedirectPending()) return; // кіру аяқталсын — жаңартуды кейінге қалдырамыз
   const sv = await serverVersion();
   if (!sv || sv === __BUILD_ID__) return; // сервер қолжетімсіз не нұсқа бірдей
   // Осы сервер-нұсқаға бұрын reload жасалды ма (цикл қорғанысы)
@@ -37,7 +51,9 @@ async function check(): Promise<void> {
 /** Қосымша басында бір рет шақырылады (main.tsx). */
 export function initVersionCheck(): void {
   if (typeof window === "undefined" || !import.meta.env.PROD) return;
-  void check();
+  // Бірден емес — 4 секундтан кейін: кіру redirect-і мен алғашқы иниттер
+  // (auth, бұлт-синх) тыныш аяқталсын, reload оларды үзіп жібермесін.
+  setTimeout(() => void check(), 4000);
   // Бет фонға кетіп, қайта оралғанда да тексереміз (мобильде жиі сценарий)
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void check();
