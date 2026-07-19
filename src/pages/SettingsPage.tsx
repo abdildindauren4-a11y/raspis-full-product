@@ -15,7 +15,7 @@ const LANGS: { code: Lang; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "EN" },
 ];
 
-type ConfirmAction = "schedules" | "all" | "demo" | null;
+type ConfirmAction = "schedules" | "all" | "demo" | "school21" | null;
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -37,6 +37,7 @@ export default function SettingsPage() {
     if (confirm === "schedules") { data.clearSchedules(); setDoneMsg(lang === "kk" ? "Кестелер тазаланды" : lang === "ru" ? "Расписания очищены" : "Schedules cleared"); }
     else if (confirm === "all") { data.clearAllData(); setDoneMsg(lang === "kk" ? "Барлық дерек тазаланды" : lang === "ru" ? "Все данные очищены" : "All data cleared"); }
     else if (confirm === "demo") { data.resetSeed(); setDoneMsg(lang === "kk" ? "Демо деректер қайтарылды" : lang === "ru" ? "Демо-данные восстановлены" : "Demo data restored"); }
+    else if (confirm === "school21") { data.resetSchool21(); setDoneMsg(lang === "kk" ? "№21 мектеп демосы жүктелді" : lang === "ru" ? "Демо школы №21 загружено" : "School №21 demo loaded"); }
     setConfirm(null);
     setTimeout(() => setDoneMsg(""), 3000);
   };
@@ -207,6 +208,16 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-c">{lang === "kk" ? "Бастапқы үлгі деректерге оралу" : lang === "ru" ? "Вернуть исходные данные" : "Reset to sample data"}</p>
             </div>
           </button>
+
+          {/* №21 нақты мектеп демосы */}
+          <button onClick={() => setConfirm("school21")}
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-input-c border border-soft-c hover:opacity-80 transition-all text-left">
+            <RotateCcw className="w-5 h-5 status-good shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-strong-c">{lang === "kk" ? "№21 мектеп демосы (нақты дерек)" : lang === "ru" ? "Демо школы №21 (реальные данные)" : "School №21 demo (real data)"}</p>
+              <p className="text-xs text-muted-c">{lang === "kk" ? "17 сынып, СанПиН баллдары, кабинеттік жүйе, мұғалімдер автотағайындалған" : lang === "ru" ? "17 классов, баллы СанПиН, кабинетная система, учителя назначены" : "17 classes, SanPiN scores, cabinet system, teachers assigned"}</p>
+            </div>
+          </button>
         </div>
       </GlassCard>
 
@@ -224,6 +235,7 @@ export default function SettingsPage() {
               {confirm === "schedules" && (lang === "kk" ? "Барлық құрылған кесте өшеді. Сыныптар мен мұғалімдер қалады. Бұл әрекетті қайтару мүмкін емес." : lang === "ru" ? "Все расписания будут удалены. Данные останутся. Действие необратимо." : "All schedules will be deleted. Data stays. This cannot be undone.")}
               {confirm === "all" && (lang === "kk" ? "БАРЛЫҚ дерек өшеді: сыныптар, мұғалімдер, кабинеттер, пәндер, кестелер. Бұл әрекетті қайтару мүмкін емес!" : lang === "ru" ? "ВСЕ данные будут удалены: классы, учителя, кабинеты, расписания. Необратимо!" : "ALL data will be deleted: classes, teachers, rooms, schedules. Irreversible!")}
               {confirm === "demo" && (lang === "kk" ? "Қазіргі деректер демо үлгімен алмастырылады. Сақталмаған өзгерістер жоғалады." : lang === "ru" ? "Текущие данные заменятся демо-данными." : "Current data will be replaced with demo data.")}
+              {confirm === "school21" && (lang === "kk" ? "Қазіргі деректер №21 нақты мектеп демосымен алмастырылады (кабинеттік жүйе қосулы). Сақталмаған өзгерістер жоғалады." : lang === "ru" ? "Текущие данные заменятся демо школы №21 (кабинетная система). Несохранённые изменения потеряются." : "Current data will be replaced with the School №21 demo (cabinet system). Unsaved changes will be lost.")}
             </p>
             <div className="flex gap-3">
               <button className={btnG + " flex-1"} onClick={() => setConfirm(null)}>{t("action.cancel")}</button>
