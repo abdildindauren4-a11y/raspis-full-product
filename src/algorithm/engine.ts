@@ -2295,6 +2295,25 @@ function runScore(r: AlgoResult): number {
     + r.stats.comfort; // тең болса — мұғалімге ыңғайлысы
 }
 
+// ЖЫЛДАМ РЕЖИМ+ (авто-қайталау): бір әрекет тесік/орналаспаған қалдырса —
+// тағы бірнеше seed байқап, ең тазасын аламыз. Кесте құру ретке сезімтал:
+// бір seed 4 тесік қалдырса, екіншісі 0-мен шығуы мүмкін (эмпирикалық
+// дәлелденген). Әр әрекет ~0.1-0.2с — barлығы бәрібір лезде. Пайдаланушы
+// нақты seed берсе (нұсқа генерациясы) — қайталамай, сол күйінде қайтарамыз.
+export function generateAuto(input: AlgoInput, onProgress?: ProgressFn, maxTries = 5): AlgoResult {
+  if (input.seed != null) return generate(input, onProgress);
+  let best: AlgoResult | null = null;
+  let bestScore = -Infinity;
+  for (let i = 0; i < maxTries; i++) {
+    const r = generate({ ...input, seed: i === 0 ? 0 : i }, i === 0 ? onProgress : undefined);
+    const sc = runScore(r);
+    if (sc > bestScore) { bestScore = sc; best = r; }
+    // мінсіз (тесіксіз әрі толық) — бірден тоқтаймыз
+    if (r.success && r.gaps.length === 0 && r.unplaced.length === 0) break;
+  }
+  return best!;
+}
+
 export interface MultiResult {
   best: AlgoResult;
   bestSeed: number;

@@ -1,5 +1,5 @@
 // filepath: src/workers/scheduler.worker.ts
-import { generate } from "../algorithm/engine";
+import { generateAuto } from "../algorithm/engine";
 import { generate2 } from "../algorithm2";
 import { generateShzhm } from "../algorithm/shzhm";
 import type { AlgoInput } from "../algorithm/engine";
@@ -12,11 +12,13 @@ self.onmessage = (e: MessageEvent<{ input: AlgoInput; engine?: EngineId; config?
     const onProgress = (pct: number, stage: number) =>
       (self as unknown as Worker).postMessage({ type: "progress", pct, stage });
     // Модель таңдауы: ШЖМ (v3), Хамелеон (v2) немесе Классик (v1)
+    // v1: авто-қайталаумен — бір әрекет тесік қалдырса, тағы бірнеше seed
+    // байқап, ең тазасын қайтарады (әр әрекет ~0.1-0.2с)
     const result = engine === "v3"
       ? generateShzhm(input, onProgress)
       : engine === "v2"
         ? generate2(input, config, onProgress)
-        : generate(input, onProgress);
+        : generateAuto(input, onProgress);
     (self as unknown as Worker).postMessage({ type: "done", result });
   } catch (err) {
     (self as unknown as Worker).postMessage({ type: "error", message: err instanceof Error ? err.message : String(err) });
