@@ -1,13 +1,9 @@
 // filepath: src/contexts/AuthContext.tsx
 // Google аутентификация контексті — кіру, шығу, пайдаланушы күйі.
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { getFirebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
 import { registerUser, getUserRecord, ADMIN_EMAILS, type Role, type UserRecord } from "@/lib/roles";
-
-// Мобиль құрылғы ма (iOS/Android): popup сенімсіз болғандықтан redirect қолданамыз
-const isMobileDevice = () =>
-  typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
 interface AuthState {
   user: User | null;
@@ -69,39 +65,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
+  // Қатар екінші шақыруды бөгеу (қос басу → «auth/cancelled-popup-request»
+  // қатесінің көзі осы еді)
+  const signingIn = useRef(false);
+
+  // БАРЛЫҚ құрылғыда POPUP БІРІНШІ. Себебі: iOS Safari (16.1+) бөтен-домен
+  // authDomain-мен signInWithRedirect НӘТИЖЕСІН жүйелі бөгейді (ITP,
+  // үшінші-тарап сақтау) — кіру сәтті болса да, қайтқанда пайдаланушы
+  // танылмай, кіру бетіне лақтырылатын. Firebase ресми құжаты да мұндайда
+  // popup қолдануды ұсынады (popup ағыны ITP-ге тәуелсіз). Popup мүлде
+  // ашылмаса (қатаң блокер) ғана redirect-ке түсеміз.
   const signInGoogle = async () => {
+    if (signingIn.current) return; // алдыңғы әрекет әлі жүріп жатыр
+    signingIn.current = true;
     setError("");
     const auth = getFirebaseAuth();
     if (!auth) {
       setError("Firebase кілттері оқылмады. Dev серверді қайта іске қосыңыз (Ctrl+C → npm run dev).");
-      return;
-    }
-    // Мобильде popup сенімсіз (iOS Safari «auth/cancelled-popup-request») —
-    // бірден redirect қолданамыз (бет Google-ге барып қайтады).
-    if (isMobileDevice()) {
-      try {
-        await signInWithRedirect(auth, googleProvider);
-      } catch (e) {
-        const code = (e as { code?: string })?.code || "";
-        if (code === "auth/network-request-failed") setError("Интернет байланысы жоқ");
-        else if (code === "auth/unauthorized-domain") setError("Бұл домен Firebase-те рұқсат етілмеген");
-        else setError("Кіру қатесі: " + code);
-      }
+      signingIn.current = false;
       return;
     }
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (e) {
       const code = (e as { code?: string })?.code || "";
-      if (code === "auth/popup-closed-by-user") setError("Кіру тоқтатылды");
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request")
+        setError("Кіру тоқтатылды — қайта басып көріңіз");
       else if (code === "auth/network-request-failed") setError("Интернет байланысы жоқ");
       else if (code === "auth/unauthorized-domain") setError("Бұл домен Firebase-те рұқсат етілмеген");
-      else if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
-        // Popup бөгелді/жабылды — redirect-ке ауысамыз
+      else if (code === "auth/popup-blocked") {
+        // Popup мүлде бөгелген (қатаң блокер) — соңғы амал: redirect
         try { await signInWithRedirect(auth, googleProvider); }
         catch (e2) { setError("Кіру қатесі: " + ((e2 as { code?: string })?.code || "")); }
       }
       else setError("Кіру қатесі: " + code);
+    } finally {
+      signingIn.current = false;
     }
   };
 
