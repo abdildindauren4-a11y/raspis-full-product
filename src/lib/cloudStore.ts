@@ -22,7 +22,11 @@ export async function saveToCloud(userId: string, data: Omit<CloudData, "updated
   if (!db) return false;
   try {
     const ref = doc(db, "schools", userId);
-    await setDoc(ref, { ...data, updatedAt: Date.now() });
+    // undefined өрістерді тазалау (JSON round-trip): Firestore undefined-ты
+    // қабылдамайды. Деректе көп опционал өріс бар (teacherId, primaryScore,
+    // roomId, selfStudy...) — тазаламаса setDoc құлап, сақтау сәтсіз болатын.
+    const clean = JSON.parse(JSON.stringify(data));
+    await setDoc(ref, { ...clean, updatedAt: Date.now() });
     return true;
   } catch (e) {
     console.error("Бұлтқа сақтау қатесі:", e);
