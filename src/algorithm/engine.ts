@@ -7,6 +7,9 @@ export type RoomType = "regular" | "physics" | "chemistry" | "computer" | "gym";
 export interface Subject {
   id: string; name: string; score: number; coeff: number;
   ideal: number[]; room: RoomType | null; primaryScore?: number;
+  // 1-сабақ бонусы (pScore): қазақ тілі тәрізді «күн басына лайық» пәнге
+  // калибрлеу кезінде қойылады — 1-сабақ кештен тартымды, шыңнан төмен.
+  earlyBonus?: number;
   // КАБИНЕТТІК ЖҮЙЕ (settings.cabinetSystem): пән әрдайым осы НАҚТЫ кабинетте
   // өтеді (әр пәннің өз кабинеті). Берілсе әрі cabinetSystem қосулы болса,
   // findRoom тек осы кабинетті қайтарады (бос болса). Болмаса — түр/қарапайым
@@ -199,18 +202,38 @@ export const officialToInternal = (p: number): number =>
 export const idealForScore = (score: number): number[] =>
   score >= 9 ? [2, 3, 4] : score >= 6 ? [2, 3, 4, 5] : [5, 6, 7];
 
+// ҚАЗАҚ ТІЛІ (мемлекеттік тіл, ана тілі, сауат ашу) — 1-САБАҚҚА ЛАЙЫҚ пән
+// (завуч тәжірибесі): күнді бастауға қолайлы, кеш сабаққа ығыспауы керек.
+// ТЕТІК: терезе әдепкі қалады ([2,3,4,5] — шыңы 2-4), бірақ pScore-да
+// 1-сабаққа ШАҒЫН асимметриялық бонус беріледі (earlyBonus): 1-сабақ кеш
+// сабақтан тартымдырақ, бірақ 2-4 шыңынан ТӨМЕН. Терезеге 1-ді тікелей
+// кіргізу (мыс. [1,2,3,4,5]) болмайды — тең ұпайда әрқашан ең кіші слот
+// жеңіп, бір мұғалімнің бүкіл жүктемесі 1-сабаққа шоғырланып, сабақтар
+// физикалық сыймай қалатыны эмпирикалық анықталды (0→4 орналаспаған).
+export const KAZ_LANG_RE = /қазақ тіл|казахск|ана тілі|сауат ашу/;
+export const idealForSubject = (_name: string, score: number): number[] => idealForScore(score);
+
 // settings.sanpinScale қосулы болса — пән баллдарын ресми шкалада қалдырып
 // (өзгеріссіз), қалаулы сабақ терезесін баллдан туындатамыз. UI-дағы ресми
 // баллдар өзгермейді; бұл — генерация алдындағы бір-ақ қадам.
 export const calibrateSubjects = (subjects: Subject[], st?: Settings): Subject[] =>
   st?.sanpinScale
-    ? subjects.map((s) => ({
-        ...s,
-        score: officialToInternal(s.score),
-        primaryScore: s.primaryScore != null ? officialToInternal(s.primaryScore) : s.primaryScore,
-        // ideal бос немесе баллмен қайшы болса — құжат баллынан туындатамыз
-        ideal: s.ideal && s.ideal.length ? s.ideal : idealForScore(officialToInternal(s.score)),
-      }))
+    ? subjects.map((s) => {
+        const sc = officialToInternal(s.score);
+        // ideal: завуч қолмен өзгертпеген болса (бос НЕ жалпы туынды үлгіге тең),
+        // пәнге лайықты терезе қолданылады — қазақ тілі [1,2,3,4] (1-сабаққа
+        // лайық), қалғандары баллдан. Қолмен өзгертілгені сол күйінде қалады.
+        const derived = idealForScore(sc);
+        const untouched = !s.ideal || !s.ideal.length || s.ideal.join(",") === derived.join(",");
+        return {
+          ...s,
+          score: sc,
+          primaryScore: s.primaryScore != null ? officialToInternal(s.primaryScore) : s.primaryScore,
+          ideal: untouched ? idealForSubject(s.name, sc) : s.ideal,
+          // қазақ тілі — 1-сабаққа лайық (шағын бонус; терезе өзгермейді)
+          earlyBonus: KAZ_LANG_RE.test(s.name.toLowerCase()) ? 2 : s.earlyBonus,
+        };
+      })
     : subjects;
 
 export const DEFAULT_DAY_LIMITS = { g14: 25, g56: 35, g79: 45, g1011: 55 };
@@ -264,7 +287,8 @@ const coeffOfS = (s: number, st?: Settings) => {
 const SLOT_K = [0, 1.0, 1.0, 1.1, 1.3, 1.4, 1.5, 1.6, 1.7];
 export const pScore = (subj: Subject, slot: number, st?: Settings) => {
   const d = Math.min(...subj.ideal.map((i) => Math.abs(slot - i)));
-  return Math.max(0, Math.round((10 - d * coeffOfS(subj.score, st)) * 10) / 10);
+  const early = slot === 1 && subj.earlyBonus ? subj.earlyBonus : 0; // күн басына лайық пән
+  return Math.max(0, Math.round((10 - d * coeffOfS(subj.score, st) + early) * 10) / 10);
 };
 const weekOrder = (score: number) =>
   score >= 9 ? [3, 2, 4, 1, 5] : score >= 6 ? [1, 4, 2, 3, 5] : [5, 4, 1, 2, 3];
@@ -339,16 +363,30 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   };
 
   // ── Пән тип-флагтары (педагогикалық ережелер үшін, бір рет) ──
-  const FL: Record<string, { alg: boolean; geo: boolean; rusLang: boolean; rusLit: boolean; lng: boolean }> = {};
+  // lang — тіл отбасысы: kaz (қазақ/ана тілі/сауат ашу), rus (орыс), eng
+  // (ағылшын/шетел). Қатар қою ережесі отбасыға қарайды: қазақ↔орыс және
+  // орыс↔ағылшын ҚАТАР болмайды; қазақ→ағылшын РҰҚСАТ (завуч растаған);
+  // бір отбасы ішінде (мыс. орыс тілі → орыс әдебиеті) шектеу жоқ (олар
+  // онсыз да бөлек күндерде).
+  const FL: Record<string, { alg: boolean; geo: boolean; rusLang: boolean; rusLit: boolean; lang?: "kaz" | "rus" | "eng" }> = {};
   for (const s of subjects) {
     const n = s.name.toLowerCase();
     const rus = n.includes("орыс") || n.includes("русск");
     const lit = n.includes("әдеб") || n.includes("литер");
+    const lang: "kaz" | "rus" | "eng" | undefined =
+      /ағылшын|шетел|иностран|english|неміс|француз/.test(n) ? "eng"
+        : rus && (n.includes("тіл") || n.includes("язык") || lit) ? "rus"
+        : /қазақ тіл|казахск|ана тілі|сауат ашу/.test(n) ? "kaz" : undefined;
     FL[s.id] = { alg: n.includes("алгебра"), geo: n.includes("геометрия"),
-      rusLang: rus && n.includes("тіл") && !lit, rusLit: rus && lit,
-      // ТІЛ пәні (қазақ/орыс/ағылшын/ана тілі...): екеуі қатар қойылмайды
-      lng: /тіл|язык|english/.test(n) };
+      rusLang: rus && n.includes("тіл") && !lit, rusLit: rus && lit, lang };
   }
+  // Екі тіл пәні қатар тұра ала ма (отбасы ережесі)
+  const langAdjacentBad = (a: string, b: string): boolean => {
+    const fa = FL[a]?.lang, fb = FL[b]?.lang;
+    if (!fa || !fb || fa === fb) return false; // тіл емес не бір отбасы — еркін
+    if ((fa === "kaz" && fb === "eng") || (fa === "eng" && fb === "kaz")) return false; // қазақ↔ағылшын рұқсат
+    return true; // қазақ↔орыс, орыс↔ағылшын — тыйым
+  };
   const isHardId = (id: string) => S[id].score >= 9; // қиын пән (СанПиН 9-11: математика тобы, физика, химия, био, информатика, шетел)
   // Сынып бойынша алгебра/геометрия/орыс тілі/әдебиеті апталық сағаттары
   const clsHours = (cid: string, pred: (f: typeof FL[string]) => boolean): number => {
@@ -388,9 +426,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         if (sharedDays(cls.id, (x) => x.rusLang, (x) => x.rusLit) + 1 > allowed) return "орыс тілі мен әдебиеті бір күнде";
       }
     }
-    if (f.lng) {
+    if (f.lang) {
       const p = cm[cls.id][day][slot - 1], nx = slot < 8 ? cm[cls.id][day][slot + 1] : null;
-      if ((p && FL[p].lng) || (nx && FL[nx].lng)) return "екі тіл пәні қатар";
+      if ((p && langAdjacentBad(subj.id, p)) || (nx && langAdjacentBad(subj.id, nx))) return "үйлеспейтін тіл пәндері қатар";
     }
     return null;
   };
@@ -404,6 +442,26 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (run >= 3) return "үш қиын пән қатар";
     if (run === 2 && start === 1) return "күн басында екі қиын пән қатар";
     return null;
+  };
+
+  // СВОП тексерісі (жеңіл): своптар үшін ТЕК педагогикалық көршілестік
+  // ережелері — қара тізім, информатика көршісі, кеш сабақ шегі, құрылымдық
+  // (алг+гео/орыс/тіл), қиын-қатар. Күндік балл/шаршау лимиттерін своптың өз
+  // «нашарлатпау» логикасы бақылайды — толық hardCheck оларды да қатаң
+  // тексеріп, апта балансын жақсартатын своптарды бөгеп тастайтын.
+  const swapPedOk = (cls: Klass, subj: Subject, day: number, slot: number): boolean => {
+    const lim = lateLimitOf(subj);
+    if (lim && slot > lim) return false;
+    const prev = cm[cls.id][day][slot - 1];
+    const next = slot < 8 ? cm[cls.id][day][slot + 1] : null;
+    const bl = subj.black;
+    if (prev && (bl.includes(S[prev].name) || S[prev].black.includes(subj.name))) return false;
+    if (next && (bl.includes(S[next].name) || S[next].black.includes(subj.name))) return false;
+    if (prev && S[prev].digital && subj.score > 5) return false;
+    if (next && subj.digital && S[next].score > 5) return false;
+    if (structuralViolation(cls, subj, day, slot)) return false;
+    if (hardRunViolation(cls, subj, day, slot)) return false;
+    return true;
   };
 
   /* ЭТАП 0 — precheck */
@@ -1625,10 +1683,10 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const okA = cellFree(clsA, a.teacherId, subjA, aShiftNew, B.day, B.slot, roomA, a, b);
       const okB = cellFree(clsB, b.teacherId, subjB, bShiftNew, A.day, A.slot, roomB, a, b);
       if (!okA || !okB) { restore(); return false; }
-      // ПЕДАГОГИКАЛЫҚ ережелер де сақталуы керек (қара тізім, тіл қатарлығы,
-      // алгебра+геометрия, кеш сабақ шегі...) — бұрын своптар оларды тексермей,
-      // орналастыруда сақталған ережелерді кейін бұзып қоятын (ағып кету).
-      if (hardCheck(clsA, a.teacherId, subjA, B.day, B.slot) || hardCheck(clsB, b.teacherId, subjB, A.day, A.slot)) { restore(); return false; }
+      // ПЕДАГОГИКАЛЫҚ көршілестік ережелері сақталуы керек (қара тізім, тіл
+      // үйлесімі, алгебра+геометрия, қиын-қатар, кеш сабақ шегі) — бұрын
+      // своптар оларды тексермей, ережелерді кейін бұзып қоятын (ағып кету).
+      if (!swapPedOk(clsA, subjA, B.day, B.slot) || !swapPedOk(clsB, subjB, A.day, A.slot)) { restore(); return false; }
 
       // ── Ауыстырамыз (slots объектілерін + матрица) ──
       a.day = B.day; a.slot = B.slot; a.roomId = roomA; a.shift = aShiftNew; a.score = pScore(subjA, B.slot, settings);
@@ -1745,8 +1803,8 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const okA = cellFree(clsA, a.teacherId, subjA, clsA.shift, B.day, B.slot, roomA, a, b);
       const okB = cellFree(clsB, b.teacherId, subjB, clsB.shift, A.day, A.slot, roomB, a, b);
       if (!okA || !okB) { restore(); return false; }
-      // Педагогикалық ережелер своп кезінде де сақталады (ағып кетуді жабу)
-      if (hardCheck(clsA, a.teacherId, subjA, B.day, B.slot) || hardCheck(clsB, b.teacherId, subjB, A.day, A.slot)) { restore(); return false; }
+      // Педагогикалық көршілестік ережелері своп кезінде де сақталады
+      if (!swapPedOk(clsA, subjA, B.day, B.slot) || !swapPedOk(clsB, subjB, A.day, A.slot)) { restore(); return false; }
 
       a.day = B.day; a.slot = B.slot; a.roomId = roomA; a.score = pScore(subjA, B.slot, settings);
       b.day = A.day; b.slot = A.slot; b.roomId = roomB; b.score = pScore(subjB, A.slot, settings);
@@ -2121,12 +2179,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (shR > alR) sep += shR - alR;
     }
     add("Алгебра/геометрия және орыс тілі/әдебиеті бөлек күндерде", sep === 0, sep ? `${sep} бұзу` : "");
-    let adj = 0; // тіл пәндері қатар
+    let adj = 0; // үйлеспейтін тіл пәндері қатар (қазақ↔орыс, орыс↔ағылшын)
     for (const c of classes) for (let d = 1; d <= 5; d++) for (let s = 1; s <= 7; s++) {
       const a = cm[c.id][d][s], b = cm[c.id][d][s + 1];
-      if (a && b && FL[a].lng && FL[b].lng) adj++;
+      if (a && b && langAdjacentBad(a, b)) adj++;
     }
-    add("Тіл пәндері қатар емес", adj === 0, adj ? `${adj} жағдай` : "");
+    add("Үйлеспейтін тіл пәндері қатар емес", adj === 0, adj ? `${adj} жағдай` : "");
     let runs = 0; // 3 қиын қатар
     for (const c of classes) for (let d = 1; d <= 5; d++) {
       let run = 0;
