@@ -32,6 +32,10 @@ interface DataState {
   school: School; settings: Settings;
   subjects: Subject[]; classes: Klass[]; teachers: Teacher[]; rooms: Room[];
   komplekts: Komplekt[]; // ШЖМ: біріктірілген класс-комплектілер (аралас мектеп)
+  // Деректің соңғы ЖЕРГІЛІКТІ өзгертілген уақыты — бұлтпен қайшылықты шешу үшін
+  // (қайсысы жаңарақ болса — сол жеңеді; ескі бұлт жаңа жергілікті деректі
+  // үстінен жазып тастамауы үшін). Тек нақты деректер (пән/сынып/мұғалім/…) бумпайды.
+  dataUpdatedAt: number;
   versions: Version[]; activeVersionId: string | null;
   substitutions: SubstitutionRecord[];
   // Алгоритм-модель таңдауы (ЖИ-чаттардағы модель ауыстырғыш сияқты).
@@ -48,6 +52,9 @@ interface DataState {
   setTeachers: (t: Teacher[]) => void;
   setRooms: (r: Room[]) => void;
   setKomplekts: (k: Komplekt[]) => void;
+  // Бұлттан келген деректі бір-ақ set-пен қолдану (dataUpdatedAt = бұлт уақыты,
+  // бумпамайды) — useCloudSync жүктегенде қолданады.
+  applyCloud: (d: { school: School; settings: Settings; subjects: Subject[]; classes: Klass[]; teachers: Teacher[]; rooms: Room[] }, updatedAt: number) => void;
   saveVersion: (result: AlgoResult, isPartial: boolean, scope?: string) => Version;
   activateVersion: (id: string) => void;
   deleteVersion: (id: string) => void;
@@ -71,19 +78,26 @@ export const useData = create<DataState>()(
       school: seedSchool, settings: seedSettings,
       subjects: seedSubjects, classes: seed.classes,
       teachers: seed.teachers, rooms: seed.rooms, komplekts: [],
+      dataUpdatedAt: 0, // демо/бастапқы күй — «ескі» (бұлтта нақты дерек болса, ол жеңеді)
       versions: [], activeVersionId: null, substitutions: [],
       activeEngine: DEFAULT_ENGINE, engineConfigs: {},
       setActiveEngine: (activeEngine) => set({ activeEngine }),
       setEngineConfig: (id, cfg) => set({ engineConfigs: { ...get().engineConfigs, [id]: cfg } }),
       login: (name) => set({ loggedIn: true, userName: name }),
       logout: () => set({ loggedIn: false, userName: "" }),
-      setSchool: (s) => set({ school: { ...get().school, ...s } }),
-      setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
-      setSubjects: (subjects) => set({ subjects }),
-      setClasses: (classes) => set({ classes }),
-      setTeachers: (teachers) => set({ teachers }),
-      setRooms: (rooms) => set({ rooms }),
-      setKomplekts: (komplekts) => set({ komplekts }),
+      setSchool: (s) => set({ school: { ...get().school, ...s }, dataUpdatedAt: Date.now() }),
+      setSettings: (s) => set({ settings: { ...get().settings, ...s }, dataUpdatedAt: Date.now() }),
+      setSubjects: (subjects) => set({ subjects, dataUpdatedAt: Date.now() }),
+      setClasses: (classes) => set({ classes, dataUpdatedAt: Date.now() }),
+      setTeachers: (teachers) => set({ teachers, dataUpdatedAt: Date.now() }),
+      setRooms: (rooms) => set({ rooms, dataUpdatedAt: Date.now() }),
+      setKomplekts: (komplekts) => set({ komplekts, dataUpdatedAt: Date.now() }),
+      // Бұлттан келген деректі қолдану: dataUpdatedAt = бұлт уақыты (бумпамайды),
+      // сонда келесі салыстыруда жергілікті мен бұлт тең болады.
+      applyCloud: (d, updatedAt) => set({
+        school: d.school, settings: d.settings, subjects: d.subjects,
+        classes: d.classes, teachers: d.teachers, rooms: d.rooms, dataUpdatedAt: updatedAt,
+      }),
       saveVersion: (result, isPartial, scope) => {
         const n = get().versions.length + 1;
         const v: Version = {
@@ -109,17 +123,17 @@ export const useData = create<DataState>()(
       },
       resetSeed: () => {
         const s = buildSeed();
-        set({ school: seedSchool, settings: seedSettings, subjects: seedSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], versions: [], activeVersionId: null });
+        set({ school: seedSchool, settings: seedSettings, subjects: seedSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], dataUpdatedAt: Date.now(), versions: [], activeVersionId: null });
       },
       resetBigSeed: () => {
         const s = buildBigSeed();
-        set({ school: bigSchool, settings: bigSettings, subjects: bigSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], versions: [], activeVersionId: null, substitutions: [] });
+        set({ school: bigSchool, settings: bigSettings, subjects: bigSubjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], dataUpdatedAt: Date.now(), versions: [], activeVersionId: null, substitutions: [] });
       },
       resetSchool21: () => {
         // №21 нақты мектеп: СанПиН баллдары, кабинеттік жүйе, мұғалімдер
         // автотағайындалған, әр пәнге кабинет қосылған — бірден генерацияға дайын.
         const s = buildSchool21();
-        set({ school: school21, settings: school21Settings, subjects: school21Subjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], versions: [], activeVersionId: null, substitutions: [] });
+        set({ school: school21, settings: school21Settings, subjects: school21Subjects, classes: s.classes, teachers: s.teachers, rooms: s.rooms, komplekts: [], dataUpdatedAt: Date.now(), versions: [], activeVersionId: null, substitutions: [] });
       },
       clearSchedules: () => {
         // тек құрылған кестелерді (нұсқаларды) және алмастыруларды өшіреді
@@ -128,7 +142,7 @@ export const useData = create<DataState>()(
       clearAllData: () => {
         // барлық деректі толық бос етеді (демо деректерсіз, таза бастау)
         set({
-          subjects: [], classes: [], teachers: [], rooms: [], komplekts: [],
+          subjects: [], classes: [], teachers: [], rooms: [], komplekts: [], dataUpdatedAt: Date.now(),
           versions: [], activeVersionId: null, substitutions: [],
         });
       },

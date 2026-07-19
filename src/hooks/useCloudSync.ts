@@ -54,23 +54,23 @@ export function useCloudSync() {
 
     (async () => {
       setSyncing(true);
+      // Жергілікті деректің соңғы өзгертілу уақыты (localStorage-тан қалпына келген)
+      const localTs = useData.getState().dataUpdatedAt || 0;
       const cloud = await loadFromCloud(user.uid);
-      if (cloud) {
-        // бұлтта дерек бар — жергілікті күйге жазамыз
-        const st = useData.getState();
-        st.setSchool(cloud.school);
-        st.setSettings(cloud.settings);
-        st.setSubjects(cloud.subjects);
-        st.setClasses(cloud.classes);
-        st.setTeachers(cloud.teachers);
-        st.setRooms(cloud.rooms);
-        setLastSync(cloud.updatedAt);
+      const cloudTs = cloud?.updatedAt || 0;
+
+      if (cloud && cloudTs > localTs) {
+        // Бұлт ЖАҢАРАҚ — жергілікті күйге жазамыз (applyCloud уақытты бумпамайды)
+        useData.getState().applyCloud(cloud, cloudTs);
+        setLastSync(cloudTs);
       }
       loaded.current = true; // ЕНДІ ғана автосақтауға рұқсат
       setSyncing(false);
-      // Бұлт БОС, бірақ жергілікті дерек бар болса — оны бірден бұлтқа көтереміз
-      // (алғаш кіргенде қолда бар деректі жоғалтпау үшін).
-      if (!cloud) {
+
+      // Жергілікті ЖАҢАРАҚ (немесе бұлт бос) болса — жергілікті деректі бұлтқа
+      // көтереміз. Осылай ЕСКІ бұлт жаңа жергілікті пәндерді ЖОЙМАЙДЫ (сіздің
+      // «пәндерім қабылданбай тұр» мәселеңіздің түбірі осы еді).
+      if (cloudTs <= localTs) {
         const st = useData.getState();
         const snap: Snapshot = { school: st.school, settings: st.settings, subjects: st.subjects, classes: st.classes, teachers: st.teachers, rooms: st.rooms };
         if (!isEmpty(snap)) { pending.current = snap; void flush(user.uid); }
