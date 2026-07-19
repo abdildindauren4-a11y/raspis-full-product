@@ -316,15 +316,53 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // 6-ға көтерілді (жұмсақ режимде 7-ге дейін). Басқа пәндерге шек жоқ.
   // МАҢЫЗДЫ: бір-ақ рет алдын ала есептеледі — hardCheck ыстық жолында
   // toLowerCase/includes шақыру генерацияны айтарлықтай баяулатады.
-  const MATH_LATE_LIMIT = 6;
+  // Математика ЕКІ ДЕҢГЕЙЛІ: негізгі орналастыруда тек 1-4 (MATH_PREFERRED),
+  // 1-4-ке сыймағаны ғана кейін 5-6-ға (MATH_OVERFLOW, mathOverflow фазасы).
+  const MATH_PREFERRED = 4, MATH_OVERFLOW = 6;
   const LATE_LIMIT: Record<string, number | undefined> = {};
+  const MATH_SET = new Set<string>();
   for (const s of subjects) {
     if (s.maxSlot) { LATE_LIMIT[s.id] = s.maxSlot; continue; }
     const n = s.name.toLowerCase();
-    LATE_LIMIT[s.id] = n.includes("математика") || n.includes("алгебра") || n.includes("геометрия")
-      ? MATH_LATE_LIMIT : undefined;
+    if (n.includes("математика") || n.includes("алгебра") || n.includes("геометрия")) {
+      LATE_LIMIT[s.id] = MATH_PREFERRED; MATH_SET.add(s.id);
+    } else LATE_LIMIT[s.id] = undefined;
   }
-  const lateLimitOf = (s: Subject): number | undefined => LATE_LIMIT[s.id];
+  let mathOverflow = false; // true болғанда математика 5-6-ға да қойыла алады
+  const lateLimitOf = (s: Subject): number | undefined => {
+    const b = LATE_LIMIT[s.id];
+    if (b === undefined) return undefined;
+    return mathOverflow && MATH_SET.has(s.id) ? MATH_OVERFLOW : b;
+  };
+
+  // ── Пән тип-флагтары (жаңа педагогикалық ережелер үшін, бір рет) ──
+  const FL: Record<string, { alg: boolean; geo: boolean; rusLang: boolean; rusLit: boolean }> = {};
+  for (const s of subjects) {
+    const n = s.name.toLowerCase();
+    const rus = n.includes("орыс") || n.includes("русск");
+    const lit = n.includes("әдеб") || n.includes("литер");
+    FL[s.id] = { alg: n.includes("алгебра"), geo: n.includes("геометрия"),
+      rusLang: rus && n.includes("тіл") && !lit, rusLit: rus && lit };
+  }
+  const isHardId = (id: string) => S[id].score >= 9; // қиын пән (СанПиН 9-11: математика тобы, физика, химия, био, информатика, шетел)
+  // Сынып бойынша алгебра/геометрия/орыс тілі/әдебиеті апталық сағаттары
+  const clsHours = (cid: string, pred: (f: typeof FL[string]) => boolean): number => {
+    let h = 0; for (const cu of C[cid].curriculum) { const s = S[cu.subjectId]; if (s && pred(FL[s.id])) h += cu.hours; }
+    return h;
+  };
+  const algH: Record<string, number> = {}, geoH: Record<string, number> = {}, rlH: Record<string, number> = {}, rlitH: Record<string, number> = {};
+  for (const c of classes) {
+    algH[c.id] = clsHours(c.id, (f) => f.alg); geoH[c.id] = clsHours(c.id, (f) => f.geo);
+    rlH[c.id] = clsHours(c.id, (f) => f.rusLang); rlitH[c.id] = clsHours(c.id, (f) => f.rusLit);
+  }
+  const dayHas = (cid: string, day: number, pred: (f: typeof FL[string]) => boolean): boolean => {
+    for (let sl = 1; sl <= 8; sl++) { const id = cm[cid][day][sl]; if (id && pred(FL[id])) return true; }
+    return false;
+  };
+  const sharedDays = (cid: string, pa: (f: typeof FL[string]) => boolean, pb: (f: typeof FL[string]) => boolean): number => {
+    let n = 0; for (let d = 1; d <= 5; d++) if (dayHas(cid, d, pa) && dayHas(cid, d, pb)) n++;
+    return n;
+  };
 
   /* ЭТАП 0 — precheck */
   prog(3, 0);
@@ -460,6 +498,36 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (prev && S[prev].digital && subj.score > 5) return "информатикадан кейін жеңіл пән";
     if (next && subj.digital && S[next].score > 5) return "информатикадан кейін жеңіл пән";
     if (subj.corr && slot <= 3) return "түзету сабағы — 4+ слот";
+    // ── Алгебра + Геометрия бір күнде болмайды ──
+    // Ерекшелік: қосынды сағат 5-тен асса (3+3=6) — 5 күнге бөлінбейді, сонда
+    // ЕҢ АЗ қажет күн ғана бірге болады (3+3 → тек 1 күн).
+    if (FL[subj.id].alg || FL[subj.id].geo) {
+      const partner = FL[subj.id].alg ? (f: typeof FL[string]) => f.geo : (f: typeof FL[string]) => f.alg;
+      if (dayHas(cls.id, day, partner)) {
+        const allowed = Math.max(0, algH[cls.id] + geoH[cls.id] - 5);
+        if (sharedDays(cls.id, (f) => f.alg, (f) => f.geo) + 1 > allowed) return "алгебра мен геометрия бір күнде";
+      }
+    }
+    // ── Орыс тілі + Орыс әдебиеті бір күнде болмайды (сондай ерекшелікпен) ──
+    if (FL[subj.id].rusLang || FL[subj.id].rusLit) {
+      const partner = FL[subj.id].rusLang ? (f: typeof FL[string]) => f.rusLit : (f: typeof FL[string]) => f.rusLang;
+      if (dayHas(cls.id, day, partner)) {
+        const allowed = Math.max(0, rlH[cls.id] + rlitH[cls.id] - 5);
+        if (sharedDays(cls.id, (f) => f.rusLang, (f) => f.rusLit) + 1 > allowed) return "орыс тілі мен әдебиеті бір күнде";
+      }
+    }
+    // ── Қиын соң қиын ережесі (нақты мектеп дерегіне калибрленген: күніне
+    // орта есеппен ~2 қиын пән, макс ~3) ── 3 қиын пән қатар — тыйым; күн
+    // БАСЫНДА (1-2) 2 қиын қатар — тыйым (алдымен орта пән керек, «жылыну»).
+    // М-Қ-Қ рұқсат (1-сабақ орта, 2-3 қиын), Қ-О-Қ рұқсат (1-сабақ қиын болса
+    // 2-сабақ орта). «Қиын» = СанПиН балл ≥9. Сыймаса — авто-жұмсақ фаза босатады.
+    if (subj.score >= 9) {
+      let left = 0; for (let s = slot - 1; s >= 1 && cm[cls.id][day][s] && isHardId(cm[cls.id][day][s]!); s--) left++;
+      let right = 0; for (let s = slot + 1; s <= 8 && cm[cls.id][day][s] && isHardId(cm[cls.id][day][s]!); s++) right++;
+      const run = left + 1 + right, start = slot - left;
+      if (run >= 3) return "үш қиын пән қатар";
+      if (run === 2 && start === 1) return "күн басында екі қиын пән қатар";
+    }
     if (dScore[cls.id][day] + eff(cls, subj) > dayLimitS(cls.grade, settings)) return "күндік балл лимиті";
     return null;
   };
@@ -885,6 +953,73 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (!fixed) break;
     }
   }
+
+  /* ЭТАП 5.6 — МАТЕМАТИКА OVERFLOW: 1-4-ке сыймаған математика/алгебра/
+     геометрия сабақтарын 5-6-ға қоямыз (күннің соңы емес). Негізгі
+     орналастыру 1-4-те теңгерімді жинады; бұл — тек сол сыймай қалғандар. */
+  mathOverflow = true;
+  for (const st of shortList) {
+    if (st.left <= 0 || !MATH_SET.has(st.tk.s.id) || st.tk.cu.isSplit || st.tk.doubles > 0) continue;
+    const cls = st.tk.cls, subj = st.tk.s, tid = st.tk.cu.teacherId!;
+    for (let day = 1; day <= 5 && st.left > 0; day++) {
+      if (ds[cls.id][day].has(subj.id)) continue;
+      for (let slot = MATH_PREFERRED + 1; slot <= MATH_OVERFLOW && st.left > 0; slot++) {
+        if (hardCheck(cls, tid, subj, day, slot)) continue;
+        const room = findRoom(cls, subj, day, slot);
+        if (!room) continue;
+        place({ classId: cls.id, subjectId: subj.id, teacherId: tid, roomId: room, day, slot, shift: cls.shift, score: pScore(subj, slot, settings) });
+        st.left--;
+      }
+    }
+  }
+  mathOverflow = false;
+
+  /* ЭТАП 5.65 — АВТО ЖҰМСАРТУ: жаңа педагогикалық ережелерге (алгебра+геометрия,
+     орыс тілі+әдебиеті, қиын-соң-қиын) байланысты 1-4/қатаң режимде сыймай
+     қалған сабақтарды жұмсақ режимде орналастырамыз. Конфликт (физика заңы)
+     ӘРҚАШАН сақталады — тек қалаулы ережелер босаңсиды. Осылай жаңа ережелер
+     сыятын жерде қатаң сақталады, ал сыймаса — сабақ жоғалмайды (регрессия жоқ). */
+  for (const st of shortList) {
+    if (st.left <= 0 || st.tk.cu.isSplit || st.tk.doubles > 0) continue;
+    const cls = st.tk.cls, subj = st.tk.s, tid = st.tk.cu.teacherId!;
+    for (let day = 1; day <= 5 && st.left > 0; day++) {
+      if (ds[cls.id][day].has(subj.id)) continue;
+      for (let slot = 1; slot <= maxSlots(cls.grade) && st.left > 0; slot++) {
+        if (hardCheck(cls, tid, subj, day, slot, false, true)) continue; // soft=true
+        const room = findRoom(cls, subj, day, slot);
+        if (!room) continue;
+        place({ classId: cls.id, subjectId: subj.id, teacherId: tid, roomId: room, day, slot, shift: cls.shift, score: pScore(subj, slot, settings) });
+        st.left--;
+      }
+    }
+  }
+
+  /* ЭТАП 5.68 — СОҢҒЫ КЕПІЛ (тек конфликт): жаңа педагогикалық ережелер де,
+     қалаулы лимиттер де сыйғыза алмаған сабақ қалса — тек ФИЗИКА ЗАҢЫН
+     (сынып/мұғалім/кабинет бос, бір күн — бір пән) тексеріп орналастырамыз.
+     Мұнсыз жаңа ережелер тығыз кестеде сабақ жоғалтуы мүмкін еді (регрессия). */
+  for (const st of shortList) {
+    if (st.left <= 0 || st.tk.cu.isSplit || st.tk.doubles > 0) continue;
+    const cls = st.tk.cls, subj = st.tk.s, tid = st.tk.cu.teacherId!;
+    const tt = T[tid]; if (!tt) continue;
+    for (let day = 1; day <= 5 && st.left > 0; day++) {
+      if (ds[cls.id][day].has(subj.id)) continue;
+      for (let slot = 1; slot <= maxSlots(cls.grade) && st.left > 0; slot++) {
+        if (cm[cls.id][day][slot] !== null) continue;
+        if (tm[tid][cls.shift][day][slot] !== null) continue;
+        if (cls.grade < tt.gradeMin || cls.grade > tt.gradeMax) continue;
+        if (tt.shift !== 3 && tt.shift !== cls.shift) continue;
+        if (tt.unavailable.includes(`${day}-${slot}`)) continue;
+        if (!interShiftOk(tt, cls.shift, day)) continue;
+        if (subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`)) continue;
+        const room = findRoom(cls, subj, day, slot);
+        if (!room) continue;
+        place({ classId: cls.id, subjectId: subj.id, teacherId: tid, roomId: room, day, slot, shift: cls.shift, score: pScore(subj, slot, settings) });
+        st.left--;
+      }
+    }
+  }
+
   for (const st of shortList)
     if (st.left > 0)
       unplaced.push({ className: st.tk.cls.name, subject: st.tk.s.name, placed: st.tk.cu.hours - st.left, need: st.tk.cu.hours, reason: "орын табылмады (repair-дан кейін де)" });
