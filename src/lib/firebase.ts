@@ -17,10 +17,19 @@ const FALLBACK = {
   appId: "1:857856091046:web:57e206beae4fd04e276567",
 };
 
+// authDomain: ПРОДАКШНДА — сайттың ӨЗ домені (vercel.json-дағы /__/auth/*
+// прокси арқылы Firebase auth-қа бағытталады). Себебі: iOS Safari (ITP)
+// бөтен доменге (firebaseapp.com) redirect кезінде сақтауды бөгеп,
+// signInWithRedirect нәтижесі жоғалатын — кіру сәтті болса да, қайтқанда
+// пайдаланушы танылмай, кіру бетіне лақтырылатын. Бірінші-тарап домен
+// (өз доменіміз) — бұл мәселені толық жояды. Dev-те бұрынғыша firebaseapp.com.
+const firstPartyAuthDomain =
+  import.meta.env.PROD && typeof window !== "undefined" ? window.location.hostname : FALLBACK.authDomain;
+
 // .env болса оны, болмаса fallback-ті қолданамыз
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || FALLBACK.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || FALLBACK.authDomain,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firstPartyAuthDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || FALLBACK.projectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || FALLBACK.storageBucket,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || FALLBACK.messagingSenderId,
