@@ -629,6 +629,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       // Құрылымдық ережелер ЖҰМСАҚ режимде де сақталады (алгебра+геометрия,
       // орыс тілі+әдебиеті, екі тіл қатар) — тек соңғы кепіл-пасстар елемейді
       { const sv = structuralViolation(cls, subj, day, slot); if (sv) return sv; }
+      // ҚИЫН-СОҢ-ҚИЫН да ЖҰМСАҚ режимде сақталады (завуч тікелей сұраған негізгі
+      // ереже): 3 қиын қатар / күн басында 2 қиын қатар. Бұрын soft тармағы оны
+      // тексермей, авто-толтыру Био+Алг+Ағыл сияқты 3 ауырды қатар қоятын
+      // (8Ә скриншот қатесі). Шынымен сыймаса — guaranteePlace-тің соңғы
+      // (respectRules=false) айналымы ғана босатады.
+      { const hv = hardRunViolation(cls, subj, day, slot); if (hv) return hv; }
       return null;
     }
 
@@ -1170,7 +1176,16 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     const tt = T[tid]; if (!tt) return false;
     if (cls.grade < tt.gradeMin || cls.grade > tt.gradeMax) return false;
     if (tt.shift !== 3 && tt.shift !== cls.shift) return false;
-    for (const [respectRules, gapSafe] of [[true, true], [false, true], [true, false], [false, false]] as const) {
+    // Айналымдар басымдық ретімен [struct(отбасы/тіл сақтау), hardRun(қиын-қатар
+    // сақтау), gapSafe(тесіксіз)]. МАҢЫЗДЫ: ОТБАСЫ бөлек-күн ережесі (struct)
+    // қиын-қатардан ҚАТТЫ — сондықтан оны ЕҢ СОҢҒЫ амалда ғана бұзамыз, ал
+    // қиын-қатарды ертерек босатып, кейін ЭТАП 7.96 оны жөндейді. Осылай
+    // «алгебра+геометрия бір күн» тек шынымен басқа жол қалмағанда пайда болады.
+    for (const [respStruct, respHard, gapSafe] of [
+      [true, true, true], [true, false, true],   // тесіксіз: алдымен бәрі, сосын тек қиын-қатарды бос
+      [true, true, false], [true, false, false],  // тесікпен: отбасын әлі сақтаймыз
+      [false, false, true], [false, false, false], // соңғы амал: отбасын да бұзу
+    ] as const) {
       for (let day = 1; day <= 5; day++) {
         if (ds[cls.id][day].has(subj.id)) continue;
         for (let slot = 1; slot <= maxSlots(cls.grade); slot++) {
@@ -1180,7 +1195,8 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
           if (tt.unavailable.includes(`${day}-${slot}`)) continue;
           if (!interShiftOk(tt, cls.shift, day)) continue;
           if (subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`)) continue;
-          if (respectRules && (structuralViolation(cls, subj, day, slot) || hardRunViolation(cls, subj, day, slot))) continue;
+          if (respStruct && structuralViolation(cls, subj, day, slot)) continue;
+          if (respHard && hardRunViolation(cls, subj, day, slot)) continue;
           const room = findRoom(cls, subj, day, slot);
           if (!room) continue;
           place({ classId: cls.id, subjectId: subj.id, teacherId: tid, roomId: room, day, slot, shift: cls.shift, score: pScore(subj, slot, settings) });
@@ -2632,6 +2648,112 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
           if (g < 0) break;
           if (!fillOneGap(c, day, g, 2) && !fillOneGap(c, day, g, 1) && !(forceFix && fillOneGap(c, day, g, 0))) break;
         }
+      }
+    }
+  }
+
+  /* ЭТАП 7.96 — ҚИЫН-ҚАТАРДЫ ЖӨНДЕУ (завуч: «4 ауыр пән қатар тұр»). Соңғы
+     кепіл (5.68) тесік болмасын деп кейде 3+ қиын пәнді қатар қоятын. Мұнда
+     оны ЖӨНДЕЙМІЗ: қатардағы қиын сабақты жеңіл сабақпен орын алмастырамыз
+     (ұя-ұяға — тесік тумайды). Қабылдау шарты ҚАТАҢ: своп сыныптағы жалпы
+     қиын-қатар САНЫН азайтуы керек (әйтпесе қатарды басқа жерге көшірмейміз).
+     Екі жақ та толық hardCheck-тен өтеді; өтпесе/жақсартпаса — дәл кері. */
+  {
+    const runCount = (cid: string): number => {
+      let n = 0;
+      for (let d = 1; d <= 5; d++)
+        for (let sl = 1; sl <= 8; sl++) {
+          const id = cm[cid][d][sl];
+          if (id && isHardId(id) && hardRunViolation(C[cid], S[id], d, sl)) { n++; }
+        }
+      return n;
+    };
+    // а-ны b-мен алмастыру, ТЕК жалпы қатар азайса қабылдау (әйтпесе кері)
+    const trySwapReduce = (a: Slot, b: Slot, before: number): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      const cls = C[a.classId];
+      const iA = slots.indexOf(a), iB = slots.indexOf(b);
+      removeSlot(a); removeSlot(b);
+      let pA: Slot | null = null, pB: Slot | null = null;
+      let ok = false;
+      do {
+        if (hardCheck(cls, a.teacherId, S[a.subjectId], b.day, b.slot)) break;
+        const rA = findRoom(cls, S[a.subjectId], b.day, b.slot);
+        if (!rA) break;
+        pA = place({ classId: cls.id, subjectId: a.subjectId, teacherId: a.teacherId, roomId: rA, day: b.day, slot: b.slot, shift: cls.shift, score: pScore(S[a.subjectId], b.slot, settings) });
+        if (hardCheck(cls, b.teacherId, S[b.subjectId], a.day, a.slot)) break;
+        const rB = findRoom(cls, S[b.subjectId], a.day, a.slot);
+        if (!rB) break;
+        pB = place({ classId: cls.id, subjectId: b.subjectId, teacherId: b.teacherId, roomId: rB, day: a.day, slot: a.slot, shift: cls.shift, score: pScore(S[b.subjectId], a.slot, settings) });
+        if (runCount(cls.id) < before) { ok = true; } // тек нақты азайса
+      } while (false);
+      if (ok) return true;
+      if (pB) removeSlot(pB);
+      if (pA) removeSlot(pA);
+      const rst: [number, Slot][] = [[iA, a], [iB, b]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [idx, o] of rst) restoreSlot(o, idx);
+      return false;
+    };
+    // ҮШ-ЖАҚТЫ АЙНАЛЫМ (2-своп жеткіліксіз болғанда): a→b, b→c, c→a орындарына.
+    // Тек жалпы қатар азайса қабылданады; әйтпесе дәл кері қайтады.
+    const tryRotate = (a: Slot, b: Slot, cc: Slot, before: number): boolean => {
+      if ([a, b, cc].some((o) => o.groupId || o.dpart || o.locked)) return false;
+      const cls = C[a.classId];
+      const trio: [Slot, Slot][] = [[a, b], [b, cc], [cc, a]]; // [көшетін, орны]
+      const idx = [slots.indexOf(a), slots.indexOf(b), slots.indexOf(cc)];
+      removeSlot(a); removeSlot(b); removeSlot(cc);
+      const placedR: Slot[] = [];
+      let ok = false;
+      for (const [mv, at] of trio) {
+        if (hardCheck(cls, mv.teacherId, S[mv.subjectId], at.day, at.slot)) break;
+        const rm2 = findRoom(cls, S[mv.subjectId], at.day, at.slot);
+        if (!rm2) break;
+        placedR.push(place({ classId: cls.id, subjectId: mv.subjectId, teacherId: mv.teacherId, roomId: rm2, day: at.day, slot: at.slot, shift: cls.shift, score: pScore(S[mv.subjectId], at.slot, settings) }));
+      }
+      if (placedR.length === 3 && runCount(cls.id) < before) ok = true;
+      if (ok) return true;
+      for (const p of placedR) removeSlot(p);
+      const rst: [number, Slot][] = [[idx[0], a], [idx[1], b], [idx[2], cc]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [i2, o] of rst) restoreSlot(o, i2);
+      return false;
+    };
+    for (const c of targetClasses) {
+      let guard = 0;
+      while (guard++ < 8) {
+        const before = runCount(c.id);
+        if (before === 0) break;
+        // қатардағы әр қиын сабақ — сыныптың КЕЗ КЕЛГЕН жеңіл сабағымен
+        // (сол күнде де, басқа күнде де) алмастырып көреміз; азайтса — қабыл.
+        const hardInRun = slots.filter((o) => o.classId === c.id && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID && isHardId(o.subjectId) && hardRunViolation(c, S[o.subjectId], o.day, o.slot));
+        // Кандидат — сыныптың КЕЗ КЕЛГЕН жылжымалы сабағы (жеңіл де, ауыр да:
+        // ауыр пәнді басқа күнге апарып қатарды сирететін своп та жарайды).
+        // Алдымен жеңілдер (қатарды тікелей бұзады), сосын ауырлар.
+        const cands = slots
+          .filter((o) => o.classId === c.id && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID)
+          .sort((x, y) => (S[x.subjectId].score < 9 ? 0 : 1) - (S[y.subjectId].score < 9 ? 0 : 1));
+        let improved = false;
+        for (const a of hardInRun) {
+          for (const b of cands) {
+            if (a.subjectId === b.subjectId || (a.day === b.day && a.slot === b.slot)) continue;
+            if (trySwapReduce(a, b, before)) { improved = true; break; }
+          }
+          if (improved) break;
+        }
+        // 2-своп жеткіліксіз — үш-жақты айналым (a қатардан, b/c кез келген жылжымалы)
+        if (!improved) {
+          const mov = slots.filter((o) => o.classId === c.id && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+          outer: for (const a of hardInRun)
+            for (const b of mov) {
+              if (b.subjectId === a.subjectId || (b.day === a.day && b.slot === a.slot)) continue;
+              for (const cc of mov) {
+                if (cc === b || cc.subjectId === a.subjectId || cc.subjectId === b.subjectId || (cc.day === a.day && cc.slot === a.slot)) continue;
+                    if (tryRotate(a, b, cc, before)) { improved = true; break outer; }
+              }
+            }
+        }
+        if (!improved) break;
       }
     }
   }
