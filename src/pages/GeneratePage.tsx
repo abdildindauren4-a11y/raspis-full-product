@@ -154,7 +154,7 @@ export default function GeneratePage() {
   const multiRatio = multi.total ? multi.done / multi.total : 0;
   const multiStageGroup: RobotStageGroup = multiRatio < 0.34 ? "scan" : multiRatio < 0.67 ? "build" : multiRatio < 0.92 ? "balance" : "done";
 
-  const run = async () => {
+  const run = async (forceFix = false) => {
     const kind: GenerationKind = mode === "deep" ? "deep" : "quick";
     // Квота тексерісі (Firestore, желіде 1-3 сек) мен генерацияны ҚАТАР
     // жүргіземіз — пайдаланушы желі кідірісін күтпейді. Квота жетпесе,
@@ -174,6 +174,7 @@ export default function GeneratePage() {
       teachers: data.teachers, rooms: data.rooms, settings: data.settings,
       komplekts: isShzhm ? data.komplekts : undefined,
       softFill,
+      forceFix: forceFix || undefined,
     };
     if (mode === "deep" && !isShzhm) {
       multi.start(input, deepCount);
@@ -494,7 +495,7 @@ export default function GeneratePage() {
             <button
               className={btnP + " w-full py-3"}
               disabled={blocked || (mode === "partial" && !scopeClass) || (mode === "update" && !updateDiff?.affectedClassIds.length)}
-              onClick={run}
+              onClick={() => run()}
             >
               {mode === "deep" ? <><Telescope className="w-4 h-4 inline mr-1.5" /> {deepCount} {t("gen.tryVariants")}</>
                 : mode === "update" ? <><RefreshCw className="w-4 h-4 inline mr-1.5" /> {t("gen.upd.button")}</>
@@ -617,6 +618,34 @@ export default function GeneratePage() {
               <p className="text-sm font-medium status-warn mb-2">⚠ Ескертулер ({activeResult.warnings.length})</p>
               <div className="space-y-1 max-h-40 overflow-y-auto scrollbar-thin">
                 {activeResult.warnings.map((w, i) => <p key={i} className="text-xs text-muted-c">{w}</p>)}
+              </div>
+            </GlassCard>
+          )}
+
+          {/* «Ережені босатып түзету»: ережелер ұстап қалған тұстар (апта
+              балансы Ср<Жм, тесік) қалса — қай ереже кедергі болғаны жоғарыдағы
+              ескертулерде; батырма тек СОЛ жерлерде сол ережені босатып,
+              қайта құрып береді. Қолмен құрғандағыдай — ереже түгел емес,
+              бірақ кесте жүреді; не босатылғаны есепте айтылады. */}
+          {((activeResult.stats.weekBalBad ?? 0) > 0 || activeResult.gaps.length > 0) && (
+            <GlassCard hover={false}>
+              <div className="flex items-start gap-3 flex-wrap">
+                <div className="flex-1 min-w-[220px]">
+                  <p className="text-sm font-semibold text-strong-c mb-1">
+                    {lang === "kk" ? "Кейбір тұстарды ережелер ұстап қалды" : lang === "ru" ? "Некоторые места удержаны правилами" : "Some spots are held back by rules"}
+                  </p>
+                  <p className="text-xs text-muted-c">
+                    {lang === "kk"
+                      ? `Қалғаны: ${(activeResult.stats.weekBalBad ?? 0) > 0 ? `апта балансы (${activeResult.stats.weekBalBad} сынып)` : ""}${(activeResult.stats.weekBalBad ?? 0) > 0 && activeResult.gaps.length > 0 ? ", " : ""}${activeResult.gaps.length > 0 ? `тесік (${activeResult.gaps.length})` : ""}. Қай ереже кедергі болғаны ескертулерде. Батырма дәл сол жерлерде тек сол ережені босатып түзетеді — не босатылғаны есепте көрсетіледі.`
+                      : lang === "ru"
+                        ? "Кнопка ослабит мешающие правила только в этих местах и закроет их; что ослаблено — будет указано в предупреждениях."
+                        : "The button relaxes only the blocking rules at those exact spots and closes them; relaxations are reported in warnings."}
+                  </p>
+                </div>
+                <button className={btnP + " flex items-center gap-2 shrink-0"} onClick={() => { reset(); multi.reset(); setSaved(false); setExplanation(""); setExplainErr(""); run(true); }}>
+                  <RefreshCw className="w-4 h-4" />
+                  {lang === "kk" ? "Ережені босатып түзету" : lang === "ru" ? "Исправить, ослабив правила" : "Fix by relaxing rules"}
+                </button>
               </div>
             </GlassCard>
           )}
