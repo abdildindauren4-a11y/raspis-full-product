@@ -138,6 +138,10 @@ export interface AlgoInput {
   partial?: { classIds: string[]; baseSlots: Slot[]; anchor?: boolean };
   seed?: number; // әртүрлі нұсқа үшін кездейсоқтық тұқымы (multi-run)
   softFill?: boolean; // жұмсақ режим: сыймаған сабақтарды қалаулы ережелерді жұмсартып орналастыру
+  // «Ережені босатып түзету»: кесте дайын болған соң ұстап қалған тұстарды
+  // (апта балансы, тесік) ДӘЛ СОЛ жерде кедергі болған ережені ғана босатып
+  // жабады; қай ұяда қай ереже босатылғаны ескертулерде айтылады.
+  forceFix?: boolean;
 }
 export interface Slot {
   key: string; classId: string; subjectId: string; teacherId: string;
@@ -2236,6 +2240,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   runPullLeft();
   runFinalCompaction();
 
+  // «Ережені босатып түзету» диагностикасы/есебі — ескертулерге қосылады
+  const DAY_SHORT = ["", "Дүйсенбі", "Сейсенбі", "Сәрсенбі", "Бейсенбі", "Жұма"];
+  const fixDiag: string[] = [];
+  const forceFix = !!input.forceFix;
+
   /* Кері қайтару көмекшісі (7.93/7.95): сәтсіз әрекетте ТҮПНҰСҚА нысанды
      өз индексіне қайта отырғызады — жаңа клон ЖАСАМАЙДЫ. Себебі: клон жасалса,
      циклдегі ескі сілтеме slots-тан шығып қалады да, келесі removeSlot(ескі)
@@ -2258,10 +2267,15 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
 
   /* ЭТАП 7.93 — АПТА БАЛАНСЫ (Ср ≥ Жм): сәрсенбі — аптаның ең өнімді күні,
      жұма — ең жеңілі (СанПиН қисығы). Балансы бұзылған сыныпта Жм-дағы АУЫР
-     сабақ пен Ср-дағы ЖЕҢІЛ сабақты орындарымен алмастырамыз. Екі жақ та
-     толық hardCheck-тен өтеді (ұялар өзгермейді — сынып тесігі тумайды),
-     әрі МҰҒАЛІМ ТЕРЕЗЕ-ҚОРҒАНЫ бар: қозғалған мұғалімдердің терезесі өссе —
-     кері қайтарамыз (әйтпесе комфорт құлап, көп-seed іріктеуі бұзылады). */
+     сабақ пен Ср-дағы ЖЕҢІЛ сабақты орындарымен алмастырамыз (ұялар
+     өзгермейді — сынып тесігі тумайды). Босату деңгейлері:
+       0 — толық hardCheck + мұғалім терезе-қорғаны (әдепкі);
+       1 — терезе-қорғансыз (тек forceFix);
+       2 — физика заңы + «бір күн — бір пән» ғана (тек forceFix); қай ереже
+           босатылғаны хардчек СЕБЕБІМЕН ескертуге жазылады.
+     forceFix ӨШІРУЛІ болса — түзелмей қалған сыныптарға НАҚТЫ кедергі
+     ережелерін диагностика етіп ескертуге шығарамыз (завуч көріп, қаласа
+     «Ережені босатып түзету» батырмасын басады). */
   {
     const tWin = (tid: string, sh: number, day: number): number => {
       const row = tm[tid]?.[sh]?.[day];
@@ -2270,27 +2284,46 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       for (let sl = 1; sl <= 8; sl++) if (row[sl]) { if (first < 0) first = sl; last = sl; cnt++; }
       return cnt < 2 ? 0 : (last - first + 1) - cnt;
     };
-    const swapPair = (a: Slot, b: Slot): boolean => {
+    // Физика заңы ғана (2-деңгей): мұғалім бос, қолжетімді, ауысым үзілісі,
+    // тыйым слоты, бір күн — бір пән. Бұлар forceFix-те де ЕШҚАШАН бұзылмайды.
+    const physOk = (cls2: Klass, tid: string, subj: Subject, day: number, slot: number): boolean => {
+      const t2 = T[tid];
+      return !!t2 &&
+        !ds[cls2.id][day].has(subj.id) &&
+        tm[tid][cls2.shift][day][slot] === null &&
+        !t2.unavailable.includes(`${day}-${slot}`) &&
+        interShiftOk(t2, cls2.shift, day) &&
+        !(subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`));
+    };
+    const swapPair = (a: Slot, b: Slot, relax: 0 | 1 | 2): boolean => {
       if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
       const cls = C[a.classId];
       const subjA = S[a.subjectId], subjB = S[b.subjectId];
       const tids = [...new Set([a.teacherId, b.teacherId])];
       const calcW = () => tids.reduce((s2, tid) => s2 + tWin(tid, cls.shift, 3) + tWin(tid, cls.shift, 5), 0);
       const wBefore = calcW();
-      const snapA = a, snapB = b;
       const iA = slots.indexOf(a), iB = slots.indexOf(b);
       removeSlot(a); removeSlot(b);
       let pA: Slot | null = null, pB: Slot | null = null;
+      const relaxed: string[] = []; // 2-деңгейде босатылған ережелер (есеп үшін)
       do {
-        if (hardCheck(cls, snapA.teacherId, subjA, snapB.day, snapB.slot)) break;
-        const rA = findRoom(cls, subjA, snapB.day, snapB.slot);
+        const hcA = hardCheck(cls, a.teacherId, subjA, b.day, b.slot);
+        if (relax < 2 ? hcA !== null : !physOk(cls, a.teacherId, subjA, b.day, b.slot)) break;
+        if (relax === 2 && hcA) relaxed.push(hcA);
+        const rA = findRoom(cls, subjA, b.day, b.slot);
         if (!rA) break;
-        pA = place({ classId: cls.id, subjectId: snapA.subjectId, teacherId: snapA.teacherId, roomId: rA, day: snapB.day, slot: snapB.slot, shift: cls.shift, score: pScore(subjA, snapB.slot, settings) });
-        if (hardCheck(cls, snapB.teacherId, subjB, snapA.day, snapA.slot)) break;
-        const rB = findRoom(cls, subjB, snapA.day, snapA.slot);
+        pA = place({ classId: cls.id, subjectId: a.subjectId, teacherId: a.teacherId, roomId: rA, day: b.day, slot: b.slot, shift: cls.shift, score: pScore(subjA, b.slot, settings) });
+        const hcB = hardCheck(cls, b.teacherId, subjB, a.day, a.slot);
+        if (relax < 2 ? hcB !== null : !physOk(cls, b.teacherId, subjB, a.day, a.slot)) break;
+        if (relax === 2 && hcB) relaxed.push(hcB);
+        const rB = findRoom(cls, subjB, a.day, a.slot);
         if (!rB) break;
-        pB = place({ classId: cls.id, subjectId: snapB.subjectId, teacherId: snapB.teacherId, roomId: rB, day: snapA.day, slot: snapA.slot, shift: cls.shift, score: pScore(subjB, snapA.slot, settings) });
-        if (calcW() <= wBefore) return true; // терезе-қорған өтті
+        pB = place({ classId: cls.id, subjectId: b.subjectId, teacherId: b.teacherId, roomId: rB, day: a.day, slot: a.slot, shift: cls.shift, score: pScore(subjB, a.slot, settings) });
+        if (relax >= 1 || calcW() <= wBefore) {
+          if (relax === 1) fixDiag.push(`Түзету (${cls.name}): Жм «${subjA.name}» ↔ Ср «${subjB.name}» — мұғалім терезе-қорғаны босатылды`);
+          if (relax === 2) fixDiag.push(`Түзету (${cls.name}): Жм «${subjA.name}» ↔ Ср «${subjB.name}» — босатылған ереже: ${[...new Set(relaxed)].join("; ") || "терезе-қорған"}`);
+          return true;
+        }
       } while (false);
       if (pB) removeSlot(pB);
       if (pA) removeSlot(pA);
@@ -2299,23 +2332,105 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       for (const [idx, o] of restore) restoreSlot(o, idx);
       return false;
     };
-    for (const c of targetClasses) {
-      let guard = 0;
-      while (dScore[c.id][3] < dScore[c.id][5] && guard++ < 6) {
-        const day5 = slots.filter((o) => o.classId === c.id && o.day === 5 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
-        const day3 = slots.filter((o) => o.classId === c.id && o.day === 3 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
-        day5.sort((x, y) => eff(c, S[y.subjectId]) - eff(c, S[x.subjectId])); // Жм: ауырдан
-        day3.sort((x, y) => eff(c, S[x.subjectId]) - eff(c, S[y.subjectId])); // Ср: жеңілден
-        let done = false;
+    const balPairs = (c: Klass) => {
+      const day5 = slots.filter((o) => o.classId === c.id && o.day === 5 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+      const day3 = slots.filter((o) => o.classId === c.id && o.day === 3 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+      day5.sort((x, y) => eff(c, S[y.subjectId]) - eff(c, S[x.subjectId])); // Жм: ауырдан
+      day3.sort((x, y) => eff(c, S[x.subjectId]) - eff(c, S[y.subjectId])); // Ср: жеңілден
+      return { day5, day3 };
+    };
+    // ҮШТІК АЙНАЛЫМ: a(Жм)→b ұясына(Ср), b(Ср)→c ұясына(басқа күн), c→a ұясына(Жм).
+    // Жұп-своп ds/физикаға тірелгенде (әр пән өз күндерінде «құлыпталған»
+    // жағдай) үшінші күн арқылы айналдыру жалғыз жол. Шарттар: Ср ауырлайды
+    // (eff a > eff b), Жм ауырламайды (eff c ≤ eff a). Ұялар өзгермейді.
+    const rotate3 = (a: Slot, b: Slot, cc: Slot, relax: 0 | 1 | 2): boolean => {
+      if ([a, b, cc].some((o) => o.groupId || o.dpart || o.locked)) return false;
+      const cls = C[a.classId];
+      const trio: [Slot, Slot][] = [[a, b], [b, cc], [cc, a]]; // [көшетін, орны алынатын]
+      const idx = [slots.indexOf(a), slots.indexOf(b), slots.indexOf(cc)];
+      removeSlot(a); removeSlot(b); removeSlot(cc);
+      const placedR: Slot[] = [];
+      const relaxed: string[] = [];
+      for (const [mv, at] of trio) {
+        const subj = S[mv.subjectId];
+        const hc = hardCheck(cls, mv.teacherId, subj, at.day, at.slot);
+        const okR = relax < 2 ? hc === null : physOk(cls, mv.teacherId, subj, at.day, at.slot);
+        if (!okR) break;
+        if (relax === 2 && hc) relaxed.push(hc);
+        const rm2 = findRoom(cls, subj, at.day, at.slot);
+        if (!rm2) break;
+        placedR.push(place({ classId: cls.id, subjectId: mv.subjectId, teacherId: mv.teacherId, roomId: rm2, day: at.day, slot: at.slot, shift: cls.shift, score: pScore(subj, at.slot, settings) }));
+      }
+      if (placedR.length === 3) {
+        if (relax >= 1)
+          fixDiag.push(`Түзету (${cls.name}): үштік айналым Жм «${S[a.subjectId].name}» → Ср, Ср «${S[b.subjectId].name}» → ${DAY_SHORT[cc.day]}${relaxed.length ? " — босатылған ереже: " + [...new Set(relaxed)].join("; ") : ""}`);
+        return true;
+      }
+      for (const p of placedR) removeSlot(p);
+      const rst: [number, Slot][] = [[idx[0], a], [idx[1], b], [idx[2], cc]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [i2, o] of rst) restoreSlot(o, i2);
+      return false;
+    };
+    const balancePass = (relax: 0 | 1 | 2) => {
+      for (const c of targetClasses) {
+        let guard = 0;
+        while (dScore[c.id][3] < dScore[c.id][5] && guard++ < 6) {
+          const { day5, day3 } = balPairs(c);
+          let done = false;
+          for (const a of day5) {
+            for (const b of day3) {
+              if (a.subjectId === b.subjectId) continue;
+              if (eff(c, S[a.subjectId]) <= eff(c, S[b.subjectId])) continue; // пайдасыз
+              if (swapPair(a, b, relax)) { done = true; break; }
+            }
+            if (done) break;
+          }
+          if (!done) {
+            // жұп-своп жүрмеді — үштік айналым
+            const third = slots.filter((o) => o.classId === c.id && o.day !== 3 && o.day !== 5 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+            outer: for (const a of day5) {
+              for (const b of day3) {
+                if (a.subjectId === b.subjectId || eff(c, S[a.subjectId]) <= eff(c, S[b.subjectId])) continue;
+                for (const cc of third) {
+                  if (cc.subjectId === a.subjectId || cc.subjectId === b.subjectId) continue;
+                  if (eff(c, S[cc.subjectId]) > eff(c, S[a.subjectId])) continue; // Жм ауырламасын
+                  if (rotate3(a, b, cc, relax)) { done = true; break outer; }
+                }
+              }
+            }
+          }
+          if (!done) break;
+        }
+      }
+    };
+    balancePass(0);
+    if (forceFix) { balancePass(1); balancePass(2); }
+    else {
+      // Диагностика: түзелмей қалған сыныпта нақты кедергі ережелерін атаймыз
+      for (const c of targetClasses) {
+        if (dScore[c.id][3] >= dScore[c.id][5]) continue;
+        const { day5, day3 } = balPairs(c);
+        const reasons = new Set<string>();
+        let probes = 0;
         for (const a of day5) {
           for (const b of day3) {
-            if (a.subjectId === b.subjectId) continue;
-            if (eff(c, S[a.subjectId]) <= eff(c, S[b.subjectId])) continue; // пайдасыз
-            if (swapPair(a, b)) { done = true; break; }
+            if (a.subjectId === b.subjectId || probes >= 12) continue;
+            if (eff(c, S[a.subjectId]) <= eff(c, S[b.subjectId])) continue;
+            probes++;
+            const iA = slots.indexOf(a), iB = slots.indexOf(b);
+            removeSlot(a); removeSlot(b);
+            const r1 = hardCheck(c, a.teacherId, S[a.subjectId], b.day, b.slot);
+            const r2 = hardCheck(c, b.teacherId, S[b.subjectId], a.day, a.slot);
+            const rst: [number, Slot][] = [[iA, a], [iB, b]];
+            rst.sort((x, y) => x[0] - y[0]);
+            for (const [idx, o] of rst) restoreSlot(o, idx);
+            if (r1) reasons.add(r1);
+            if (r2) reasons.add(r2);
           }
-          if (done) break;
         }
-        if (!done) break;
+        if (reasons.size)
+          fixDiag.push(`Апта балансы (${c.name}): Сәрсенбі Жұмадан жеңіл қалды — алмастыруға кедергі ережелер: ${[...reasons].slice(0, 3).join("; ")}. «Ережені босатып түзету» дәл осы тұсты жабады.`);
       }
     }
   }
@@ -2339,11 +2454,15 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         if (o.dpart || o.locked || o.subjectId === HOMEROOM_SUBJECT_ID || (items.length > 1 && !o.groupId)) return null;
       return items;
     };
-    // Буманы (day2,slot2) → (day,g) көшіру. strictRules=false кезінде де
-    // завучтың құрылымдық педагогикасы сақталады. Сәтсіз болса — дәл қалпына.
-    const moveBundle = (c: Klass, bundle: Slot[], day: number, g: number, strictRules: boolean): boolean => {
+    // Буманы (day2,slot2) → (day,g) көшіру. Деңгейлер:
+    //   2 — толық ережелер (hardCheck);
+    //   1 — физика + завуч педагогикасы (отбасы/тіл, қиын-қатар), лимит/шаршау босатылады;
+    //   0 — тек физика + «бір күн — бір пән» (forceFix қана); босатылған ереже есепке жазылады.
+    // Сәтсіз болса — дәл қалпына.
+    const moveBundle = (c: Klass, bundle: Slot[], day: number, g: number, level: 0 | 1 | 2): boolean => {
       const undo: [number, Slot][] = [];
       const placed: Slot[] = [];
+      const relaxed: string[] = [];
       for (const o of bundle) {
         const subj = S[o.subjectId];
         const tt = T[o.teacherId];
@@ -2355,7 +2474,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         // өткізіп, тек мұғалім/кабинет/педагогика тексеріледі.
         const shared = placed.length > 0;
         let ok: boolean;
-        if (strictRules && !shared) ok = !hardCheck(c, o.teacherId, subj, day, g);
+        if (level === 2 && !shared) ok = !hardCheck(c, o.teacherId, subj, day, g);
         else
           ok =
             (shared || !ds[c.id][day].has(o.subjectId)) && // бір күн — бір пән (қатаң)
@@ -2363,24 +2482,31 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
             !tt.unavailable.includes(`${day}-${g}`) &&
             interShiftOk(tt, c.shift, day) &&
             !(subj.bannedSlots && subj.bannedSlots.includes(`${day}-${g}`)) &&
-            !structuralViolation(c, subj, day, g) &&
-            !hardRunViolation(c, subj, day, g);
+            (level === 0 || (!structuralViolation(c, subj, day, g) && !hardRunViolation(c, subj, day, g)));
+        if (ok && level === 0) {
+          const r = structuralViolation(c, subj, day, g) || hardRunViolation(c, subj, day, g) || hardCheck(c, o.teacherId, subj, day, g);
+          if (r) relaxed.push(r);
+        }
         const room = ok ? findRoom(c, subj, day, g) : null;
         if (!room) break;
         placed.push(place({ classId: c.id, subjectId: o.subjectId, teacherId: o.teacherId, roomId: room, day, slot: g, shift: c.shift, score: pScore(subj, g, settings), groupId: o.groupId }));
       }
-      if (placed.length === bundle.length) return true;
+      if (placed.length === bundle.length) {
+        if (level === 0 && relaxed.length)
+          fixDiag.push(`Түзету (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${S[bundle[0].subjectId].name}» қойылды — босатылған ереже: ${[...new Set(relaxed)].join("; ")}`);
+        return true;
+      }
       for (const p of placed) removeSlot(p);
       for (let i = undo.length - 1; i >= 0; i--) restoreSlot(undo[i][1], undo[i][0]);
       return false;
     };
-    const fillOneGap = (c: Klass, day: number, g: number, strictRules: boolean): boolean => {
+    const fillOneGap = (c: Klass, day: number, g: number, level: 0 | 1 | 2): boolean => {
       // 1-стратегия: күн соңы → тесік (өз күні бірінші — күн қысқарады)
       for (const d2 of [day, ...[1, 2, 3, 4, 5].filter((d) => d !== day)]) {
         const last2 = cmRowLast(c.id, d2);
         if (!last2 || (d2 === day && last2 <= g)) continue;
         const bundle = cellBundle(c, d2, last2);
-        if (bundle && moveBundle(c, bundle, day, g, strictRules)) return true;
+        if (bundle && moveBundle(c, bundle, day, g, level)) return true;
       }
       // 2-стратегия: тізбек — басқа күннің ортасы → тесік, ойық ← сол күннің соңы.
       // Кері қайтару ДӘЛ: 1-қадам қолмен (индекс сақталады), 2-қадам өтпесе —
@@ -2399,7 +2525,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
           const iM = slots.indexOf(mo);
           removeSlot(mo);
           let okM: boolean;
-          if (strictRules) okM = !hardCheck(c, mo.teacherId, subjM, day, g);
+          if (level === 2) okM = !hardCheck(c, mo.teacherId, subjM, day, g);
           else
             okM =
               !ds[c.id][day].has(mo.subjectId) &&
@@ -2407,14 +2533,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
               !ttM.unavailable.includes(`${day}-${g}`) &&
               interShiftOk(ttM, c.shift, day) &&
               !(subjM.bannedSlots && subjM.bannedSlots.includes(`${day}-${g}`)) &&
-              !structuralViolation(c, subjM, day, g) &&
-              !hardRunViolation(c, subjM, day, g);
+              (level === 0 || (!structuralViolation(c, subjM, day, g) && !hardRunViolation(c, subjM, day, g)));
           const roomM = okM ? findRoom(c, subjM, day, g) : null;
           if (!roomM) { restoreSlot(mo, iM); continue; }
+          if (level === 0) {
+            const r = structuralViolation(c, subjM, day, g) || hardRunViolation(c, subjM, day, g) || hardCheck(c, mo.teacherId, subjM, day, g);
+            if (r) fixDiag.push(`Түзету (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${subjM.name}» қойылды — босатылған ереже: ${r}`);
+          }
           const pM = place({ classId: c.id, subjectId: mo.subjectId, teacherId: mo.teacherId, roomId: roomM, day, slot: g, shift: c.shift, score: pScore(subjM, g, settings) });
           const tailSlot = cmRowLast(c.id, d2);
           const tail = tailSlot > s2 ? cellBundle(c, d2, tailSlot) : null;
-          if (tail && moveBundle(c, tail, d2, s2, strictRules)) return true;
+          if (tail && moveBundle(c, tail, d2, s2, level)) return true;
           removeSlot(pM); restoreSlot(mo, iM); // дәл кері қайтару
         }
       }
@@ -2426,7 +2555,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         while (guard++ < 4) {
           const g = cmGap(c.id, day);
           if (g < 0) break;
-          if (!fillOneGap(c, day, g, true) && !fillOneGap(c, day, g, false)) break;
+          if (!fillOneGap(c, day, g, 2) && !fillOneGap(c, day, g, 1) && !(forceFix && fillOneGap(c, day, g, 0))) break;
         }
       }
     }
@@ -2633,7 +2762,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // мүмкін) — тең салмақ комфорт жақсарғанын әділ өтейді, жалпы баға
   // жақсарған кестені дұрыс көрсетеді (завуч талабы).
   const quality = Math.max(0, Math.round(avgC * 0.30 + balance * 0.20 + comfort * 0.30 + stressPct * 0.2) - Math.min(25, missedHours));
-  const warnings = [...sanpinWarnings, ...softWarnings, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
+  const warnings = [...sanpinWarnings, ...softWarnings, ...fixDiag, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
   // Сыйымдылық ескертулері: сынып тар кабинетке сыймаған жағдайлар
   for (const cw of capWarn) {
     const [clsName, students, cap] = cw.split("|");
@@ -2686,7 +2815,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   // тесіктерді ескертулерге де қосамыз (нақты себеппен)
   for (const gp of gaps)
-    warnings.push(`Тесік: ${gp.className}, ${DAYN[gp.day]} ${gp.slot}-сабақ бос — ${gp.reason}. Шешім: қосымша мұғалім немесе кабинет қажет.`);
+    warnings.push(`Тесік: ${gp.className}, ${DAYN[gp.day]} ${gp.slot}-сабақ бос — ${gp.reason}. Шешім: қосымша мұғалім/кабинет${forceFix ? "" : " немесе «Ережені босатып түзету» батырмасы"}.`);
 
   for (const t of teachers) {
     const h = slots.filter((o) => o.teacherId === t.id).length;
