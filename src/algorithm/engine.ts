@@ -388,24 +388,6 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     return true; // қазақ↔орыс, орыс↔ағылшын — тыйым
   };
   const isHardId = (id: string) => S[id].score >= 9; // қиын пән (СанПиН 9-11: математика тобы, физика, химия, био, информатика, шетел)
-  // Сынып бойынша алгебра/геометрия/орыс тілі/әдебиеті апталық сағаттары
-  const clsHours = (cid: string, pred: (f: typeof FL[string]) => boolean): number => {
-    let h = 0; for (const cu of C[cid].curriculum) { const s = S[cu.subjectId]; if (s && pred(FL[s.id])) h += cu.hours; }
-    return h;
-  };
-  const algH: Record<string, number> = {}, geoH: Record<string, number> = {}, rlH: Record<string, number> = {}, rlitH: Record<string, number> = {};
-  for (const c of classes) {
-    algH[c.id] = clsHours(c.id, (f) => f.alg); geoH[c.id] = clsHours(c.id, (f) => f.geo);
-    rlH[c.id] = clsHours(c.id, (f) => f.rusLang); rlitH[c.id] = clsHours(c.id, (f) => f.rusLit);
-  }
-  const dayHas = (cid: string, day: number, pred: (f: typeof FL[string]) => boolean): boolean => {
-    for (let sl = 1; sl <= 8; sl++) { const id = cm[cid][day][sl]; if (id && pred(FL[id])) return true; }
-    return false;
-  };
-  const sharedDays = (cid: string, pa: (f: typeof FL[string]) => boolean, pb: (f: typeof FL[string]) => boolean): number => {
-    let n = 0; for (let d = 1; d <= 5; d++) if (dayHas(cid, d, pa) && dayHas(cid, d, pb)) n++;
-    return n;
-  };
 
   // ── ПӘН МАҢЫЗДЫЛЫҒЫ: ауырлық балы + АПТАЛЫҚ САҒАТ ──
   // Барлық пән өз апталық сағатымен салыстырылады (5 сағ математика — 1 сағ
@@ -420,9 +402,15 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     const n = s.name.toLowerCase();
     if (FL[s.id].alg || FL[s.id].geo || n.includes("математика")) return "math";
     if (FL[s.id].rusLang || FL[s.id].rusLit) return "rus";
+    // ТАРИХ-ОТБАСЫ (завуч анықтаған): Қазақстан тарихы + Дүниежүзі тарихы +
+    // Құқық негіздері — бір күнге қойылмайды
+    if (/тарих|история|құқық|право|адам\. қоғам/.test(n)) return "hist";
     if (FL[s.id].lang === "kaz" || (/әдеб|литератур/.test(n) && !n.includes("орыс") && !n.includes("русск"))) return "kaz";
     return null;
   };
+  // Пән id → отбасы (жылдам іздеу үшін бір рет)
+  const FAM_ID: Record<string, string | null> = {};
+  for (const s of subjects) FAM_ID[s.id] = famOf(s);
   // Әр сыныптағы отбасылық апталық сағат қосындысы
   const famH: Record<string, Record<string, number>> = {};
   for (const c of classes) {
@@ -443,23 +431,40 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // (тек ең соңғы кепіл-пасстар елемейді): алгебра+геометрия бөлек күн,
   // орыс тілі+әдебиеті бөлек күн, екі ТІЛ пәні қатар қойылмайды (мыс.
   // ағылшыннан кейін бірден орыс тілі — арасында басқа сабақ болуы керек).
+  // Күнде осы ОТБАСЫНЫҢ басқа пәні бар ма (өзінен өзге subjectId)
+  const dayHasFamOther = (cid: string, day: number, fam: string, selfId: string): boolean => {
+    const row = cm[cid][day];
+    for (let sl = 1; sl <= 8; sl++) { const id = row[sl]; if (id && id !== selfId && FAM_ID[id] === fam) return true; }
+    return false;
+  };
+  // Отбасының ≥2 ӘРТҮРЛІ пәні бір күнде тұрған күндер саны
+  const famSharedDays = (cid: string, fam: string): number => {
+    let n = 0;
+    for (let d = 1; d <= 5; d++) {
+      const seen = new Set<string>();
+      const row = cm[cid][d];
+      for (let sl = 1; sl <= 8; sl++) { const id = row[sl]; if (id && FAM_ID[id] === fam) seen.add(id); }
+      if (seen.size >= 2) n++;
+    }
+    return n;
+  };
+  // ЖАЛПЫ ОТБАСЫ ЕРЕЖЕСІ (завуч анықтаған): отбасы пәндері (математика-,
+  // қазақ-, орыс-, тарих-отбасы) БІР КҮНГЕ ҚОЙЫЛМАЙДЫ. Ерекшелік: отбасының
+  // апталық сағаты 5-тен асса (5 күнге сыймайды) — тек ЕҢ АЗ қажет күн ғана
+  // ортақ бола алады. Ортақ күнде де отбасы пәндері ҚАТАР тұрмайды
+  // (қазақ тілі мен әдебиет бір күнде — тек арасында басқа сабақпен).
   const structuralViolation = (cls: Klass, subj: Subject, day: number, slot: number): string | null => {
-    const f = FL[subj.id];
-    if (f.alg || f.geo) {
-      const partner = f.alg ? (x: typeof FL[string]) => x.geo : (x: typeof FL[string]) => x.alg;
-      if (dayHas(cls.id, day, partner)) {
-        const allowed = Math.max(0, algH[cls.id] + geoH[cls.id] - 5);
-        if (sharedDays(cls.id, (x) => x.alg, (x) => x.geo) + 1 > allowed) return "алгебра мен геометрия бір күнде";
+    const fam = FAM_ID[subj.id];
+    if (fam) {
+      if (dayHasFamOther(cls.id, day, fam, subj.id)) {
+        const allowed = Math.max(0, (famH[cls.id]?.[fam] || 0) - 5);
+        if (famSharedDays(cls.id, fam) + 1 > allowed) return "отбасы пәндері бір күнде";
+        // ортақ күн рұқсат болса да — отбасы пәндері ҚАТАР тұрмайды
+        const p = cm[cls.id][day][slot - 1], nx = slot < 8 ? cm[cls.id][day][slot + 1] : null;
+        if ((p && p !== subj.id && FAM_ID[p] === fam) || (nx && nx !== subj.id && FAM_ID[nx] === fam)) return "отбасы пәндері қатар";
       }
     }
-    if (f.rusLang || f.rusLit) {
-      const partner = f.rusLang ? (x: typeof FL[string]) => x.rusLit : (x: typeof FL[string]) => x.rusLang;
-      if (dayHas(cls.id, day, partner)) {
-        const allowed = Math.max(0, rlH[cls.id] + rlitH[cls.id] - 5);
-        if (sharedDays(cls.id, (x) => x.rusLang, (x) => x.rusLit) + 1 > allowed) return "орыс тілі мен әдебиеті бір күнде";
-      }
-    }
-    if (f.lang) {
+    if (FL[subj.id].lang) {
       const p = cm[cls.id][day][slot - 1], nx = slot < 8 ? cm[cls.id][day][slot + 1] : null;
       if ((p && langAdjacentBad(subj.id, p)) || (nx && langAdjacentBad(subj.id, nx))) return "үйлеспейтін тіл пәндері қатар";
     }
@@ -490,8 +495,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     const bl = subj.black;
     if (prev && (bl.includes(S[prev].name) || S[prev].black.includes(subj.name))) return false;
     if (next && (bl.includes(S[next].name) || S[next].black.includes(subj.name))) return false;
-    if (prev && S[prev].digital && subj.score > 5) return false;
-    if (next && subj.digital && S[next].score > 5) return false;
+    // информатикадан кейін ҚИЫН пән (9+) болмайды; орташа (6-8, мыс. әдебиет) — рұқсат
+    if (prev && S[prev].digital && subj.score >= 9) return false;
+    if (next && subj.digital && S[next].score >= 9) return false;
     if (structuralViolation(cls, subj, day, slot)) return false;
     if (hardRunViolation(cls, subj, day, slot)) return false;
     return true;
@@ -631,8 +637,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     const bl = subj.black;
     if (prev && (bl.includes(S[prev].name) || S[prev].black.includes(subj.name))) return "қара тізім жұбы";
     if (next && (bl.includes(S[next].name) || S[next].black.includes(subj.name))) return "қара тізім жұбы";
-    if (prev && S[prev].digital && subj.score > 5) return "информатикадан кейін жеңіл пән";
-    if (next && subj.digital && S[next].score > 5) return "информатикадан кейін жеңіл пән";
+    // информатикадан кейін ҚИЫН пән (9+) болмайды; орташа (6-8) — рұқсат (завуч растаған)
+    if (prev && S[prev].digital && subj.score >= 9) return "информатикадан кейін қиын пән";
+    if (next && subj.digital && S[next].score >= 9) return "информатикадан кейін қиын пән";
     if (subj.corr && slot <= 3) return "түзету сабағы — 4+ слот";
     // ── Құрылымдық ережелер: алгебра+геометрия / орыс тілі+әдебиеті бөлек
     // күн, екі тіл пәні қатар емес (structuralViolation — жұмсақ режимде де) ──
@@ -820,7 +827,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     if (dScore[cls.id][day] + eff(cls, s) > dayLimitS(cls.grade, settings)) return null;
     const prev = cm[cls.id][day][slot - 1];
     if (prev && (s.black.includes(S[prev].name) || S[prev].black.includes(s.name))) return null;
-    if (prev && S[prev].digital && s.score > 5) return null;
+    if (prev && S[prev].digital && s.score >= 9) return null; // информатикадан кейін қиын пән болмайды
     const res: { teacherId: string; roomId: string }[] = [];
     const usedR = new Set<string>(); const usedT = new Set<string>();
     for (const g of tk.cu.groups || []) {
@@ -2303,16 +2310,14 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // Педагогикалық ережелердің қорытынды есебі (pedViol → нұсқа таңдауда minимум)
   let pedViol = 0;
   {
-    let sep = 0; // алг+гео / орыс тілі+әдебиеті бөлек күн ережесі
-    for (const c of classes) {
-      const shAG = sharedDays(c.id, (f) => f.alg, (f) => f.geo);
-      const alAG = Math.max(0, algH[c.id] + geoH[c.id] - 5);
-      if (shAG > alAG) sep += shAG - alAG;
-      const shR = sharedDays(c.id, (f) => f.rusLang, (f) => f.rusLit);
-      const alR = Math.max(0, rlH[c.id] + rlitH[c.id] - 5);
-      if (shR > alR) sep += shR - alR;
-    }
-    add("Алгебра/геометрия және орыс тілі/әдебиеті бөлек күндерде", sep === 0, sep ? `${sep} бұзу` : "");
+    let sep = 0; // отбасы пәндері бөлек күндерде (рұқсат ортақ күндерден тыс)
+    for (const c of classes)
+      for (const fam of ["math", "kaz", "rus", "hist"]) {
+        const allowed = Math.max(0, (famH[c.id]?.[fam] || 0) - 5);
+        const sh = famSharedDays(c.id, fam);
+        if (sh > allowed) sep += sh - allowed;
+      }
+    add("Отбасы пәндері бөлек күндерде (мат/қазақ/орыс/тарих)", sep === 0, sep ? `${sep} бұзу` : "");
     let adj = 0; // үйлеспейтін тіл пәндері қатар (қазақ↔орыс, орыс↔ағылшын)
     for (const c of classes) for (let d = 1; d <= 5; d++) for (let s = 1; s <= 7; s++) {
       const a = cm[c.id][d][s], b = cm[c.id][d][s + 1];
