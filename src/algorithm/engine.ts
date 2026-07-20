@@ -1721,9 +1721,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const windowGain = wBefore - wAfter;
       const scoreLoss = cBefore - (a.score + b.score);
       let accept = false;
+      // Жоғары деңгей = КӨБІРЕК ӨТУ (күш), құрбандық шамалы ғана өседі.
+      // Бұрын 3-деңгей scoreLoss <= gain*3 болатын — шамадан тыс құрбандық
+      // кейінгі фазаларды шайқалтып, терезені КЕРІСІНШЕ көбейтетін (127 vs 77).
       if (comfortLevel === 1) accept = windowGain > 0 && scoreLoss <= 0;
-      else if (comfortLevel === 2) accept = windowGain > 0 && scoreLoss <= windowGain * 1.5;
-      else accept = windowGain > 0 && scoreLoss <= windowGain * 3;
+      else if (comfortLevel === 2) accept = windowGain > 0 && scoreLoss <= windowGain * 0.8;
+      else accept = windowGain > 0 && scoreLoss <= windowGain * 1.5;
 
       if (accept) return true;
       // қайтару
@@ -1735,7 +1738,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     };
 
     // ── Өту циклдары ──
-    const passes = comfortLevel === 3 ? 5 : comfortLevel === 2 ? 4 : 3;
+    const passes = comfortLevel === 3 ? 7 : comfortLevel === 2 ? 5 : 3;
     prog(88, 4);
     // барлық қарапайым сабақтар (сыныпаралық swap үшін)
     for (let pass = 0; pass < passes; pass++) {
@@ -1783,6 +1786,15 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
 
       const before = spreadScore(teacherDayCounts(a.teacherId)) + spreadScore(teacherDayCounts(b.teacherId));
       const cScoreBefore = a.score + b.score;
+      // ТЕРЕЗЕ-ҚОРҒАНЫС: теңгерім свопы мұғалім терезесін КӨБЕЙТПЕУІ керек —
+      // бұрын терезені елемей, оны жарылтып жіберетін (148→188 дейін).
+      const affW = new Map<string, { tid: string; sh: number; day: number }>();
+      for (const p of [
+        { tid: a.teacherId, sh: a.shift, day: a.day }, { tid: a.teacherId, sh: a.shift, day: b.day },
+        { tid: b.teacherId, sh: b.shift, day: b.day }, { tid: b.teacherId, sh: b.shift, day: a.day },
+      ]) affW.set(`${p.tid}|${p.sh}|${p.day}`, p);
+      const affWA = [...affW.values()];
+      const wBefore = affWA.reduce((s2, p) => s2 + tWindows(p.tid, p.sh, p.day), 0);
 
       const A = { day: a.day, slot: a.slot, room: a.roomId, score: a.score };
       const B = { day: b.day, slot: b.slot, room: b.roomId, score: b.score };
@@ -1833,10 +1845,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       const after = spreadScore(teacherDayCounts(a.teacherId)) + spreadScore(teacherDayCounts(b.teacherId));
       const spreadGain = before - after; // оң болса — теңгерім жақсарды
       const scoreLoss = cScoreBefore - (a.score + b.score);
-      let accept = false;
-      if (dayBalanceLevel === 1) accept = spreadGain > 0 && scoreLoss <= 0;
-      else if (dayBalanceLevel === 2) accept = spreadGain > 0 && scoreLoss <= spreadGain * 1.5;
-      else accept = spreadGain > 0 && scoreLoss <= spreadGain * 3;
+      // терезе көбейсе — қабылданбайды (барлық деңгейде)
+      const wAfter = affWA.reduce((s2, p) => s2 + tWindows(p.tid, p.sh, p.day), 0);
+      let accept = wAfter <= wBefore;
+      if (dayBalanceLevel === 1) accept = accept && spreadGain > 0 && scoreLoss <= 0;
+      else if (dayBalanceLevel === 2) accept = accept && spreadGain > 0 && scoreLoss <= spreadGain * 1.5;
+      else accept = accept && spreadGain > 0 && scoreLoss <= spreadGain * 3;
 
       if (accept) return true;
       setCell(a, false); setCell(b, false);
