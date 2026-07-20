@@ -307,6 +307,8 @@ interface Task {
 
 export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
+  // Своп-фазалардың (комфорт/күн-баланс) ортақ уақыт мерзімі — төмендегі түсіндірмені қара
+  const SWAP_DEADLINE = t0 + 8000;
   const prog = (p: number, st: number) => onProgress && onProgress(p, st);
   const { school, classes, teachers, rooms, settings } = input;
   // СанПиН режимі: ресми баллдар (1-11) ішкі калибрленген шкалаға келтіріледі
@@ -1827,13 +1829,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     };
 
     // ── Өту циклдары ──
+    // УАҚЫТ БЮДЖЕТІ: своп-фазалар O(сабақ²) — үлкен/қиын мектепте (30+ сынып,
+    // 2 ауысым) шексіз сүзгіленіп, генерацияны 30+ секундқа соза алады
+    // (профильмен өлшенді: findRoom+cellFree = уақыттың 60%+). Комфорт —
+    // қосымша жақсарту, сондықтан мерзім бітсе қауіпсіз үзіледі.
     const passes = comfortLevel === 3 ? 7 : comfortLevel === 2 ? 5 : 3;
     prog(88, 4);
     // барлық қарапайым сабақтар (сыныпаралық swap үшін)
-    for (let pass = 0; pass < passes; pass++) {
+    for (let pass = 0; pass < passes && Date.now() < SWAP_DEADLINE; pass++) {
       let improved = 0;
       const movable = slots.filter((o) => !o.groupId && !o.dpart && !o.locked);
       for (let i = 0; i < movable.length; i++) {
+        if ((i & 63) === 0 && Date.now() >= SWAP_DEADLINE) break;
         const a = movable[i];
         // тек терезесі бар мұғалім-күндердегі сабақтарға басымдық (жылдамдату)
         if (tWindows(a.teacherId, a.shift, a.day) === 0) continue;
@@ -1960,10 +1967,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     };
 
     const dbPasses = dayBalanceLevel === 3 ? 5 : dayBalanceLevel === 2 ? 4 : 3;
-    for (let pass = 0; pass < dbPasses; pass++) {
+    for (let pass = 0; pass < dbPasses && Date.now() < SWAP_DEADLINE; pass++) {
       let improved = 0;
       const movable = slots.filter((o) => !o.groupId && !o.dpart && !o.locked);
       for (let i = 0; i < movable.length; i++) {
+        if ((i & 63) === 0 && Date.now() >= SWAP_DEADLINE) break;
         const a = movable[i];
         if (!isPeakDay(a.teacherId, a.day)) continue;
         for (let j = 0; j < movable.length; j++) {
