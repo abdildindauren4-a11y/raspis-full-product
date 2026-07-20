@@ -1289,6 +1289,47 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     scoreCache[cid] = res;
     return res;
   };
+
+  /* СЫНЫП РЕЙТИНГІ (ЗАВУЧҚА КӨРСЕТІЛЕТІН %). classScore жоғарыда MAXIMIN
+     ОПТИМИЗАЦИЯСЫНА арналған ішкі метрика — ол күндік балл ДИСПЕРСИЯСЫН
+     жазалайды, ал бұл әдейі жасаған «жеңіл Жұма» (СанПиН қисығы) мен ауыр
+     сыныптардың табиғи әркелкілігін жазалап, ДҰРЫС кестені де 46% қызыл
+     көрсететін (завуч шағымы). Рейтинг ШЫНАЙЫ сапаны өлшейді:
+       • орналастыру (pScore орта — пәндер қолайлы сабақта ма);
+       • тесіксіздік (ең көзге көрінетін ақау);
+       • күндік жүктеме шегінен аспау (СанПиН — асқанын ғана жазалайды,
+         әркелкілікті емес);
+       • аптаның дұрыс қисығы (Сәрсенбі ≥ Жұма — бонус, айып емес).
+     Дұрыс, тесіксіз кесте 80-96% (жасыл) алады; тесік/асқын жүктеме ғана
+     төмендетеді. */
+  const classRating = (cid: string): number => {
+    const arr = slots.filter((o) => o.classId === cid && (!o.groupId || o.groupId === "Г1"));
+    if (!arr.length) return 0;
+    const cls = C[cid];
+    const clamp = (x: number) => Math.max(0, Math.min(100, x));
+    // A — орналастыру сапасы (pScore орта: ~9 мінсіз, ~6.5 әлсіз)
+    const avg = arr.reduce((s, o) => s + o.score, 0) / arr.length;
+    const place = clamp((avg - 6.5) / 2.5 * 45 + 55);
+    // B — тесіксіздік
+    let gaps = 0;
+    for (let d = 1; d <= 5; d++) {
+      const row = cm[cid][d];
+      let last = 0;
+      for (let sl = 1; sl <= 8; sl++) if (row[sl] !== null) last = sl;
+      for (let sl = 1; sl <= last; sl++) if (row[sl] === null) gaps++;
+    }
+    // C — күндік жүктеме шегінен аспау (тек асқанын жазалау)
+    const lim = dayLimitS(cls.grade, settings);
+    let over = 0;
+    for (let d = 1; d <= 5; d++) over += Math.max(0, dScore[cid][d] - lim);
+    const loadHealth = clamp(100 - over * 3);
+    // D — аптаның дұрыс қисығы (Ср ≥ Жм — бонус)
+    const curveOk = dScore[cid][3] >= dScore[cid][5] ? 100 : clamp(100 - (dScore[cid][5] - dScore[cid][3]) * 3);
+    // Тесік — завуч үшін ЕҢ КӨРІНЕТІН ақау: әр тесік тікелей −12% (1 тесік
+    // жасыл кестені сарыға түсіреді, бірақ мүлде «қызыл» етпейді).
+    const base = place * 0.65 + loadHealth * 0.22 + curveOk * 0.13;
+    return clamp(Math.round(base - gaps * 12));
+  };
   let iters = 0;
   if (settings.maximin) {
     const maxIt = settings.maxIterations || 400;
@@ -2776,7 +2817,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   /* ЭТАП 9 — сапа */
   prog(95, 6);
   const classScores: Record<string, number> = {};
-  classes.forEach((c) => (classScores[c.name] = classScore(c.id)));
+  classes.forEach((c) => (classScores[c.name] = classRating(c.id)));
   const vals = Object.values(classScores).filter((v) => v > 0);
   const avgC = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   const minC = vals.length ? Math.min(...vals) : 0;
