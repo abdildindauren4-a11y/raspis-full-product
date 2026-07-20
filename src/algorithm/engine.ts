@@ -157,7 +157,7 @@ export interface AlgoResult {
   stats: { timeMs: number; iters: number; total: number; comfort: number; balance: number; avgClass: number;
     // Педагогикалық ережелердің бұзылу саны (алг+гео/орыс бір күн, тіл қатар,
     // 3 қиын қатар) — нұсқа таңдауда (runScore) минимумға тартылады.
-    pedViol?: number };
+    pedViol?: number; weekBalBad?: number };
 }
 export type ProgressFn = (pct: number, stage: number) => void;
 // Сынып сағаты слоттарын белгілейтін тұрақты sentinel ID (нақты Subject емес —
@@ -2236,6 +2236,202 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   runPullLeft();
   runFinalCompaction();
 
+  /* Кері қайтару көмекшісі (7.93/7.95): сәтсіз әрекетте ТҮПНҰСҚА нысанды
+     өз индексіне қайта отырғызады — жаңа клон ЖАСАМАЙДЫ. Себебі: клон жасалса,
+     циклдегі ескі сілтеме slots-тан шығып қалады да, келесі removeSlot(ескі)
+     indexOf=-1 → splice(-1,1) массивтің СОҢҒЫ элементін (бөтен сабақты!)
+     өшіріп, кестені бүлдіреді (өлшеумен дәлелденді). Реті де дәл сақталады —
+     кейінгі фазалар slots ретіне тәуелді. */
+  const restoreSlot = (o: Slot, idx: number) => {
+    slots.splice(idx, 0, o);
+    tm[o.teacherId][o.shift][o.day][o.slot] = o.classId;
+    if (gym && o.roomId === gym.id) gymOcc[o.shift][o.day][o.slot].push(o.classId);
+    else rm[o.roomId][o.shift][o.day][o.slot] = o.classId;
+    if (!o.groupId || o.groupId === "Г1") {
+      cm[o.classId][o.day][o.slot] = o.subjectId;
+      ds[o.classId][o.day].add(o.subjectId);
+      dScore[o.classId][o.day] += eff(C[o.classId], S[o.subjectId]);
+      dayList[o.classId][o.day].push({ slot: o.slot, score: eff(C[o.classId], S[o.subjectId]) });
+    }
+    scoreCache[o.classId] = null;
+  };
+
+  /* ЭТАП 7.93 — АПТА БАЛАНСЫ (Ср ≥ Жм): сәрсенбі — аптаның ең өнімді күні,
+     жұма — ең жеңілі (СанПиН қисығы). Балансы бұзылған сыныпта Жм-дағы АУЫР
+     сабақ пен Ср-дағы ЖЕҢІЛ сабақты орындарымен алмастырамыз. Екі жақ та
+     толық hardCheck-тен өтеді (ұялар өзгермейді — сынып тесігі тумайды),
+     әрі МҰҒАЛІМ ТЕРЕЗЕ-ҚОРҒАНЫ бар: қозғалған мұғалімдердің терезесі өссе —
+     кері қайтарамыз (әйтпесе комфорт құлап, көп-seed іріктеуі бұзылады). */
+  {
+    const tWin = (tid: string, sh: number, day: number): number => {
+      const row = tm[tid]?.[sh]?.[day];
+      if (!row) return 0;
+      let first = -1, last = -1, cnt = 0;
+      for (let sl = 1; sl <= 8; sl++) if (row[sl]) { if (first < 0) first = sl; last = sl; cnt++; }
+      return cnt < 2 ? 0 : (last - first + 1) - cnt;
+    };
+    const swapPair = (a: Slot, b: Slot): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      const cls = C[a.classId];
+      const subjA = S[a.subjectId], subjB = S[b.subjectId];
+      const tids = [...new Set([a.teacherId, b.teacherId])];
+      const calcW = () => tids.reduce((s2, tid) => s2 + tWin(tid, cls.shift, 3) + tWin(tid, cls.shift, 5), 0);
+      const wBefore = calcW();
+      const snapA = a, snapB = b;
+      const iA = slots.indexOf(a), iB = slots.indexOf(b);
+      removeSlot(a); removeSlot(b);
+      let pA: Slot | null = null, pB: Slot | null = null;
+      do {
+        if (hardCheck(cls, snapA.teacherId, subjA, snapB.day, snapB.slot)) break;
+        const rA = findRoom(cls, subjA, snapB.day, snapB.slot);
+        if (!rA) break;
+        pA = place({ classId: cls.id, subjectId: snapA.subjectId, teacherId: snapA.teacherId, roomId: rA, day: snapB.day, slot: snapB.slot, shift: cls.shift, score: pScore(subjA, snapB.slot, settings) });
+        if (hardCheck(cls, snapB.teacherId, subjB, snapA.day, snapA.slot)) break;
+        const rB = findRoom(cls, subjB, snapA.day, snapA.slot);
+        if (!rB) break;
+        pB = place({ classId: cls.id, subjectId: snapB.subjectId, teacherId: snapB.teacherId, roomId: rB, day: snapA.day, slot: snapA.slot, shift: cls.shift, score: pScore(subjB, snapA.slot, settings) });
+        if (calcW() <= wBefore) return true; // терезе-қорған өтті
+      } while (false);
+      if (pB) removeSlot(pB);
+      if (pA) removeSlot(pA);
+      const restore: [number, Slot][] = [[iA, a], [iB, b]];
+      restore.sort((x, y) => x[0] - y[0]);
+      for (const [idx, o] of restore) restoreSlot(o, idx);
+      return false;
+    };
+    for (const c of targetClasses) {
+      let guard = 0;
+      while (dScore[c.id][3] < dScore[c.id][5] && guard++ < 6) {
+        const day5 = slots.filter((o) => o.classId === c.id && o.day === 5 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+        const day3 = slots.filter((o) => o.classId === c.id && o.day === 3 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+        day5.sort((x, y) => eff(c, S[y.subjectId]) - eff(c, S[x.subjectId])); // Жм: ауырдан
+        day3.sort((x, y) => eff(c, S[x.subjectId]) - eff(c, S[y.subjectId])); // Ср: жеңілден
+        let done = false;
+        for (const a of day5) {
+          for (const b of day3) {
+            if (a.subjectId === b.subjectId) continue;
+            if (eff(c, S[a.subjectId]) <= eff(c, S[b.subjectId])) continue; // пайдасыз
+            if (swapPair(a, b)) { done = true; break; }
+          }
+          if (done) break;
+        }
+        if (!done) break;
+      }
+    }
+  }
+
+  /* ЭТАП 7.95 — ФИНАЛДЫҚ ТЕСІК-ТОЛТЫРҒЫШ (завуч: «тесік мүлде болмауы
+     керек»). Стратегиялар (әрқайсысы алдымен толық ережелермен, сосын
+     физика + завуч педагогикасымен — отбасы/тіл көршілестігі, қиын-қатар
+     сақталады, тек лимит/шаршау босатылады):
+       1) күн соңындағы сабақты (жалғыз НЕМЕСЕ топ-жұпты — ұл/қыз бөлінген
+          Көркем еңбек сияқты) тесікке жылжыту: өз күнінен де, басқа күннен де;
+       2) ЕКІ ҚАДАМДЫ ТІЗБЕК: басқа күннің ОРТАСЫНАН сабақ алып тесікке
+          қоямыз, пайда болған ойықты сол күннің СОҢҒЫ сабағымен жабамыз —
+          екі қадамның бірі өтпесе, бәрі дәл кері қайтады. */
+  {
+    // (c, d2, slot2) ұясындағы жылжымалы «бума»: жалғыз сабақ немесе толық
+    // топ-жұп (Г1+Г2). Жылжымайтын мүше болса — null.
+    const cellBundle = (c: Klass, d2: number, slot2: number): Slot[] | null => {
+      const items = slots.filter((o) => o.classId === c.id && o.day === d2 && o.slot === slot2);
+      if (!items.length) return null;
+      for (const o of items)
+        if (o.dpart || o.locked || o.subjectId === HOMEROOM_SUBJECT_ID || (items.length > 1 && !o.groupId)) return null;
+      return items;
+    };
+    // Буманы (day2,slot2) → (day,g) көшіру. strictRules=false кезінде де
+    // завучтың құрылымдық педагогикасы сақталады. Сәтсіз болса — дәл қалпына.
+    const moveBundle = (c: Klass, bundle: Slot[], day: number, g: number, strictRules: boolean): boolean => {
+      const undo: [number, Slot][] = [];
+      const placed: Slot[] = [];
+      for (const o of bundle) {
+        const subj = S[o.subjectId];
+        const tt = T[o.teacherId];
+        const iC = slots.indexOf(o);
+        if (!tt) break;
+        removeSlot(o); undo.push([iC, o]);
+        // Жұптың 2+ мүшесі ұяны 1-мүшемен ЗАҢДЫ бөліседі — сынып-ұя/күн-пән
+        // тексерулері 1-мүше орналасқан соң жалған-дабыл береді, оларды
+        // өткізіп, тек мұғалім/кабинет/педагогика тексеріледі.
+        const shared = placed.length > 0;
+        let ok: boolean;
+        if (strictRules && !shared) ok = !hardCheck(c, o.teacherId, subj, day, g);
+        else
+          ok =
+            (shared || !ds[c.id][day].has(o.subjectId)) && // бір күн — бір пән (қатаң)
+            tm[o.teacherId][c.shift][day][g] === null &&
+            !tt.unavailable.includes(`${day}-${g}`) &&
+            interShiftOk(tt, c.shift, day) &&
+            !(subj.bannedSlots && subj.bannedSlots.includes(`${day}-${g}`)) &&
+            !structuralViolation(c, subj, day, g) &&
+            !hardRunViolation(c, subj, day, g);
+        const room = ok ? findRoom(c, subj, day, g) : null;
+        if (!room) break;
+        placed.push(place({ classId: c.id, subjectId: o.subjectId, teacherId: o.teacherId, roomId: room, day, slot: g, shift: c.shift, score: pScore(subj, g, settings), groupId: o.groupId }));
+      }
+      if (placed.length === bundle.length) return true;
+      for (const p of placed) removeSlot(p);
+      for (let i = undo.length - 1; i >= 0; i--) restoreSlot(undo[i][1], undo[i][0]);
+      return false;
+    };
+    const fillOneGap = (c: Klass, day: number, g: number, strictRules: boolean): boolean => {
+      // 1-стратегия: күн соңы → тесік (өз күні бірінші — күн қысқарады)
+      for (const d2 of [day, ...[1, 2, 3, 4, 5].filter((d) => d !== day)]) {
+        const last2 = cmRowLast(c.id, d2);
+        if (!last2 || (d2 === day && last2 <= g)) continue;
+        const bundle = cellBundle(c, d2, last2);
+        if (bundle && moveBundle(c, bundle, day, g, strictRules)) return true;
+      }
+      // 2-стратегия: тізбек — басқа күннің ортасы → тесік, ойық ← сол күннің соңы.
+      // Кері қайтару ДӘЛ: 1-қадам қолмен (индекс сақталады), 2-қадам өтпесе —
+      // орналастырылғанды өшіріп, түпнұсқаны өз орнына қайтарамыз.
+      for (let d2 = 1; d2 <= 5; d2++) {
+        if (d2 === day) continue;
+        const last2 = cmRowLast(c.id, d2);
+        for (let s2 = 2; s2 < last2; s2++) { // 1-слотты алмаймыз (кеш бастау = тесік)
+          if (cm[c.id][d2][s2] === null) continue;
+          const mid = cellBundle(c, d2, s2);
+          if (!mid || mid.length !== 1) continue; // тізбекте тек жалғыз сабақ
+          const mo = mid[0];
+          const subjM = S[mo.subjectId];
+          const ttM = T[mo.teacherId];
+          if (!ttM) continue;
+          const iM = slots.indexOf(mo);
+          removeSlot(mo);
+          let okM: boolean;
+          if (strictRules) okM = !hardCheck(c, mo.teacherId, subjM, day, g);
+          else
+            okM =
+              !ds[c.id][day].has(mo.subjectId) &&
+              tm[mo.teacherId][c.shift][day][g] === null &&
+              !ttM.unavailable.includes(`${day}-${g}`) &&
+              interShiftOk(ttM, c.shift, day) &&
+              !(subjM.bannedSlots && subjM.bannedSlots.includes(`${day}-${g}`)) &&
+              !structuralViolation(c, subjM, day, g) &&
+              !hardRunViolation(c, subjM, day, g);
+          const roomM = okM ? findRoom(c, subjM, day, g) : null;
+          if (!roomM) { restoreSlot(mo, iM); continue; }
+          const pM = place({ classId: c.id, subjectId: mo.subjectId, teacherId: mo.teacherId, roomId: roomM, day, slot: g, shift: c.shift, score: pScore(subjM, g, settings) });
+          const tailSlot = cmRowLast(c.id, d2);
+          const tail = tailSlot > s2 ? cellBundle(c, d2, tailSlot) : null;
+          if (tail && moveBundle(c, tail, d2, s2, strictRules)) return true;
+          removeSlot(pM); restoreSlot(mo, iM); // дәл кері қайтару
+        }
+      }
+      return false;
+    };
+    for (const c of targetClasses) {
+      for (let day = 1; day <= 5; day++) {
+        let guard = 0;
+        while (guard++ < 4) {
+          const g = cmGap(c.id, day);
+          if (g < 0) break;
+          if (!fillOneGap(c, day, g, true) && !fillOneGap(c, day, g, false)) break;
+        }
+      }
+    }
+  }
+
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
   const tests: StressTest[] = [];
@@ -2335,9 +2531,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     add("Үш қиын пән қатар емес", runs === 0, runs ? `${runs} жағдай` : "");
     pedViol = sep + adj + runs;
   }
+  let weekBalBad = 0;
   {
     const bad: string[] = [];
     for (const c of classes) if (dScore[c.id][3] < dScore[c.id][5]) bad.push(c.name);
+    weekBalBad = bad.length;
     add("Апта балансы (Ср ≥ Жм)", bad.length === 0, bad.slice(0, 6).join(", "));
   }
   {
@@ -2525,7 +2723,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       timeMs: Date.now() - t0, iters,
       total: slots.filter((o) => (!o.groupId || o.groupId === "Г1") && o.subjectId !== HOMEROOM_SUBJECT_ID).length,
       comfort: Math.round(comfort), balance: Math.round(balance), avgClass: Math.round(avgC),
-      pedViol,
+      pedViol, weekBalBad,
     },
   };
 }
@@ -2545,6 +2743,7 @@ function runScore(r: AlgoResult): number {
     - r.unplaced.length * 1000
     - r.gaps.length * 500
     - (r.stats.pedViol ?? 0) * 400 // ереже бұзушылығы аз нұсқа басым
+    - (r.stats.weekBalBad ?? 0) * 150 // апта балансы (Ср ≥ Жм) бұзылған сынып аз болсын
     + r.quality * 10
     + r.stats.comfort; // тең болса — мұғалімге ыңғайлысы
 }
@@ -2574,7 +2773,7 @@ export function generateAuto(input: AlgoInput, onProgress?: ProgressFn, maxTries
     const sc = runScore(r);
     if (sc > bestScore) { bestScore = sc; best = r; }
     // мінсіз (тесіксіз, толық, педагогикалық бұзусыз) — бірден тоқтаймыз
-    if (r.success && r.gaps.length === 0 && r.unplaced.length === 0 && !r.stats.pedViol) break;
+    if (r.success && r.gaps.length === 0 && r.unplaced.length === 0 && !r.stats.pedViol && !r.stats.weekBalBad) break;
     if (Date.now() - t0 > BUDGET_MS) break; // бюджет бітті — ең жақсысын береміз
   }
   return best!;
@@ -2619,7 +2818,7 @@ export function generateMulti(
     if (r.success) {
       minQ = Math.min(minQ, r.quality);
       maxQ = Math.max(maxQ, r.quality);
-      if (r.gaps.length === 0 && r.unplaced.length === 0 && !r.stats.pedViol) cleanCount++;
+      if (r.gaps.length === 0 && r.unplaced.length === 0 && !r.stats.pedViol && !r.stats.weekBalBad) cleanCount++;
     }
     if (sc > bestScore) { bestScore = sc; best = r; bestSeed = seed; lastImprove = i; }
     if (onProgress) onProgress(i + 1, count, best?.quality ?? 0);
