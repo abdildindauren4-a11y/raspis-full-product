@@ -2430,7 +2430,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   const comfort = span ? Math.max(0, 100 - (wins / span) * 100) : 100;
   const stressPct = (tests.filter((t) => t.passed).length / tests.length) * 100;
   const missedHours = unplaced.reduce((s, u) => s + (u.need - u.placed), 0);
-  const quality = Math.max(0, Math.round(avgC * 0.35 + balance * 0.25 + comfort * 0.2 + stressPct * 0.2) - Math.min(25, missedHours));
+  // ӘДІЛ САПА: сынып сапасы мен МҰҒАЛІМ КОМФОРТЫ — тең дәрежелі (0.30/0.30).
+  // Олар қарама-қайшы мақсаттар (терезені азайтқанда сынып ұпайы сәл түсуі
+  // мүмкін) — тең салмақ комфорт жақсарғанын әділ өтейді, жалпы баға
+  // жақсарған кестені дұрыс көрсетеді (завуч талабы).
+  const quality = Math.max(0, Math.round(avgC * 0.30 + balance * 0.20 + comfort * 0.30 + stressPct * 0.2) - Math.min(25, missedHours));
   const warnings = [...sanpinWarnings, ...softWarnings, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
   // Сыйымдылық ескертулері: сынып тар кабинетке сыймаған жағдайлар
   for (const cw of capWarn) {
