@@ -308,7 +308,7 @@ interface Task {
 export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult {
   const t0 = Date.now();
   // Своп-фазалардың (комфорт/күн-баланс) ортақ уақыт мерзімі — төмендегі түсіндірмені қара
-  const SWAP_DEADLINE = t0 + 8000;
+  const SWAP_DEADLINE = t0 + 2500;
   const prog = (p: number, st: number) => onProgress && onProgress(p, st);
   const { school, classes, teachers, rooms, settings } = input;
   // СанПиН режимі: ресми баллдар (1-11) ішкі калибрленген шкалаға келтіріледі
@@ -676,11 +676,13 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
 
   // Кабинет нөмірінен этажды анықтау: "101"→1, "203"→2, "Спортзал"→0 (этажсыз)
   // Нөмірдің бірінші цифры = этаж. Цифрмен басталмаса (атау) — 0 (бейтарап).
+  const floorMemo: Record<string, number> = {};
   const roomFloor = (roomId: string): number => {
+    const c = floorMemo[roomId];
+    if (c !== undefined) return c;
     const room = R[roomId];
-    if (!room) return 0;
-    const m = room.number.match(/^(\d)/);
-    return m ? parseInt(m[1], 10) : 0;
+    const m = room ? room.number.match(/^(\d)/) : null;
+    return (floorMemo[roomId] = m ? parseInt(m[1], 10) : 0);
   };
 
   // Сыйымдылық ескертулері: "сынып|оқушы|кабинет сыйымдылығы" — сынып сыймаған жағдайлар
@@ -735,7 +737,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       }
     }
     // сол күнгі осы сыныптың басым этажын табамыз
-    const dayRooms = slots.filter((o) => o.classId === cls.id && o.day === day && (!o.groupId || o.groupId === "Г1")).map((o) => roomFloor(o.roomId)).filter((f) => f > 0);
+    const dayRooms = byClassDay[cls.id][day].filter((o) => !o.groupId || o.groupId === "Г1").map((o) => roomFloor(o.roomId)).filter((f) => f > 0);
     if (!dayRooms.length) return candidates[0].id; // әлі сабақ жоқ — кез келген (сыятын)
     // ең жиі этаж
     const freq: Record<number, number> = {};
@@ -749,6 +751,23 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   let seq = 0;
   const slots: Slot[] = [];
   const scoreCache: Record<string, number | null> = {};
+  // ЖЫЛДАМДЫҚ ИНДЕКСТЕРІ: cellFree/findRoom бұрын әр шақырылымда глобал slots
+  // массивін толық сканерлейтін (үлкен мектепте — генерацияның 60%+ уақыты,
+  // CPU-профильмен өлшенді). Екі индекс іздеуді O(N)-нен O(бір ұя/бір күн)-ге
+  // түсіреді. place/removeSlot/restoreSlot/setCell ТӨРТЕУІ де жаңартады —
+  // индекс пен массив әрдайым тең.
+  const atTime: Slot[][][][] = Array.from({ length: 3 }, () =>
+    Array.from({ length: 6 }, () => Array.from({ length: 9 }, () => [] as Slot[])));
+  const byClassDay: Record<string, Slot[][]> = {};
+  classes.forEach((c) => (byClassDay[c.id] = Array.from({ length: 6 }, () => [] as Slot[])));
+  const idxAdd = (o: Slot) => {
+    atTime[o.shift][o.day][o.slot].push(o);
+    byClassDay[o.classId]?.[o.day]?.push(o);
+  };
+  const idxDel = (o: Slot) => {
+    const a = atTime[o.shift][o.day][o.slot]; const i = a.indexOf(o); if (i >= 0) a.splice(i, 1);
+    const b = byClassDay[o.classId]?.[o.day]; if (b) { const j = b.indexOf(o); if (j >= 0) b.splice(j, 1); }
+  };
   const place = (o: Omit<Slot, "key">, opts?: { skipDaySet?: boolean }) => {
     const slot: Slot = { ...o, key: "s" + ++seq };
     slots.push(slot);
@@ -762,9 +781,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       dayList[o.classId][o.day].push({ slot: o.slot, score: eff(C[o.classId], S[o.subjectId]) });
     }
     scoreCache[o.classId] = null;
+    idxAdd(slot);
     return slot;
   };
   const removeSlot = (o: Slot) => {
+    idxDel(o);
     slots.splice(slots.indexOf(o), 1);
     tm[o.teacherId][o.shift][o.day][o.slot] = null;
     if (gym && o.roomId === gym.id) {
@@ -1631,6 +1652,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     // күндік балл есебі ескіріп, лимит тексерулері мен апта балансы бұзылады.
     const setCell = (o: Slot, on: boolean) => {
       const v = on ? o.classId : null;
+      if (on) idxAdd(o); else idxDel(o);
       tdCount[o.teacherId][o.day] += on ? 1 : -1;
       tm[o.teacherId][o.shift][o.day][o.slot] = v;
       if (gym && o.roomId === gym.id) {
@@ -1663,10 +1685,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (tCell && tCell !== ignoreA.classId && tCell !== ignoreB.classId) return false;
       // дәлірек: сол ұяда басқа сабақ (ignore-лардан өзге) бар ма.
       // Топ (Г1/Г2) сабақтары да мұғалімді алады — оларды да қараймыз.
-      const occupied = slots.some((o) => o !== ignoreA && o !== ignoreB && o.day === day && o.slot === slot && o.shift === sh && o.teacherId === tid);
+      const cellList = atTime[sh][day][slot];
+      const occupied = cellList.some((o) => o !== ignoreA && o !== ignoreB && o.teacherId === tid);
       if (occupied) return false;
       // сынып бос па
-      const clsOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.classId === cls.id && o.day === day && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
+      const clsOcc = byClassDay[cls.id][day].some((o) => o !== ignoreA && o !== ignoreB && o.slot === slot && (!o.groupId || o.groupId === "Г1"));
       if (clsOcc) return false;
       // кабинет бос па (спортзал әдепкісі — 1, findRoom-мен бірдей)
       if (gym && roomId === gym.id) {
@@ -1682,12 +1705,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         const rCell = rm[roomId][sh][day][slot];
         if (rCell && rCell !== ignoreA.classId && rCell !== ignoreB.classId) {
           // Топ (Г2) сабағы да кабинетті алады — сүзгісіз қараймыз.
-          const rOcc = slots.some((o) => o !== ignoreA && o !== ignoreB && o.roomId === roomId && o.day === day && o.slot === slot && o.shift === sh);
+          const rOcc = atTime[sh][day][slot].some((o) => o !== ignoreA && o !== ignoreB && o.roomId === roomId);
           if (rOcc) return false;
         }
       }
       // бір күн бір пән (сол сынып, сол күн, сол пән — ignore-лардан өзге)
-      const dup = slots.some((o) => o !== ignoreA && o !== ignoreB && o.classId === cls.id && o.day === day && o.subjectId === subj.id && (!o.groupId || o.groupId === "Г1"));
+      const dup = byClassDay[cls.id][day].some((o) => o !== ignoreA && o !== ignoreB && o.subjectId === subj.id && (!o.groupId || o.groupId === "Г1"));
       if (dup) return false;
       // мұғалім ауысым/диапазон/қолжетімсіздік
       const t = T[tid];
@@ -1832,7 +1855,9 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     // УАҚЫТ БЮДЖЕТІ: своп-фазалар O(сабақ²) — үлкен/қиын мектепте (30+ сынып,
     // 2 ауысым) шексіз сүзгіленіп, генерацияны 30+ секундқа соза алады
     // (профильмен өлшенді: findRoom+cellFree = уақыттың 60%+). Комфорт —
-    // қосымша жақсарту, сондықтан мерзім бітсе қауіпсіз үзіледі.
+    // қосымша жақсарту, сондықтан мерзім бітсе қауіпсіз үзіледі. 2.5с таңдалды
+    // (сынақ: 2.5/4/8с — 2.5с-де тесік те, pedViol да аз, терезе бірдей;
+    // үнемделген уақыт көп-seed іздеуге кетеді — одан ұтыс әлдеқайда зор).
     const passes = comfortLevel === 3 ? 7 : comfortLevel === 2 ? 5 : 3;
     prog(88, 4);
     // барлық қарапайым сабақтар (сыныпаралық swap үшін)
@@ -2261,6 +2286,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
      кейінгі фазалар slots ретіне тәуелді. */
   const restoreSlot = (o: Slot, idx: number) => {
     slots.splice(idx, 0, o);
+    idxAdd(o);
     tm[o.teacherId][o.shift][o.day][o.slot] = o.classId;
     if (gym && o.roomId === gym.id) gymOcc[o.shift][o.day][o.slot].push(o.classId);
     else rm[o.roomId][o.shift][o.day][o.slot] = o.classId;
@@ -2897,7 +2923,10 @@ export function generateAuto(input: AlgoInput, onProgress?: ProgressFn, maxTries
   // біткен соң қолда бардың ең жақсысын қайтарамыз (кіші мектеп бәрібір
   // 8-ін де үлгереді). Прогресс: 1-әрекет 0-90%, қалғандары 91-99% — бар
   // ешқашан 100%-да «қатып» тұрмайды (100% тек нәтижемен бірге).
-  const BUDGET_MS = 2500;
+  // Үлкен мектепте (19+ сынып) бір әрекеттің өзі ~3с — бюджетті көбейтпесе,
+  // seed-таңдау мүлде болмай, тесік көп нұсқа қайтады (өлшенді: 8с бюджетте
+  // тесік 15→8-ге түседі). Кіші мектепте бұрынғыша 2.5с (лезде).
+  const BUDGET_MS = input.classes.length > 18 ? 8000 : 2500;
   let best: AlgoResult | null = null;
   let bestScore = -Infinity;
   for (let i = 0; i < maxTries; i++) {
