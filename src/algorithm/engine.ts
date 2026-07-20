@@ -406,6 +406,39 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     let n = 0; for (let d = 1; d <= 5; d++) if (dayHas(cid, d, pa) && dayHas(cid, d, pb)) n++;
     return n;
   };
+
+  // ── ПӘН МАҢЫЗДЫЛЫҒЫ: ауырлық балы + АПТАЛЫҚ САҒАТ ──
+  // Барлық пән өз апталық сағатымен салыстырылады (5 сағ математика — 1 сағ
+  // музыкадан маңызды). ОТБАСЫ пәндерінде сағаттар ҚОСЫЛЫП есептеледі:
+  //   математика-отбасы = математика + алгебра + геометрия (жоғары сыныпта
+  //   алг 3 + гео 3 = 6 сағ → маңызы бірге көтеріледі);
+  //   қазақ-отбасы = қазақ тілі + әдебиет(і);
+  //   орыс-отбасы = орыс тілі + орыс әдебиеті.
+  // Маңыздылық орналастыру БАСЫМДЫҒЫН анықтайды (маңызды пән бірінші
+  // орналасып, жақсы ұяларды алады) — тесік/қақтығыс азаяды.
+  const famOf = (s: Subject): string | null => {
+    const n = s.name.toLowerCase();
+    if (FL[s.id].alg || FL[s.id].geo || n.includes("математика")) return "math";
+    if (FL[s.id].rusLang || FL[s.id].rusLit) return "rus";
+    if (FL[s.id].lang === "kaz" || (/әдеб|литератур/.test(n) && !n.includes("орыс") && !n.includes("русск"))) return "kaz";
+    return null;
+  };
+  // Әр сыныптағы отбасылық апталық сағат қосындысы
+  const famH: Record<string, Record<string, number>> = {};
+  for (const c of classes) {
+    famH[c.id] = {};
+    for (const cu of c.curriculum) {
+      const su = S[cu.subjectId];
+      if (!su || !cu.hours) continue;
+      const f = famOf(su);
+      if (f) famH[c.id][f] = (famH[c.id][f] || 0) + cu.hours;
+    }
+  }
+  // Пәннің осы сыныптағы МАҢЫЗДЫ сағаты: отбасы болса — қосынды, әйтпесе өзінікі
+  const impHours = (cid: string, s: Subject, ownHours: number): number => {
+    const f = famOf(s);
+    return f ? (famH[cid]?.[f] || ownHours) : ownHours;
+  };
   // ҚҰРЫЛЫМДЫҚ педагогикалық ережелер — ҚАТАҢ да, ЖҰМСАҚ режимде де сақталады
   // (тек ең соңғы кепіл-пасстар елемейді): алгебра+геометрия бөлек күн,
   // орыс тілі+әдебиеті бөлек күн, екі ТІЛ пәні қатар қойылмайды (мыс.
@@ -765,7 +798,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         sanpinWarnings.push(`${c.name}: «${s.name}» қос сабақпен қойылады — СанПиН бастауышта қос сабаққа рұқсат бермейді (сағатын азайтыңыз немесе пәннің «қос сабақ» белгісін алыңыз)`);
       tasks.push({
         cls: c, cu, s,
-        pr: (s.room ? 100 : 0) + (s.room === "gym" ? 90 : 0) + (cu.isSplit ? 80 : 0) + cu.hours * 10 + s.score,
+        // Басымдық = кабинет талабы + МАҢЫЗДЫЛЫҚ: өз сағаты ×10 (барлық пән
+        // өз апталық сағатымен салыстырылады) + отбасы серіктесінің сағаты ×4
+        // (мат/қазақ/орыс отбасыларында сағат қосылып, маңыз бірге көтеріледі)
+        // + ауырлық балы. Толық ×10 қосынды сыналды — тым күшті (демо 3 сабақ
+        // сыймай, тесік өсті), ×4 серіктес-үстеме — теңгерімді.
+        pr: (s.room ? 100 : 0) + (s.room === "gym" ? 90 : 0) + (cu.isSplit ? 80 : 0) + cu.hours * 10 + (impHours(c.id, s, cu.hours) - cu.hours) * 5 + s.score,
         order: weekOrder(s.score), singles: cu.hours - doubles * 2, doubles,
       });
     }
@@ -1107,9 +1145,38 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
     return false;
   };
+  // ЫҒЫСТЫРЫП ОРНАЛАСТЫРУ (соңғы амал): мұғалім бос ұяда сыныптың басқа
+  // сабағы тұрса — соны басқа жерге жылжытып, босаған ұяға жетіспегенді
+  // қоямыз. Сәтсіз болса — бәрі дәл кері қайтарылады (жанама әсерсіз).
+  const displacePlace = (c: Klass, subj: Subject, tid: string): boolean => {
+    const tt = T[tid];
+    if (!tt || c.grade < tt.gradeMin || c.grade > tt.gradeMax || (tt.shift !== 3 && tt.shift !== c.shift)) return false;
+    for (let day = 1; day <= 5; day++) {
+      if (ds[c.id][day].has(subj.id)) continue;
+      for (let slot = 1; slot <= maxSlots(c.grade); slot++) {
+        if (tm[tid][c.shift][day][slot] !== null) continue; // мұғалім бос емес
+        if (tt.unavailable.includes(`${day}-${slot}`)) continue;
+        if (subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`)) continue;
+        if (!interShiftOk(tt, c.shift, day)) continue;
+        const occ = slots.find((o) => o.classId === c.id && o.day === day && o.slot === slot && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID);
+        if (!occ) continue; // бос ұяны guaranteePlace бұрын тексерген — мұнда тек ығыстыру
+        const snapshot = { ...occ };
+        removeSlot(occ);
+        const room = findRoom(c, subj, day, slot);
+        if (!room) { place(snapshot); continue; }
+        const placed = place({ classId: c.id, subjectId: subj.id, teacherId: tid, roomId: room, day, slot, shift: c.shift, score: pScore(subj, slot, settings) });
+        // ығыстырылған сабаққа жаңа орын (екі айналымды кепілмен)
+        if (guaranteePlace(c, S[snapshot.subjectId], snapshot.teacherId)) return true;
+        removeSlot(placed);
+        place(snapshot);
+      }
+    }
+    return false;
+  };
   for (const st of shortList) {
     if (st.tk.cu.isSplit || st.tk.doubles > 0) continue;
     while (st.left > 0 && guaranteePlace(st.tk.cls, st.tk.s, st.tk.cu.teacherId!)) st.left--;
+    while (st.left > 0 && displacePlace(st.tk.cls, st.tk.s, st.tk.cu.teacherId!)) st.left--;
   }
 
   for (const st of shortList)
@@ -2101,9 +2168,13 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         let missing = cu.hours - (placedCnt.get(c.id + "|" + cu.subjectId) || 0);
         if (missing <= 0) continue;
         // жеке (топсыз) сабақты қайта орналастыру: алдымен ережеге сай ұя,
-        // болмаса кез келген конфликтсіз ұя (guaranteePlace — екі айналым)
-        if (!cu.isSplit && cu.teacherId)
+        // болмаса кез келген конфликтсіз ұя (guaranteePlace — екі айналым),
+        // ол да болмаса — ЫҒЫСТЫРУ: бір сабақты басқа жерге жылжытып, босаған
+        // ұяға жетіспегенді қою (сәтсіз болса бәрі дәл кері қайтарылады)
+        if (!cu.isSplit && cu.teacherId) {
           while (missing > 0 && guaranteePlace(c, subj, cu.teacherId)) missing--;
+          while (missing > 0 && displacePlace(c, subj, cu.teacherId)) missing--;
+        }
         if (missing > 0)
           unplaced.push({ className: c.name, subject: subj.name, placed: cu.hours - missing, need: cu.hours, reason: oldReason.get(c.name + "|" + subj.name) || "қорытынды түгендеу: орын табылмады" });
       }
