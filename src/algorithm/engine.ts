@@ -1120,17 +1120,28 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
      қалаулы лимиттер де сыйғыза алмаған сабақ қалса — тек ФИЗИКА ЗАҢЫН
      (сынып/мұғалім/кабинет бос, бір күн — бір пән) тексеріп орналастырамыз.
      Мұнсыз жаңа ережелер тығыз кестеде сабақ жоғалтуы мүмкін еді (регрессия). */
-  // ЕКІ АЙНАЛЫМ: 1-айналымда құрылымдық + қиын-қатар ережелеріне САЙ бос ұя
-  // іздейміз; табылмаса ғана 2-айналымда кез келген конфликтсіз ұяға қоямыз.
+  // ТӨРТ АЙНАЛЫМ (басымдық ретімен): 1) ережеге сай әрі ТЕСІК ТУДЫРМАЙТЫН ұя;
+  // 2) тесік тудырмайтын кез келген ұя; 3) ережеге сай (тесік болса да);
+  // 4) кез келген конфликтсіз ұя. Тесік-қауіпсіз = бар тесікті толтырады
+  // немесе күн блогының соңына тіркеледі (бұрын кез келген бос ұяға қоя
+  // салып, күн ортасында жаңа тесік тудыратын).
+  const gapSafeSlot = (cid: string, day: number, slot: number): boolean => {
+    const row = cm[cid][day];
+    let last = 0;
+    for (let s2 = 1; s2 <= 8; s2++) if (row[s2] !== null) last = s2;
+    if (last === 0) return slot === 1; // бос күн — тек 1-сабақтан бастау
+    return slot <= last + 1; // тесік толтыру немесе блок соңына тіркеу
+  };
   const guaranteePlace = (cls: Klass, subj: Subject, tid: string): boolean => {
     const tt = T[tid]; if (!tt) return false;
     if (cls.grade < tt.gradeMin || cls.grade > tt.gradeMax) return false;
     if (tt.shift !== 3 && tt.shift !== cls.shift) return false;
-    for (const respectRules of [true, false]) {
+    for (const [respectRules, gapSafe] of [[true, true], [false, true], [true, false], [false, false]] as const) {
       for (let day = 1; day <= 5; day++) {
         if (ds[cls.id][day].has(subj.id)) continue;
         for (let slot = 1; slot <= maxSlots(cls.grade); slot++) {
           if (cm[cls.id][day][slot] !== null) continue;
+          if (gapSafe && !gapSafeSlot(cls.id, day, slot)) continue;
           if (tm[tid][cls.shift][day][slot] !== null) continue;
           if (tt.unavailable.includes(`${day}-${slot}`)) continue;
           if (!interShiftOk(tt, cls.shift, day)) continue;
@@ -2042,6 +2053,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     for (let sl = 1; sl <= last; sl++) if (!occ[sl]) return sl;
     return null;
   };
+  const runGapRescue = () => {
   for (const c of targetClasses) {
     for (let day = 1; day <= 5; day++) {
       const gapSlot = dayGapSlot(c.id, day);
@@ -2072,6 +2084,8 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       }
     }
   }
+  };
+  runGapRescue();
 
   /* ЭТАП 7.6 — СОЛҒА ТАРТУ (қауіпсіз тесік тығыздау)
      Жоғарыдағы фазалардан кейін қалған ішкі тесіктерді ТЕК бар слоттарды
@@ -2096,6 +2110,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     for (let s = 1; s <= last; s++) if (rowd[s] === null) return s;
     return -1;
   };
+  const runPullLeft = () => {
   for (const c of targetClasses) {
     const cid = c.id;
     for (let day = 1; day <= 5; day++) {
@@ -2108,9 +2123,17 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         for (let s = g + 1; s <= 8; s++) if (cm[cid][day][s] !== null) { srcSlot = s; break; }
         if (srcSlot < 0) break;
         // нақты слот объектісі (тек жылжыту қажет болғанда — сирек)
-        const at = slots.filter((o) => o.classId === cid && o.day === day && o.slot === srcSlot);
-        // тек ЖЕКЕ сабақ жылжытылады (қос/топ/locked — тимейміз)
-        if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) break;
+        let at = slots.filter((o) => o.classId === cid && o.day === day && o.slot === srcSlot);
+        // тек ЖЕКЕ сабақ жылжытылады (қос/топ/locked — тимейміз). Бірінші сабақ
+        // жылжымаса — КҮННІҢ СОҢҒЫ сабағын байқаймыз (соңғыны тесікке көшіру
+        // жаңа тесік тудырмайды): бұрын бүкіл күн тасталып, тесік қалатын.
+        if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) {
+          const lastSlot = cmRowLast(cid, day);
+          if (lastSlot > srcSlot) {
+            at = slots.filter((o) => o.classId === cid && o.day === day && o.slot === lastSlot);
+          }
+          if (at.length !== 1 || at[0].groupId || at[0].dpart || at[0].locked) break;
+        }
         const src = at[0];
         const subj = S[src.subjectId];
         const snap = { ...src };
@@ -2145,6 +2168,8 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       }
     }
   }
+  };
+  runPullLeft();
 
   /* ЭТАП 7.8 — ТҮГЕНДЕУ: кестедегі нақты сабақ санын оқу жоспарымен салыстыру.
      Кейінгі фазалардың (rebuild/құтқару/тығыздау) сирек шеткі жағдайында сабақ
@@ -2179,6 +2204,30 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
           unplaced.push({ className: c.name, subject: subj.name, placed: cu.hours - missing, need: cu.hours, reason: oldReason.get(c.name + "|" + subj.name) || "қорытынды түгендеу: орын табылмады" });
       }
   }
+
+  /* ЭТАП 7.9 — СОҢҒЫ ТЫҒЫЗДАУ: түгендеу/ығыстыру қосқан сабақтар кей
+     жағдайда күн ортасында тесік қалдыруы мүмкін — соңғы рет күнішілік
+     қайта құрумен (rebuildDay) тығыздаймыз (сабақ саны өзгермейді). */
+  const runFinalCompaction = () => {
+  for (const c of targetClasses)
+    for (let day = 1; day <= 5; day++) {
+      const row = cm[c.id][day];
+      let last = 0, hasGap = false;
+      for (let s2 = 1; s2 <= 8; s2++) if (row[s2] !== null) last = s2;
+      for (let s2 = 1; s2 < last; s2++) if (row[s2] === null) { hasGap = true; break; }
+      if (hasGap) rebuildDay(c, day, false);
+    }
+  };
+  runFinalCompaction();
+
+  /* ЕКІНШІ АЙНАЛЫМ: кейінгі фазалар (комфорт/теңгерім/түгендеу) күйді
+     өзгерткен соң, бұрын жабылмаған тесіктің жабылу мүмкіндігі ашылуы
+     мүмкін (мыс. донор мұғалім енді бос) — құтқару + солға тарту +
+     тығыздауды тағы бір рет жүргіземіз. Барлығы тек жылжытады (сабақ
+     саны өзгермейді), сондықтан қауіпсіз. */
+  runGapRescue();
+  runPullLeft();
+  runFinalCompaction();
 
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
