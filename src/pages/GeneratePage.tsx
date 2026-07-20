@@ -627,7 +627,7 @@ export default function GeneratePage() {
               ескертулерде; батырма тек СОЛ жерлерде сол ережені босатып,
               қайта құрып береді. Қолмен құрғандағыдай — ереже түгел емес,
               бірақ кесте жүреді; не босатылғаны есепте айтылады. */}
-          {((activeResult.stats.weekBalBad ?? 0) > 0 || activeResult.gaps.length > 0) && (
+          {((activeResult.stats.weekBalBad ?? 0) > 0 || activeResult.gaps.length > 0 || (activeResult.stats.pe1 ?? 0) > 0) && (
             <GlassCard hover={false}>
               <div className="flex items-start gap-3 flex-wrap">
                 <div className="flex-1 min-w-[220px]">
@@ -636,7 +636,7 @@ export default function GeneratePage() {
                   </p>
                   <p className="text-xs text-muted-c">
                     {lang === "kk"
-                      ? `Қалғаны: ${(activeResult.stats.weekBalBad ?? 0) > 0 ? `апта балансы (${activeResult.stats.weekBalBad} сынып)` : ""}${(activeResult.stats.weekBalBad ?? 0) > 0 && activeResult.gaps.length > 0 ? ", " : ""}${activeResult.gaps.length > 0 ? `тесік (${activeResult.gaps.length})` : ""}. Қай ереже кедергі болғаны ескертулерде. Батырма дәл сол жерлерде тек сол ережені босатып түзетеді — не босатылғаны есепте көрсетіледі.`
+                      ? `Қалғаны: ${(activeResult.stats.weekBalBad ?? 0) > 0 ? `апта балансы (${activeResult.stats.weekBalBad} сынып)` : ""}${(activeResult.stats.weekBalBad ?? 0) > 0 && activeResult.gaps.length > 0 ? ", " : ""}${activeResult.gaps.length > 0 ? `тесік (${activeResult.gaps.length})` : ""}${(activeResult.stats.pe1 ?? 0) > 0 ? `${(activeResult.stats.weekBalBad ?? 0) > 0 || activeResult.gaps.length > 0 ? ", " : ""}Дене шынықтыру 1-сабақта (${activeResult.stats.pe1})` : ""}. Қай ереже кедергі болғаны ескертулерде. Батырма дәл сол жерлерде тек сол ережені босатып түзетеді — не босатылғаны есепте көрсетіледі.`
                       : lang === "ru"
                         ? "Кнопка ослабит мешающие правила только в этих местах и закроет их; что ослаблено — будет указано в предупреждениях."
                         : "The button relaxes only the blocking rules at those exact spots and closes them; relaxations are reported in warnings."}

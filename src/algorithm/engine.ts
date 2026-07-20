@@ -161,7 +161,7 @@ export interface AlgoResult {
   stats: { timeMs: number; iters: number; total: number; comfort: number; balance: number; avgClass: number;
     // Педагогикалық ережелердің бұзылу саны (алг+гео/орыс бір күн, тіл қатар,
     // 3 қиын қатар) — нұсқа таңдауда (runScore) минимумға тартылады.
-    pedViol?: number; weekBalBad?: number };
+    pedViol?: number; weekBalBad?: number; pe1?: number };
 }
 export type ProgressFn = (pct: number, stage: number) => void;
 // Сынып сағаты слоттарын белгілейтін тұрақты sentinel ID (нақты Subject емес —
@@ -457,7 +457,14 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // апталық сағаты 5-тен асса (5 күнге сыймайды) — тек ЕҢ АЗ қажет күн ғана
   // ортақ бола алады. Ортақ күнде де отбасы пәндері ҚАТАР тұрмайды
   // (қазақ тілі мен әдебиет бір күнде — тек арасында басқа сабақпен).
+  // Дене шынықтыру 1-сабаққа қойылмайды. ЖАЛҒЫЗ ерекшелік — финалдық
+  // тесік-толтырғышта басқа ешбір амал қалмағанда (тесік > Дене-1-сабақ).
+  const PE1_RULE = "дене шынықтыру 1-сабаққа қойылмайды";
   const structuralViolation = (cls: Klass, subj: Subject, day: number, slot: number): string | null => {
+    // Дене шынықтыру (спортзал пәні) 1-сабаққа қойылмайды (завуч ережесі):
+    // таңертең дене жүктемесімен бастау дұрыс емес, әрі зал таңғы сағатта
+    // басқа ауысым/іс-шараға керек болады.
+    if (slot === 1 && subj.room === "gym") return PE1_RULE;
     const fam = FAM_ID[subj.id];
     if (fam) {
       if (dayHasFamOther(cls.id, day, fam, subj.id)) {
@@ -814,6 +821,10 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         // (мат/қазақ/орыс отбасыларында сағат қосылып, маңыз бірге көтеріледі)
         // + ауырлық балы. Толық ×10 қосынды сыналды — тым күшті (демо 3 сабақ
         // сыймай, тесік өсті), ×4 серіктес-үстеме — теңгерімді.
+        // ЕСКЕРТПЕ: «математика-отбасын Дене шынықтырудан БҰРЫН орналастыру»
+        // реті сыналды (+250 бонус) — өлшеуде педагогикалық ережелер 3→9-ға
+        // бұзылды (отбасы/үш-қиын/мат+физ), сондықтан рет өзгертілмейді;
+        // «Дене 1-сабаққа қойылмайды» ережесі structuralViolation-да қатаң тұр.
         pr: (s.room ? 100 : 0) + (s.room === "gym" ? 90 : 0) + (cu.isSplit ? 80 : 0) + cu.hours * 10 + (impHours(c.id, s, cu.hours) - cu.hours) * 5 + s.score,
         order: weekOrder(s.score), singles: cu.hours - doubles * 2, doubles,
       });
@@ -2459,7 +2470,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     //   1 — физика + завуч педагогикасы (отбасы/тіл, қиын-қатар), лимит/шаршау босатылады;
     //   0 — тек физика + «бір күн — бір пән» (forceFix қана); босатылған ереже есепке жазылады.
     // Сәтсіз болса — дәл қалпына.
-    const moveBundle = (c: Klass, bundle: Slot[], day: number, g: number, level: 0 | 1 | 2): boolean => {
+    const moveBundle = (c: Klass, bundle: Slot[], day: number, g: number, level: 0 | 1 | 2, allowPE1 = false): boolean => {
       const undo: [number, Slot][] = [];
       const placed: Slot[] = [];
       const relaxed: string[] = [];
@@ -2482,9 +2493,11 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
             !tt.unavailable.includes(`${day}-${g}`) &&
             interShiftOk(tt, c.shift, day) &&
             !(subj.bannedSlots && subj.bannedSlots.includes(`${day}-${g}`)) &&
-            (level === 0 || (!structuralViolation(c, subj, day, g) && !hardRunViolation(c, subj, day, g)));
-        if (ok && level === 0) {
-          const r = structuralViolation(c, subj, day, g) || hardRunViolation(c, subj, day, g) || hardCheck(c, o.teacherId, subj, day, g);
+            (level === 0 || (((sv) => !sv || (allowPE1 && sv === PE1_RULE))(structuralViolation(c, subj, day, g)) && !hardRunViolation(c, subj, day, g)));
+        if (ok && level <= 1) {
+          const r = level === 0
+            ? structuralViolation(c, subj, day, g) || hardRunViolation(c, subj, day, g) || hardCheck(c, o.teacherId, subj, day, g)
+            : (structuralViolation(c, subj, day, g) === PE1_RULE ? PE1_RULE : null); // 1-деңгейдегі жалғыз ерекшелік
           if (r) relaxed.push(r);
         }
         const room = ok ? findRoom(c, subj, day, g) : null;
@@ -2492,29 +2505,32 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         placed.push(place({ classId: c.id, subjectId: o.subjectId, teacherId: o.teacherId, roomId: room, day, slot: g, shift: c.shift, score: pScore(subj, g, settings), groupId: o.groupId }));
       }
       if (placed.length === bundle.length) {
-        if (level === 0 && relaxed.length)
-          fixDiag.push(`Түзету (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${S[bundle[0].subjectId].name}» қойылды — босатылған ереже: ${[...new Set(relaxed)].join("; ")}`);
+        if (relaxed.length)
+          fixDiag.push(`${level === 0 ? "Түзету" : "Тесікке жол бермеу"} (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${S[bundle[0].subjectId].name}» қойылды — босатылған ереже: ${[...new Set(relaxed)].join("; ")}`);
         return true;
       }
       for (const p of placed) removeSlot(p);
       for (let i = undo.length - 1; i >= 0; i--) restoreSlot(undo[i][1], undo[i][0]);
       return false;
     };
-    const fillOneGap = (c: Klass, day: number, g: number, level: 0 | 1 | 2): boolean => {
+    const fillOneGap = (c: Klass, day: number, g: number, level: 0 | 1 | 2, allowPE1 = false): boolean => {
       // 1-стратегия: күн соңы → тесік (өз күні бірінші — күн қысқарады)
       for (const d2 of [day, ...[1, 2, 3, 4, 5].filter((d) => d !== day)]) {
         const last2 = cmRowLast(c.id, d2);
         if (!last2 || (d2 === day && last2 <= g)) continue;
         const bundle = cellBundle(c, d2, last2);
-        if (bundle && moveBundle(c, bundle, day, g, level)) return true;
+        if (bundle && moveBundle(c, bundle, day, g, level, allowPE1)) return true;
       }
       // 2-стратегия: тізбек — басқа күннің ортасы → тесік, ойық ← сол күннің соңы.
       // Кері қайтару ДӘЛ: 1-қадам қолмен (индекс сақталады), 2-қадам өтпесе —
       // орналастырылғанды өшіріп, түпнұсқаны өз орнына қайтарамыз.
-      for (let d2 = 1; d2 <= 5; d2++) {
-        if (d2 === day) continue;
+      for (const d2 of [day, ...[1, 2, 3, 4, 5].filter((d) => d !== day)]) {
         const last2 = cmRowLast(c.id, d2);
-        for (let s2 = 2; s2 < last2; s2++) { // 1-слотты алмаймыз (кеш бастау = тесік)
+        // Өз күнінде: тесіктен КЕЙІНГІ ортаңғы сабақ → тесікке, соңғысы → оның
+        // орнына (мыс. соңғы сабақ Дене шынықтыру болып 1-слотқа бара алмағанда).
+        // Басқа күнде: 1-слотты алмаймыз (кеш бастау = тесік).
+        const s2from = d2 === day ? g + 1 : 2;
+        for (let s2 = s2from; s2 < last2; s2++) {
           if (cm[c.id][d2][s2] === null) continue;
           const mid = cellBundle(c, d2, s2);
           if (!mid || mid.length !== 1) continue; // тізбекте тек жалғыз сабақ
@@ -2533,17 +2549,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
               !ttM.unavailable.includes(`${day}-${g}`) &&
               interShiftOk(ttM, c.shift, day) &&
               !(subjM.bannedSlots && subjM.bannedSlots.includes(`${day}-${g}`)) &&
-              (level === 0 || (!structuralViolation(c, subjM, day, g) && !hardRunViolation(c, subjM, day, g)));
+              (level === 0 || (((sv) => !sv || (allowPE1 && sv === PE1_RULE))(structuralViolation(c, subjM, day, g)) && !hardRunViolation(c, subjM, day, g)));
           const roomM = okM ? findRoom(c, subjM, day, g) : null;
           if (!roomM) { restoreSlot(mo, iM); continue; }
           if (level === 0) {
             const r = structuralViolation(c, subjM, day, g) || hardRunViolation(c, subjM, day, g) || hardCheck(c, mo.teacherId, subjM, day, g);
             if (r) fixDiag.push(`Түзету (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${subjM.name}» қойылды — босатылған ереже: ${r}`);
-          }
+          } else if (structuralViolation(c, subjM, day, g) === PE1_RULE)
+            fixDiag.push(`Тесікке жол бермеу (${c.name}): ${DAY_SHORT[day]} ${g}-сабаққа «${subjM.name}» қойылды — босатылған ереже: ${PE1_RULE}`);
           const pM = place({ classId: c.id, subjectId: mo.subjectId, teacherId: mo.teacherId, roomId: roomM, day, slot: g, shift: c.shift, score: pScore(subjM, g, settings) });
           const tailSlot = cmRowLast(c.id, d2);
           const tail = tailSlot > s2 ? cellBundle(c, d2, tailSlot) : null;
-          if (tail && moveBundle(c, tail, d2, s2, level)) return true;
+          if (tail && moveBundle(c, tail, d2, s2, level, allowPE1)) return true;
           removeSlot(pM); restoreSlot(mo, iM); // дәл кері қайтару
         }
       }
@@ -2555,8 +2572,98 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
         while (guard++ < 4) {
           const g = cmGap(c.id, day);
           if (g < 0) break;
-          if (!fillOneGap(c, day, g, 2) && !fillOneGap(c, day, g, 1) && !(forceFix && fillOneGap(c, day, g, 0))) break;
+          if (!fillOneGap(c, day, g, 2) && !fillOneGap(c, day, g, 1) &&
+              !fillOneGap(c, day, g, 1, true) && // Дене-1-сабақ — тек тесік жабудың СОҢҒЫ амалы
+              !(forceFix && fillOneGap(c, day, g, 0))) break;
         }
+      }
+    }
+    /* ЭТАП 7.96 — 1-САБАҚТАҒЫ ДЕНЕ ШЫНЫҚТЫРУДЫ ӘКЕТУ: тесік жабу барысында
+       амалсыз 1-сабаққа түскен Дене шынықтыруды кейінгі сабақпен орын
+       алмастырып көшіреміз (своп — бос ұя керек емес, тесік тумайды).
+       Екі жақ та ТОЛЫҚ ережеден өтеді, өтпесе дәл кері қайтады. */
+    // relax=true (тек forceFix): физика заңы + «бір күн — бір пән» ғана;
+    // босатылған ереже аттары hardCheck себебімен есепке жазылады.
+    const physOk2 = (tid: string, subj: Subject, cls2: Klass, day: number, slot: number): boolean => {
+      const t2 = T[tid];
+      return !!t2 &&
+        !ds[cls2.id][day].has(subj.id) &&
+        tm[tid][cls2.shift][day][slot] === null &&
+        !t2.unavailable.includes(`${day}-${slot}`) &&
+        interShiftOk(t2, cls2.shift, day) &&
+        !(subj.bannedSlots && subj.bannedSlots.includes(`${day}-${slot}`));
+    };
+    const swapCells = (a: Slot, b: Slot, relax = false): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      const cls = C[a.classId];
+      const iA = slots.indexOf(a), iB = slots.indexOf(b);
+      removeSlot(a); removeSlot(b);
+      let pA: Slot | null = null, pB: Slot | null = null;
+      const relaxed: string[] = [];
+      do {
+        const h1 = hardCheck(cls, a.teacherId, S[a.subjectId], b.day, b.slot);
+        if (relax ? !physOk2(a.teacherId, S[a.subjectId], cls, b.day, b.slot) : h1 !== null) break;
+        if (relax && h1) relaxed.push(h1);
+        const rA = findRoom(cls, S[a.subjectId], b.day, b.slot);
+        if (!rA) break;
+        pA = place({ classId: cls.id, subjectId: a.subjectId, teacherId: a.teacherId, roomId: rA, day: b.day, slot: b.slot, shift: cls.shift, score: pScore(S[a.subjectId], b.slot, settings) });
+        const h2 = hardCheck(cls, b.teacherId, S[b.subjectId], a.day, a.slot);
+        if (relax ? !physOk2(b.teacherId, S[b.subjectId], cls, a.day, a.slot) : h2 !== null) break;
+        if (relax && h2) relaxed.push(h2);
+        const rB = findRoom(cls, S[b.subjectId], a.day, a.slot);
+        if (!rB) break;
+        pB = place({ classId: cls.id, subjectId: b.subjectId, teacherId: b.teacherId, roomId: rB, day: a.day, slot: a.slot, shift: cls.shift, score: pScore(S[b.subjectId], a.slot, settings) });
+        if (relax)
+          fixDiag.push(`Түзету (${cls.name}): 1-сабақтағы «${S[a.subjectId].name}» ↔ «${S[b.subjectId].name}» (${DAY_SHORT[b.day]} ${b.slot}-сабақ)${relaxed.length ? " — босатылған ереже: " + [...new Set(relaxed)].join("; ") : ""}`);
+        return true;
+      } while (false);
+      if (pB) removeSlot(pB);
+      if (pA) removeSlot(pA);
+      const rst: [number, Slot][] = [[iA, a], [iB, b]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [i2, o] of rst) restoreSlot(o, i2);
+      return false;
+    };
+    for (const c of targetClasses) {
+      for (let day = 1; day <= 5; day++) {
+        const pe = slots.find((o) => o.classId === c.id && o.day === day && o.slot === 1 && S[o.subjectId]?.room === "gym" && !o.groupId && !o.dpart && !o.locked);
+        if (!pe) continue;
+        // алдымен өз күнінің кейінгі сабақтары, сосын басқа күндер
+        const cands = slots
+          .filter((o) => o.classId === c.id && !(o.day === day && o.slot === 1) && o.slot > 1 && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID && S[o.subjectId]?.room !== "gym")
+          .sort((x, y) => (x.day === day ? 0 : 1) - (y.day === day ? 0 : 1) || x.slot - y.slot);
+        let moved = false;
+        for (const cand of cands) if (swapCells(pe, cand)) { moved = true; break; }
+        if (moved) continue;
+        // Жұп-своп бөгелді — ҮШТІК АЙНАЛЫМ: Дене → X ұясына, X → Y ұясына,
+        // Y → 1-сабаққа (барлығы толық ережемен; өтпесе дәл кері қайтады).
+        outer: for (const x of cands) {
+          for (const y of cands) {
+            if (y === x || y.day === x.day && y.slot === x.slot) continue;
+            const cls = C[pe.classId];
+            const idx = [slots.indexOf(pe), slots.indexOf(x), slots.indexOf(y)];
+            removeSlot(pe); removeSlot(x); removeSlot(y);
+            const placedR: Slot[] = [];
+            const trio: [Slot, Slot][] = [[pe, x], [x, y], [y, pe]];
+            for (const [mv, at] of trio) {
+              if (hardCheck(cls, mv.teacherId, S[mv.subjectId], at.day, at.slot)) break;
+              const r2 = findRoom(cls, S[mv.subjectId], at.day, at.slot);
+              if (!r2) break;
+              placedR.push(place({ classId: cls.id, subjectId: mv.subjectId, teacherId: mv.teacherId, roomId: r2, day: at.day, slot: at.slot, shift: cls.shift, score: pScore(S[mv.subjectId], at.slot, settings) }));
+            }
+            if (placedR.length === 3) { moved = true; break outer; }
+            for (const p of placedR) removeSlot(p);
+            const rst: [number, Slot][] = [[idx[0], pe], [idx[1], x], [idx[2], y]];
+            rst.sort((q, w) => q[0] - w[0]);
+            for (const [i2, o] of rst) restoreSlot(o, i2);
+          }
+        }
+        if (moved) continue;
+        if (forceFix) {
+          for (const cand of cands) if (swapCells(pe, cand, true)) { moved = true; break; }
+        }
+        if (!moved)
+          fixDiag.push(`Дене шынықтыру 1-сабақта қалды (${c.name}, ${DAY_SHORT[day]}): ауыстыруға толық ережелер мен мұғалім/зал бос еместігі кедергі${forceFix ? "" : " — «Ережені босатып түзету» көшіруге тырысады"}.`);
       }
     }
   }
@@ -2762,7 +2869,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
   // мүмкін) — тең салмақ комфорт жақсарғанын әділ өтейді, жалпы баға
   // жақсарған кестені дұрыс көрсетеді (завуч талабы).
   const quality = Math.max(0, Math.round(avgC * 0.30 + balance * 0.20 + comfort * 0.30 + stressPct * 0.2) - Math.min(25, missedHours));
-  const warnings = [...sanpinWarnings, ...softWarnings, ...fixDiag, ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
+  const warnings = [...sanpinWarnings, ...softWarnings, ...new Set(fixDiag), ...unplaced.map((u) => `${u.className} — ${u.subject}: ${u.placed}/${u.need} орналасты (${u.reason})`)];
   // Сыйымдылық ескертулері: сынып тар кабинетке сыймаған жағдайлар
   for (const cw of capWarn) {
     const [clsName, students, cap] = cw.split("|");
@@ -2853,6 +2960,7 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       total: slots.filter((o) => (!o.groupId || o.groupId === "Г1") && o.subjectId !== HOMEROOM_SUBJECT_ID).length,
       comfort: Math.round(comfort), balance: Math.round(balance), avgClass: Math.round(avgC),
       pedViol, weekBalBad,
+      pe1: slots.filter((o) => o.slot === 1 && S[o.subjectId]?.room === "gym" && (!o.groupId || o.groupId === "Г1")).length,
     },
   };
 }
