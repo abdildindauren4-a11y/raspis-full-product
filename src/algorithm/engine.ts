@@ -161,7 +161,7 @@ export interface AlgoResult {
   stats: { timeMs: number; iters: number; total: number; comfort: number; balance: number; avgClass: number;
     // Педагогикалық ережелердің бұзылу саны (алг+гео/орыс бір күн, тіл қатар,
     // 3 қиын қатар) — нұсқа таңдауда (runScore) минимумға тартылады.
-    pedViol?: number; weekBalBad?: number };
+    pedViol?: number; weekBalBad?: number; pe1excess?: number };
 }
 export type ProgressFn = (pct: number, stage: number) => void;
 // Сынып сағаты слоттарын белгілейтін тұрақты sentinel ID (нақты Subject емес —
@@ -990,7 +990,18 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       if (tk.cu.isSplit) ok = !!checkSplit(tk, day, slot);
       else ok = !hardCheck(tk.cls, tk.cu.teacherId!, tk.s, day, slot) && !!findRoom(tk.cls, tk.s, day, slot);
       if (ok) {
-        const sc = pScore(tk.s, slot, settings);
+        let sc = pScore(tk.s, slot, settings);
+        // ДЕНЕ ШЫНЫҚТЫРУ 1-САБАҚ ШОҒЫРЛАНУЫН БОЛДЫРМАУ (завуч: «3 сағаттың тек
+        // 1-еуі ғана 1-сабақта»). Спортзал сыйымдылығы шектеулі болғандықтан
+        // кейде ДШ ерте слотқа мәжбүр; бірақ бір сыныпта 1-сабаққа 2-ші ДШ
+        // қоюдан аулақ боламыз — оны басқа сыныптарға таратамыз. Слот1-де ДШ
+        // бар болса, осы күнгі slot1 ДШ-ы қатты айыпталады (басқа слот/күн бос
+        // болса — сонда кетеді; тек басқа амал болмаса ғана 1-сабаққа түседі).
+        if (slot === 1 && tk.s.room === "gym") {
+          let peAt1 = 0;
+          for (let d2 = 1; d2 <= 5; d2++) { const id = cm[tk.cls.id][d2][1]; if (id && S[id]?.room === "gym") peAt1++; }
+          if (peAt1 >= 1) sc -= 100;
+        }
         if (!best || sc > best.sc) best = { slot, sc };
       }
     }
@@ -2758,6 +2769,100 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
     }
   }
 
+  /* ЭТАП 7.98 — ДЕНЕ ШЫНЫҚТЫРУ 1-САБАҚТА (завуч: «3 сағаттың тек 1-еуі ғана
+     1-сабаққа қойылсын, қажет болмаса мүлде қойылмаса жақсы»). 1-сабақтағы
+     ДШ-ны кейінгі сабақпен (мүмкіндігінше кеш — ДШ идеалы 5-7) орын
+     алмастырамыз (ұя-ұяға — тесік тумайды). Ең көбі 1 ДШ-ны 1-сабақта
+     қалдырамыз; басқасын міндетті түрде әкетеміз. Екі жақ та толық
+     hardCheck-тен өтеді; өтпесе дәл кері қайтады. */
+  {
+    const isGym = (id: string) => S[id]?.room === "gym";
+    const swapOut = (a: Slot, b: Slot): boolean => {
+      if (a.groupId || a.dpart || a.locked || b.groupId || b.dpart || b.locked) return false;
+      const cls = C[a.classId];
+      const iA = slots.indexOf(a), iB = slots.indexOf(b);
+      removeSlot(a); removeSlot(b);
+      let pA: Slot | null = null;
+      do {
+        if (hardCheck(cls, a.teacherId, S[a.subjectId], b.day, b.slot)) break;
+        const rA = findRoom(cls, S[a.subjectId], b.day, b.slot);
+        if (!rA) break;
+        pA = place({ classId: cls.id, subjectId: a.subjectId, teacherId: a.teacherId, roomId: rA, day: b.day, slot: b.slot, shift: cls.shift, score: pScore(S[a.subjectId], b.slot, settings) });
+        if (hardCheck(cls, b.teacherId, S[b.subjectId], a.day, a.slot)) break;
+        const rB = findRoom(cls, S[b.subjectId], a.day, a.slot);
+        if (!rB) break;
+        place({ classId: cls.id, subjectId: b.subjectId, teacherId: b.teacherId, roomId: rB, day: a.day, slot: a.slot, shift: cls.shift, score: pScore(S[b.subjectId], a.slot, settings) });
+        return true;
+      } while (false);
+      if (pA) removeSlot(pA);
+      const rst: [number, Slot][] = [[iA, a], [iB, b]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [idx, o] of rst) restoreSlot(o, idx);
+      return false;
+    };
+    // Үш-жақты айналым (2-своп жеткіліксіз: спортзал/мұғалім тар): a→b, b→c, c→a
+    const rotateOut = (a: Slot, b: Slot, cc: Slot): boolean => {
+      if ([a, b, cc].some((o) => o.groupId || o.dpart || o.locked)) return false;
+      const cls = C[a.classId];
+      const trio2: [Slot, Slot][] = [[a, b], [b, cc], [cc, a]];
+      const idx = [slots.indexOf(a), slots.indexOf(b), slots.indexOf(cc)];
+      removeSlot(a); removeSlot(b); removeSlot(cc);
+      const placedR: Slot[] = [];
+      for (const [mv, at] of trio2) {
+        if (hardCheck(cls, mv.teacherId, S[mv.subjectId], at.day, at.slot)) break;
+        const rm2 = findRoom(cls, S[mv.subjectId], at.day, at.slot);
+        if (!rm2) break;
+        placedR.push(place({ classId: cls.id, subjectId: mv.subjectId, teacherId: mv.teacherId, roomId: rm2, day: at.day, slot: at.slot, shift: cls.shift, score: pScore(S[mv.subjectId], at.slot, settings) }));
+      }
+      // ДШ 1-сабақтан кетуі керек әрі жаңа ДШ 1-сабақ тумауы керек
+      if (placedR.length === 3 && !isGym(cm[cls.id][a.day][a.slot] || "")) return true;
+      for (const p of placedR) removeSlot(p);
+      const rst: [number, Slot][] = [[idx[0], a], [idx[1], b], [idx[2], cc]];
+      rst.sort((x, y) => x[0] - y[0]);
+      for (const [i2, o] of rst) restoreSlot(o, i2);
+      return false;
+    };
+    for (const c of targetClasses) {
+      let guard = 0;
+      while (guard++ < 4) {
+        const pe1 = slots.filter((o) => o.classId === c.id && o.slot === 1 && isGym(o.subjectId) && !o.groupId && !o.dpart && !o.locked);
+        if (pe1.length <= 1) break; // ≤1 рұқсат
+        // Кандидат — сол сыныптың 2-сабақ+ орналасқан ДШ-ЕМЕС жалғыз сабағы;
+        // ДШ идеалына жақын (кеш) слоттар алдымен.
+        const cands = slots
+          .filter((o) => o.classId === c.id && o.slot >= 2 && !isGym(o.subjectId) && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID)
+          .sort((x, y) => Math.abs(6 - x.slot) - Math.abs(6 - y.slot)); // 5-7-ге жақыны бірінші
+        let moved = false;
+        // БАРЛЫҚ 1-сабақтағы ДШ-ны кезекпен әкетуге тырысамыз (біреуі мәжбүр
+        // болса, екіншісі жылжуы мүмкін — 10А сияқты тығыз сыныпта маңызды)
+        for (const a of pe1) {
+          for (const b of cands) if (swapOut(a, b)) { moved = true; break; }
+          if (moved) break;
+          // 2-своп болмаса — үш-жақты айналым (b, c кез келген жылжымалы ДШ-емес)
+          const mov = slots.filter((o) => o.classId === c.id && !isGym(o.subjectId) && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID && !(o.day === a.day && o.slot === a.slot));
+          outer: for (const b of mov)
+            for (const cc of mov) {
+              if (cc === b || (cc.day === b.day && cc.slot === b.slot)) continue;
+              if (rotateOut(a, b, cc)) { moved = true; break outer; }
+            }
+          if (moved) break;
+        }
+        if (!moved) break; // әкету мүмкін болмады (қажеттілік) — қалғанын қалдырамыз
+      }
+    }
+    // Соңғы 1 ДШ-ны да 1-сабақтан әкетуге тырысамыз (завуч: «болмаса жақсы»),
+    // бірақ МІНДЕТТІ емес — тек оңай своп болса.
+    for (const c of targetClasses) {
+      const pe1 = slots.filter((o) => o.classId === c.id && o.slot === 1 && isGym(o.subjectId) && !o.groupId && !o.dpart && !o.locked);
+      if (pe1.length !== 1) continue;
+      const a = pe1[0];
+      const cands = slots
+        .filter((o) => o.classId === c.id && o.slot >= 2 && !isGym(o.subjectId) && !o.groupId && !o.dpart && !o.locked && o.subjectId !== HOMEROOM_SUBJECT_ID)
+        .sort((x, y) => Math.abs(6 - x.slot) - Math.abs(6 - y.slot));
+      for (const b of cands) if (swapOut(a, b)) break;
+    }
+  }
+
   /* ЭТАП 8 — стресс-тесттер */
   prog(88, 6);
   const tests: StressTest[] = [];
@@ -3050,6 +3155,12 @@ export function generate(input: AlgoInput, onProgress?: ProgressFn): AlgoResult 
       total: slots.filter((o) => (!o.groupId || o.groupId === "Г1") && o.subjectId !== HOMEROOM_SUBJECT_ID).length,
       comfort: Math.round(comfort), balance: Math.round(balance), avgClass: Math.round(avgC),
       pedViol, weekBalBad,
+      // Дене шынықтырудың 1-сабақтағы «артық» саны (әр сыныпта 1-еуі рұқсат):
+      // seed таңдауда азы артық көрінеді (завуч ережесі).
+      pe1excess: classes.reduce((n, c) => {
+        const k = slots.filter((o) => o.classId === c.id && o.slot === 1 && S[o.subjectId]?.room === "gym" && (!o.groupId || o.groupId === "Г1")).length;
+        return n + Math.max(0, k - 1);
+      }, 0),
     },
   };
 }
@@ -3070,6 +3181,7 @@ function runScore(r: AlgoResult): number {
     - r.gaps.length * 500
     - (r.stats.pedViol ?? 0) * 400 // ереже бұзушылығы аз нұсқа басым
     - (r.stats.weekBalBad ?? 0) * 150 // апта балансы (Ср ≥ Жм) бұзылған сынып аз болсын
+    - (r.stats.pe1excess ?? 0) * 120 // Дене шынықтыру 1-сабақта 1-еуден артық болмасын
     + r.quality * 10
     + r.stats.comfort; // тең болса — мұғалімге ыңғайлысы
 }
