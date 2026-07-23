@@ -66,6 +66,44 @@
 
 ---
 
+## 📓 5-дәптер: «App Design · Algorithms · Store» (жаңа)
+
+Осы репо-құжаттар (📄) — дайын дереккөздер; сыртқы сілтемелер (🆓) — қосымша.
+
+### Приложение дизайны
+| # | Материал | Түрі | Сілтеме |
+|---|---|---|---|
+| ⭐📄 | Мобильді дизайн нұсқаулығы | PDF | `04-APP-DESIGN-GUIDE` |
+| 🆓 | Apple Human Interface Guidelines | Docs | developer.apple.com/design/human-interface-guidelines |
+| 🆓 | Material Design 3 | Docs | m3.material.io |
+| 🆓 | Refactoring UI (кітап-сайт) | Веб/кітап | refactoringui.com |
+| 🆓 | Laws of UX | Веб | lawsofux.com |
+| 🆓 | NN/g — mobile UX, forms, empty states | Мақала | nngroup.com/articles/ |
+| 🆓 | Mobbin — паттерн-галерея | Галерея | mobbin.com |
+
+### Алгоритм құру
+| # | Материал | Түрі | Сілтеме |
+|---|---|---|---|
+| ⭐📄 | Приложениеге алгоритм нұсқаулығы | PDF | `05-ALGORITHM-DESIGN-GUIDE` |
+| 🆓 | Google — Recommendation Systems курсы | Курс | developers.google.com/machine-learning/recommendation |
+| 🆓 | Grokking Algorithms (кіріспе, ең түсінікті) | Кітап | manning.com/books/grokking-algorithms |
+| 🆓 | Uber Engineering — marketplace/dispatch посттары | Блог | uber.com/blog/engineering |
+| 🆓 | Eugene Yan — applied RecSys/ML | Блог | eugeneyan.com |
+| 💰 | Skiena — "The Algorithm Design Manual" | Кітап | (терең анықтамалық) |
+
+### App Store & Play Market
+| # | Материал | Түрі | Сілтеме |
+|---|---|---|---|
+| ⭐📄 | Дүкенге дайындау нұсқаулығы | PDF | `06-APP-STORE-READINESS` |
+| ⭐🆓 | Apple — App Store Review Guidelines | Docs | developer.apple.com/app-store/review/guidelines/ |
+| ⭐🆓 | Google Play — Developer Policy Center | Docs | play.google/developer-content-policy/ |
+| 🆓 | Apple — App Store Connect Help | Docs | developer.apple.com/help/app-store-connect/ |
+| 🆓 | Google Play — Data safety формасы | Docs | support.google.com/googleplay/android-developer/answer/10787469 |
+| 🆓 | Apple — Product Page / ASO | Docs | developer.apple.com/app-store/product-page/ |
+| 🆓 | ASO блогтары (AppFigures / Sensor Tower / Storemaven) | Блог | appfigures.com/resources · sensortower.com/blog |
+
+---
+
 ## Жинау тәртібі (бәрін бірден емес)
 
 1. **Бүгін (1 сағат, тегін):** 📄 4 репо-құжатты жүкте + ⭐🆓 сілтемелерді әр дәптерге қос → қаңқа дайын.
