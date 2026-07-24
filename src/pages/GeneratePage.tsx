@@ -1,7 +1,7 @@
 // filepath: src/pages/GeneratePage.tsx
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange, RefreshCw, Lock, Cpu } from "lucide-react";
+import { Sparkles, Layers, CheckCircle2, AlertCircle, XCircle, Loader2, Save, Calendar, RotateCw, Circle, Telescope, Bot, Users, CalendarRange, RefreshCw, Lock, Cpu, Dices } from "lucide-react";
 import { ENGINES } from "@/lib/engines";
 import GlassCard from "@/components/shared/GlassCard";
 import AIRobot, { type RobotStageGroup } from "@/components/shared/AIRobot";
@@ -154,7 +154,9 @@ export default function GeneratePage() {
   const multiRatio = multi.total ? multi.done / multi.total : 0;
   const multiStageGroup: RobotStageGroup = multiRatio < 0.34 ? "scan" : multiRatio < 0.67 ? "build" : multiRatio < 0.92 ? "balance" : "done";
 
-  const run = async (forceFix = false) => {
+  // «🎲 Басқа нұсқа»: variant=true болса, генерация кездейсоқ тұқым базасынан
+  // басталады → дерек өзгермесе де басқа жарамды кесте шығады.
+  const run = async (forceFix = false, variant = false) => {
     const kind: GenerationKind = mode === "deep" ? "deep" : "quick";
     // Квота тексерісі (Firestore, желіде 1-3 сек) мен генерацияны ҚАТАР
     // жүргіземіз — пайдаланушы желі кідірісін күтпейді. Квота жетпесе,
@@ -175,6 +177,7 @@ export default function GeneratePage() {
       komplekts: isShzhm ? data.komplekts : undefined,
       softFill,
       forceFix: forceFix || undefined,
+      variantSeed: variant ? (Date.now() >>> 0) : undefined,
     };
     if (mode === "deep" && !isShzhm) {
       multi.start(input, deepCount);
@@ -218,6 +221,9 @@ export default function GeneratePage() {
   };
 
   const resetAll = () => { reset(); multi.reset(); setMode("full"); setSaved(false); setExplanation(""); setExplainErr(""); };
+  // «🎲 Басқа нұсқа»: сол режимде (жылдам/терең) басқа жарамды кесте жасау —
+  // дерек өзгермесе де әр басқанда өзгеше орналасу (тесіксіз, ережелі).
+  const regenVariant = () => { reset(); multi.reset(); setSaved(false); setExplanation(""); setExplainErr(""); run(false, true); };
 
   // Автотүсіндірме: нәтиже сәтті болғанда РАСПИС AI түсіндірме жазады
   useEffect(() => {
@@ -683,6 +689,9 @@ export default function GeneratePage() {
             ) : (
               <button className={btnP + " flex items-center gap-2"} onClick={() => navigate("/schedule")}><Calendar className="w-4 h-4" /> {t("gen.viewSchedule")}</button>
             )}
+            <button className={btnG + " flex items-center gap-2"} onClick={regenVariant} title={lang === "kk" ? "Дерек өзгермесе де басқа жарамды нұсқа жасау" : lang === "ru" ? "Другой валидный вариант без изменения данных" : "Another valid variant without changing data"}>
+              <Dices className="w-4 h-4" /> {lang === "kk" ? "Басқа нұсқа" : lang === "ru" ? "Другой вариант" : "Another variant"}
+            </button>
             <button className={btnG + " flex items-center gap-2"} onClick={resetAll}><RotateCw className="w-4 h-4" /> {t("gen.newGen")}</button>
           </div>
           {saved && <p className="text-center status-good text-sm flex items-center justify-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Сақталды және белсендірілді</p>}

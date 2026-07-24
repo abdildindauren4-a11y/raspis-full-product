@@ -137,6 +137,11 @@ export interface AlgoInput {
   // тек жарамсыздары (кеткен мұғалім, өзгерген сағат) жаңадан орналасады.
   partial?: { classIds: string[]; baseSlots: Slot[]; anchor?: boolean };
   seed?: number; // әртүрлі нұсқа үшін кездейсоқтық тұқымы (multi-run)
+  // «🎲 Басқа нұсқа»: берілсе, generateAuto/generateMulti тұқымдарды осы
+  // базадан бастайды (0-ден емес) — дерек өзгермесе де әр басқанда БАСҚА
+  // жарамды кесте шығады (тесіксіз, ережелі, бірақ орналасуы өзге). Берілмесе —
+  // әдеттегі детерминді мінез (бір деректе — бір кесте).
+  variantSeed?: number;
   softFill?: boolean; // жұмсақ режим: сыймаған сабақтарды қалаулы ережелерді жұмсартып орналастыру
   // «Ережені босатып түзету»: кесте дайын болған соң ұстап қалған тұстарды
   // (апта балансы, тесік) ДӘЛ СОЛ жерде кедергі болған ережені ғана босатып
@@ -3204,13 +3209,17 @@ export function generateAuto(input: AlgoInput, onProgress?: ProgressFn, maxTries
   const BUDGET_MS = input.classes.length > 18 ? 8000 : 2500;
   let best: AlgoResult | null = null;
   let bestScore = -Infinity;
+  // «Басқа нұсқа»: variantSeed берілсе — тұқымдарды кездейсоқ базадан бастаймыз
+  // (бәрі нөлден өзге → бәрінде шу бар → әр басқанда өзге жарамды кесте).
+  const vs = input.variantSeed;
   for (let i = 0; i < maxTries; i++) {
     const wrapped: ProgressFn | undefined = onProgress
       ? i === 0
         ? (p, st) => onProgress(Math.min(p, 90), st)
         : () => onProgress(Math.min(90 + i, 99), 6)
       : undefined;
-    const r = generate({ ...input, seed: i === 0 ? 0 : i }, wrapped);
+    const seed = vs != null ? ((vs + i * 7919) >>> 0 || 1) : (i === 0 ? 0 : i);
+    const r = generate({ ...input, seed }, wrapped);
     const sc = runScore(r);
     if (sc > bestScore) { bestScore = sc; best = r; }
     // мінсіз (тесіксіз, толық, педагогикалық бұзусыз) — бірден тоқтаймыз
@@ -3250,9 +3259,11 @@ export function generateMulti(
   const patience = Math.max(10, Math.ceil(count * 0.25));
   const cleanNeeded = 4;
 
+  const vs = input.variantSeed; // «Басқа нұсқа» — тұқым базасын жылжытады
   for (let i = 0; i < count; i++) {
-    // seed=1..count (0 — әдепкі детерминді, оны да қосамыз бірінші)
-    const seed = i === 0 ? 0 : i;
+    // seed=1..count (0 — әдепкі детерминді, оны да қосамыз бірінші).
+    // variantSeed берілсе — бәрі кездейсоқ базадан (нөлден өзге) → өзге нұсқа.
+    const seed = vs != null ? ((vs + i * 7919) >>> 0 || 1) : (i === 0 ? 0 : i);
     const r = generate({ ...input, seed });
     tried++;
     const sc = runScore(r);
